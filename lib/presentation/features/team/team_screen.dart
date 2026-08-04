@@ -6,6 +6,7 @@ import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
+import '../../shared/widgets/metric_card.dart';
 import '../../shared/widgets/section_header.dart';
 
 enum _TeamView { candidates, employees }
@@ -53,12 +54,76 @@ class _TeamScreenState extends State<TeamScreen> {
           ..sort(_candidateComparator);
 
     return ListView(
+      key: const Key('team-screen-list'),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
       children: [
         SectionHeader(
           title: 'Команда',
           subtitle:
               '${state.employees.length}/${state.office.capacity} мест • payroll ${money(state.monthlyPayroll)}/мес.',
+          hintTitle: 'Как читать команду',
+          hintBody:
+              'Общие значения сверху — средние показатели всех нанятых сотрудников. Реальный вклад в продукт дают только люди, назначенные на него в разделе «Операции».',
+          hintBullets: const [
+            'Skill и speed ускоряют разработку.',
+            'Quality и reliability влияют на результат и стабильность.',
+            'Morale и loyalty помогают удерживать сильных сотрудников.',
+          ],
+        ),
+        const SizedBox(height: 12),
+        AppCard(
+          hintTitle: 'Общая статистика команды',
+          hintBody:
+              'Средние значения считаются по всем сотрудникам компании, включая резерв. Это быстрый индикатор силы команды, но не замена проверке специальностей по каждому продукту.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Средние показатели',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 10),
+              GridView.count(
+                crossAxisCount: 3,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 1.25,
+                children: [
+                  MetricCard(
+                    label: 'Skill',
+                    value: state.averageEmployeeSkill.toStringAsFixed(0),
+                  ),
+                  MetricCard(
+                    label: 'Speed',
+                    value: state.averageEmployeeSpeed.toStringAsFixed(0),
+                  ),
+                  MetricCard(
+                    label: 'Quality',
+                    value: state.averageEmployeeQuality.toStringAsFixed(0),
+                  ),
+                  MetricCard(
+                    label: 'Reliability',
+                    value: state.averageEmployeeReliability.toStringAsFixed(0),
+                  ),
+                  MetricCard(
+                    label: 'Morale',
+                    value: state.averageEmployeeMorale.toStringAsFixed(0),
+                  ),
+                  MetricCard(
+                    label: 'Loyalty',
+                    value: state.averageEmployeeLoyalty.toStringAsFixed(0),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                '${state.employees.length - state.unassignedEmployees.length} назначено • ${state.unassignedEmployees.length} в резерве',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 12),
         AppCard(
@@ -86,6 +151,7 @@ class _TeamScreenState extends State<TeamScreen> {
         const SizedBox(height: 14),
         if (_view == _TeamView.candidates) ...[
           TextField(
+            key: const Key('team-candidate-search'),
             controller: _searchController,
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(
@@ -383,7 +449,6 @@ class _EmployeeCard extends StatelessWidget {
 
 class _Skill extends StatelessWidget {
   const _Skill({required this.label, required this.value});
-
   final String label;
   final int value;
 

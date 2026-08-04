@@ -7,6 +7,11 @@ import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
 import '../ecosystem/ecosystem_screen.dart';
+import '../security/security_center_screen.dart';
+import '../tutorial/founder_tutorial_dialog.dart';
+import '../operations/operations_screen.dart';
+import '../intelligence/competitor_intelligence_screen.dart';
+import '../finance/finance_screen.dart';
 import '../investors/investors_screen.dart';
 import '../market/market_screen.dart';
 import '../news/news_screen.dart';
@@ -28,6 +33,52 @@ class MoreScreen extends StatelessWidget {
               'Экосистема, капитал, внешний портфель, сделки и новости вынесены в отдельные разделы.',
         ),
         const SizedBox(height: 12),
+        _MenuCard(
+          icon: Icons.school_outlined,
+          title: 'Обучение и подсказки',
+          subtitle: 'Коротко пройти основной цикл и механику продукта',
+          onTap: () => showFounderTutorial(context, controller),
+        ),
+        const SizedBox(height: 10),
+        _MenuCard(
+          icon: Icons.account_tree_outlined,
+          title: 'Операции и проектные команды',
+          subtitle:
+              '${state.employees.length - state.unassignedEmployees.length} назначено • ${state.unassignedEmployees.length} в резерве',
+          onTap: () => _open(context, OperationsScreen(controller: controller)),
+        ),
+        const SizedBox(height: 10),
+        _MenuCard(
+          icon: Icons.shield_outlined,
+          title: 'Центр безопасности',
+          subtitle:
+              '${state.securityControls.length} контролей • ${money(state.monthlySecurityCost)}/мес.',
+          warning: state.products.any(
+            (product) => state.productSecurityRisk(product) >= 0.25,
+          ),
+          onTap: () =>
+              _open(context, SecurityCenterScreen(controller: controller)),
+        ),
+        const SizedBox(height: 10),
+        _MenuCard(
+          icon: Icons.radar_outlined,
+          title: 'Конкурентная разведка',
+          subtitle: 'Лидеры рынка, точные метрики и пользовательские сегменты',
+          onTap: () => _open(
+            context,
+            CompetitorIntelligenceScreen(controller: controller),
+          ),
+        ),
+        const SizedBox(height: 10),
+        _MenuCard(
+          icon: Icons.receipt_long_outlined,
+          title: 'Финансы и P&L',
+          subtitle:
+              '${money(state.monthlyProfit)}/мес. • runway ${state.runwayMonths >= 99 ? '∞' : state.runwayMonths.toStringAsFixed(1)}',
+          warning: state.monthlyProfit < 0 && state.runwayMonths < 6,
+          onTap: () => _open(context, FinanceScreen(controller: controller)),
+        ),
+        const SizedBox(height: 10),
         _MenuCard(
           icon: Icons.hub_outlined,
           title: 'Экосистема продуктов',

@@ -1,9 +1,13 @@
 import 'dart:math' as math;
 
 import '../../catalog/game_catalog.dart';
+import '../../catalog/operations_catalog.dart';
+import '../../catalog/product_evolution_catalog.dart';
 import '../../commands/game_action.dart';
 import '../../entities/game_state.dart';
 import '../../entities/models.dart';
+import '../../entities/operations_models.dart';
+import '../../entities/product_evolution_models.dart';
 import '../product_estimator.dart';
 
 class GameEngine {
@@ -18,6 +22,8 @@ class GameEngine {
     }
 
     return switch (action) {
+      CompleteOnboarding() => state.copyWith(onboardingCompleted: true),
+      RestartOnboarding() => state.copyWith(onboardingCompleted: false),
       AdvanceTime() => _advanceTime(state, action.realSeconds),
       SetGameSpeed() => state.copyWith(speed: action.speed),
       TogglePause() => state.copyWith(paused: !state.paused),
@@ -28,6 +34,25 @@ class GameEngine {
         state,
         action.productId,
         action.featureId,
+      ),
+      SetAiDeploymentMode() => _setAiDeploymentMode(
+        state,
+        action.productId,
+        action.mode,
+      ),
+      ConnectCorporateAi() => _connectCorporateAi(
+        state,
+        action.aiProductId,
+        action.targetProductId,
+      ),
+      DisconnectCorporateAi() => _disconnectCorporateAi(
+        state,
+        action.targetProductId,
+      ),
+      ApplyProductImprovement() => _applyProductImprovement(
+        state,
+        action.productId,
+        action.type,
       ),
       SetProductMonetization() => _setMonetization(
         state,
@@ -45,6 +70,28 @@ class GameEngine {
         action.percent,
       ),
       HireCandidate() => _hireCandidate(state, action.candidateId),
+      AssignEmployeeToProduct() => _assignEmployee(
+        state,
+        action.employeeId,
+        action.productId,
+      ),
+      FireEmployee() => _fireEmployee(state, action.employeeId),
+      GiveEmployeeRaise() => _giveRaise(
+        state,
+        action.employeeId,
+        action.percent,
+      ),
+      TrainEmployee() => _trainEmployee(
+        state,
+        action.employeeId,
+        action.programId,
+      ),
+      PurchaseSecurityControl() => _purchaseSecurityControl(
+        state,
+        action.productId,
+        action.controlId,
+      ),
+      RunSecurityAudit() => _runSecurityAudit(state, action.productId),
       RentOffice() => _rentOffice(state, action.officeId),
       RentServerRoom() => _rentServerRoom(state, action.serverRoomId),
       InstallServer() => _installServer(state, action.hardwareId),
@@ -110,7 +157,6 @@ class GameEngine {
     }
 
     final monthFraction = deltaMinutes / 43200;
-    final developmentCapacity = _developmentCapacity(state);
     var nextCounter = state.rngCounter;
 
     final updatedProducts = state.products
@@ -125,8 +171,11 @@ class GameEngine {
 
           if (product.stage == ProductStage.development) {
             final gameHours = deltaMinutes / 60;
+            final developmentCapacity = state.productDevelopmentCapacity(
+              product.id,
+            );
             final compressedWorkHours =
-                gameHours * (6.5 + developmentCapacity / 18);
+                gameHours * (3.5 + developmentCapacity / 14);
             final progressDelta =
                 compressedWorkHours / projection.developmentHours;
             return product.copyWith(
@@ -143,42 +192,98 @@ class GameEngine {
 
           final load = state.productServerLoad(product);
           final overload = math.max(0, load - 0.82);
+          final assignedTeam = state.employeesForProduct(product.id);
+          final effectiveTeam = assignedTeam.isEmpty
+              ? const <Employee>[]
+              : assignedTeam;
           final teamQuality = _roleQualityForProduct(
-            state.employees,
+            effectiveTeam,
             product.category,
           );
           final supportQuality = _roleAverage(
-            state.employees,
+            effectiveTeam,
             const <EmployeeRole>[EmployeeRole.support, EmployeeRole.qa],
             (employee) => employee.quality,
           );
-          final securityTeam = _roleAverage(
-            state.employees,
-            const <EmployeeRole>[EmployeeRole.security, EmployeeRole.devOps],
-            (employee) => employee.skill,
-          );
+          final securityTeam = _roleAverage(effectiveTeam, const <EmployeeRole>[
+            EmployeeRole.security,
+            EmployeeRole.devOps,
+          ], (employee) => employee.skill);
           final designerQuality = _roleAverage(
-            state.employees,
+            effectiveTeam,
             const <EmployeeRole>[EmployeeRole.designer],
             (employee) => employee.quality,
           );
+          final performanceLevel = state.improvementLevel(
+            product.id,
+            ProductImprovementType.performance,
+          );
+          final algorithmLevel = state.improvementLevel(
+            product.id,
+            ProductImprovementType.algorithms,
+          );
+          final designLevel = state.improvementLevel(
+            product.id,
+            ProductImprovementType.design,
+          );
+          final securityLevel = state.improvementLevel(
+            product.id,
+            ProductImprovementType.security,
+          );
+          final reliabilityLevel = state.improvementLevel(
+            product.id,
+            ProductImprovementType.reliability,
+          );
+          final performanceOption = ProductEvolutionCatalog.improvementByType(
+            ProductImprovementType.performance,
+          );
+          final algorithmOption = ProductEvolutionCatalog.improvementByType(
+            ProductImprovementType.algorithms,
+          );
+          final designOption = ProductEvolutionCatalog.improvementByType(
+            ProductImprovementType.design,
+          );
+          final securityOption = ProductEvolutionCatalog.improvementByType(
+            ProductImprovementType.security,
+          );
+          final reliabilityOption = ProductEvolutionCatalog.improvementByType(
+            ProductImprovementType.reliability,
+          );
+          final freshnessPenalty = state.productStalenessPenalty(product);
+          final aiQualityBonus = state.productAiQualityBoost(product.id);
 
           final speedMs =
               (projection.speedMs *
+                      math.pow(
+                        performanceOption.speedMultiplier,
+                        performanceLevel,
+                      ) *
                       (1 + overload * 1.8) *
                       (1 - math.min(0.18, teamQuality / 900)))
                   .clamp(45, 25000)
                   .toDouble();
-          final designScore = (projection.designScore + designerQuality * 0.08)
-              .clamp(5, 100)
-              .toDouble();
-          final securityScore = (projection.securityScore + securityTeam * 0.10)
-              .clamp(1, 100)
-              .toDouble();
+          final designScore =
+              (projection.designScore +
+                      designerQuality * 0.08 +
+                      designOption.designDelta * designLevel)
+                  .clamp(5, 100)
+                  .toDouble();
+          final securityScore =
+              (projection.securityScore +
+                      securityTeam * 0.10 +
+                      state.productSecurityBonus(product.id) +
+                      securityOption.securityDelta * securityLevel +
+                      reliabilityOption.securityDelta * reliabilityLevel)
+                  .clamp(1, 100)
+                  .toDouble();
           final reliability =
               (projection.reliability +
                       supportQuality / 12000 +
-                      state.hardwareReliability * 0.018 -
+                      state.hardwareReliability * 0.018 +
+                      state.productSecurityReliabilityBonus(product.id) +
+                      reliabilityOption.reliabilityDelta * reliabilityLevel +
+                      performanceOption.reliabilityDelta * performanceLevel +
+                      algorithmOption.reliabilityDelta * algorithmLevel -
                       overload * 0.035)
                   .clamp(0.50, 0.9999)
                   .toDouble();
@@ -190,9 +295,26 @@ class GameEngine {
             designScore: designScore,
             securityScore: securityScore,
             reliability: reliability,
+            qualityBonus:
+                aiQualityBonus +
+                algorithmOption.qualityDelta * algorithmLevel +
+                designOption.qualityDelta * designLevel +
+                securityOption.qualityDelta * securityLevel +
+                reliabilityOption.qualityDelta * reliabilityLevel,
+            retentionBonus:
+                algorithmOption.retentionDelta * algorithmLevel +
+                designOption.retentionDelta * designLevel +
+                securityOption.retentionDelta * securityLevel +
+                reliabilityOption.retentionDelta * reliabilityLevel,
+            freshnessPenalty: freshnessPenalty,
           );
 
-          final potentialNewUsers = outcome.monthlyNewUsers * monthFraction;
+          final publicAi =
+              product.category != ProductCategory.aiAssistant ||
+              state.aiDeploymentModeFor(product.id) ==
+                  AiDeploymentMode.publicMarket;
+          final potentialNewUsers =
+              (publicAi ? outcome.monthlyNewUsers : 0) * monthFraction;
           final churnedUsers =
               product.users * outcome.churnRate * monthFraction;
           final nextUsers = math
@@ -208,12 +330,14 @@ class GameEngine {
               .min(mau, (mau * outcome.dauMauRatio).round())
               .toInt();
           final ecosystemBoost = state.ecosystemBoostFor(product.id);
-          final revenue = _monthlyRevenue(
-            product: product,
-            mau: mau,
-            reliability: reliability,
-            ecosystemBoost: ecosystemBoost,
-          );
+          final revenue = publicAi
+              ? _monthlyRevenue(
+                  product: product,
+                  mau: mau,
+                  reliability: reliability,
+                  ecosystemBoost: ecosystemBoost,
+                )
+              : 0.0;
           final rating = (outcome.qualityScore / 20).clamp(1.0, 5.0).toDouble();
 
           return product.copyWith(
@@ -233,7 +357,8 @@ class GameEngine {
             monthlyRevenue: revenue,
             monthlyCost: projection.monthlyTechCost + product.marketingBudget,
             monthlyGrowth:
-                outcome.monthlyNewUsers - product.users * outcome.churnRate,
+                (publicAi ? outcome.monthlyNewUsers : 0) -
+                product.users * outcome.churnRate,
           );
         })
         .toList(growable: false);
@@ -364,12 +489,18 @@ class GameEngine {
     final scaleRisk = math.min(0.035, target.users / 12000000);
     final physicalProtection =
         next.serverRoom.physicalSecurityScore / 100 * 0.025;
-    final chance = math
-        .max(
-          0.002,
-          0.008 + categoryRisk + securityRisk + scaleRisk - physicalProtection,
-        )
-        .toDouble();
+    final chance =
+        (math.max(
+                  0.002,
+                  0.008 +
+                      categoryRisk +
+                      securityRisk +
+                      scaleRisk -
+                      physicalProtection,
+                ) *
+                next.productIncidentMultiplier(target.id))
+            .clamp(0.0005, 0.45)
+            .toDouble();
 
     if (random < chance) {
       next = _triggerSecurityIncident(next, target.id);
@@ -439,8 +570,10 @@ class GameEngine {
             .clamp(0, 1)
             .toDouble();
     final productRisk =
-        (100 - product.securityScore) / 100 * 0.35 +
-        (1 - product.featureCoverage) * 0.25;
+        (state.productSecurityRisk(product) * 0.70 +
+                (1 - product.featureCoverage) * 0.25)
+            .clamp(0, 1)
+            .toDouble();
     if (readiness + state.successfulProducts * 0.04 <
             investor.minimumReadiness ||
         productRisk > investor.riskTolerance + 0.18) {
@@ -572,6 +705,14 @@ class GameEngine {
         state.copyWith(
           cash: state.cash - projection.developmentCost,
           products: <Product>[...state.products, product],
+          productUpdates: <ProductUpdateRecord>[
+            ...state.productUpdates,
+            ProductUpdateRecord(
+              productId: product.id,
+              updatedAtMinutes: state.simulationMinutes,
+              reason: 'Создание продукта',
+            ),
+          ],
           rngCounter: sequence,
         ),
         '${product.name}: выбран стек и запущена разработка за ${projection.developmentCost.round()} ₽.',
@@ -614,7 +755,17 @@ class GameEngine {
         .toList(growable: false);
     return _withNews(
       _withFeed(
-        state.copyWith(products: updated),
+        state.copyWith(
+          products: updated,
+          productUpdates: <ProductUpdateRecord>[
+            ...state.productUpdates,
+            ProductUpdateRecord(
+              productId: product.id,
+              updatedAtMinutes: state.simulationMinutes,
+              reason: 'Публичный запуск',
+            ),
+          ],
+        ),
         '${product.name} выпущен. Рынок сравнивает его с прямым конкурентом.',
       ),
       NewsItem(
@@ -688,6 +839,14 @@ class GameEngine {
         state.copyWith(
           cash: state.cash - implementationCost,
           products: updatedProducts,
+          productUpdates: <ProductUpdateRecord>[
+            ...state.productUpdates,
+            ProductUpdateRecord(
+              productId: product.id,
+              updatedAtMinutes: state.simulationMinutes,
+              reason: 'Функция: ${feature.name}',
+            ),
+          ],
         ),
         '${product.name}: добавлена функция ${feature.name} за ${implementationCost.round()} ₽.',
       ),
@@ -697,6 +856,176 @@ class GameEngine {
         title: '${product.name}: обновление',
         body:
             '${feature.name} повышает покрытие ожиданий и меняет технические метрики продукта.',
+        simulationMinutes: state.simulationMinutes,
+        critical: false,
+      ),
+    );
+  }
+
+  GameState _setAiDeploymentMode(
+    GameState state,
+    String productId,
+    AiDeploymentMode mode,
+  ) {
+    final product = state.productById(productId);
+    if (product == null || product.category != ProductCategory.aiAssistant) {
+      return state;
+    }
+    final deployments =
+        state.productAiDeployments
+            .where((item) => item.productId != productId)
+            .toList(growable: true)
+          ..add(ProductAiDeployment(productId: productId, mode: mode));
+    final integrations = mode == AiDeploymentMode.corporate
+        ? state.productAiIntegrations
+        : state.productAiIntegrations
+              .where((item) => item.aiProductId != productId)
+              .toList(growable: false);
+    final products = mode == AiDeploymentMode.corporate
+        ? state.products
+              .map(
+                (item) => item.id == productId
+                    ? item.copyWith(
+                        marketingBudget: 0,
+                        monthlyCost: math
+                            .max(0, item.monthlyCost - item.marketingBudget)
+                            .toDouble(),
+                      )
+                    : item,
+              )
+              .toList(growable: false)
+        : state.products;
+    return _withFeed(
+      state.copyWith(
+        products: products,
+        productAiDeployments: deployments,
+        productAiIntegrations: integrations,
+      ),
+      mode == AiDeploymentMode.corporate
+          ? '${product.name}: AI переведена во внутренний корпоративный режим.'
+          : '${product.name}: AI выведена на публичный рынок.',
+    );
+  }
+
+  GameState _connectCorporateAi(
+    GameState state,
+    String aiProductId,
+    String targetProductId,
+  ) {
+    final ai = state.productById(aiProductId);
+    final target = state.productById(targetProductId);
+    if (ai == null ||
+        target == null ||
+        ai.id == target.id ||
+        ai.category != ProductCategory.aiAssistant ||
+        ai.stage != ProductStage.live ||
+        target.stage == ProductStage.failed ||
+        state.aiDeploymentModeFor(ai.id) != AiDeploymentMode.corporate) {
+      return state;
+    }
+    final integrations =
+        state.productAiIntegrations
+            .where((item) => item.targetProductId != targetProductId)
+            .toList(growable: true)
+          ..add(
+            ProductAiIntegration(
+              aiProductId: ai.id,
+              targetProductId: target.id,
+              connectedAtMinutes: state.simulationMinutes,
+            ),
+          );
+    return _withFeed(
+      state.copyWith(productAiIntegrations: integrations),
+      '${ai.name} подключена к ${target.name}: +18% development capacity, +4 quality и дополнительная нагрузка на серверы.',
+    );
+  }
+
+  GameState _disconnectCorporateAi(GameState state, String targetProductId) {
+    final target = state.productById(targetProductId);
+    final next = state.productAiIntegrations
+        .where((item) => item.targetProductId != targetProductId)
+        .toList(growable: false);
+    if (next.length == state.productAiIntegrations.length) {
+      return state;
+    }
+    return _withFeed(
+      state.copyWith(productAiIntegrations: next),
+      '${target?.name ?? 'Продукт'}: корпоративная AI отключена.',
+    );
+  }
+
+  GameState _applyProductImprovement(
+    GameState state,
+    String productId,
+    ProductImprovementType type,
+  ) {
+    final product = state.productById(productId);
+    if (product == null || product.stage == ProductStage.failed) {
+      return state;
+    }
+    final option = ProductEvolutionCatalog.improvementByType(type);
+    final currentLevel = state.improvementLevel(productId, type);
+    final cost = state.improvementCost(productId, type);
+    if (state.cash < cost) {
+      return _withFeed(
+        state,
+        '${product.name}: для «${option.name}» нужно ${cost.round()} ₽.',
+      );
+    }
+    final level = currentLevel + 1;
+    final record = ProductImprovementRecord(
+      productId: productId,
+      type: type,
+      level: level,
+      appliedAtMinutes: state.simulationMinutes,
+    );
+    final updatedProducts = state.products
+        .map(
+          (item) => item.id == productId
+              ? item.copyWith(
+                  speedMs: item.speedMs * option.speedMultiplier,
+                  designScore: math
+                      .min(100, item.designScore + option.designDelta)
+                      .toDouble(),
+                  securityScore: math
+                      .min(100, item.securityScore + option.securityDelta)
+                      .toDouble(),
+                  reliability: math
+                      .min(0.9999, item.reliability + option.reliabilityDelta)
+                      .toDouble(),
+                  qualityScore: math
+                      .min(100, item.qualityScore + option.qualityDelta)
+                      .toDouble(),
+                )
+              : item,
+        )
+        .toList(growable: false);
+    return _withNews(
+      _withFeed(
+        state.copyWith(
+          cash: state.cash - cost,
+          products: updatedProducts,
+          productImprovements: <ProductImprovementRecord>[
+            ...state.productImprovements,
+            record,
+          ],
+          productUpdates: <ProductUpdateRecord>[
+            ...state.productUpdates,
+            ProductUpdateRecord(
+              productId: productId,
+              updatedAtMinutes: state.simulationMinutes,
+              reason: '${option.name} L$level',
+            ),
+          ],
+        ),
+        '${product.name}: ${option.name}, уровень $level. Продукт снова считается свежим.',
+      ),
+      NewsItem(
+        id: 'continuous_${product.id}_${type.name}_${state.simulationMinutes}',
+        kind: NewsKind.product,
+        title: '${product.name}: техническое обновление',
+        body:
+            '${option.name} достигло уровня $level. Стоимость следующей итерации вырастет.',
         simulationMinutes: state.simulationMinutes,
         critical: false,
       ),
@@ -740,7 +1069,17 @@ class GameEngine {
         products: state.products
             .map(
               (item) => item.id == productId
-                  ? item.copyWith(marketingBudget: monthlyBudget)
+                  ? item.copyWith(
+                      marketingBudget: monthlyBudget,
+                      monthlyCost: math
+                          .max(
+                            0,
+                            item.monthlyCost -
+                                item.marketingBudget +
+                                monthlyBudget,
+                          )
+                          .toDouble(),
+                    )
                   : item,
             )
             .toList(growable: false),
@@ -798,6 +1137,216 @@ class GameEngine {
         employees: <Employee>[...state.employees, candidate.toEmployee()],
       ),
       '${candidate.name} принят. Зарплата ${candidate.salary.round()} ₽/мес., signing bonus ${signingBonus.round()} ₽.',
+    );
+  }
+
+  GameState _assignEmployee(
+    GameState state,
+    String employeeId,
+    String? productId,
+  ) {
+    final employee = state.employeeById(employeeId);
+    if (employee == null) {
+      return state;
+    }
+    if (productId != null && state.productById(productId) == null) {
+      return state;
+    }
+
+    final assignments = state.employeeAssignments
+        .where((item) => item.employeeId != employeeId)
+        .toList(growable: true);
+    if (productId != null) {
+      assignments.add(
+        EmployeeAssignment(
+          employeeId: employeeId,
+          productId: productId,
+          assignedAtMinutes: state.simulationMinutes,
+        ),
+      );
+    }
+
+    final updatedEmployees = state.employees
+        .map(
+          (item) => item.id == employeeId
+              ? item.managedCopyWith(
+                  workload: productId == null ? 20 : 78,
+                  morale: productId == null
+                      ? math.min(100, item.morale + 2).toInt()
+                      : item.morale,
+                )
+              : item,
+        )
+        .toList(growable: false);
+    final targetName = productId == null
+        ? 'резерв команды'
+        : state.productById(productId)!.name;
+    return _withFeed(
+      state.copyWith(
+        employees: updatedEmployees,
+        employeeAssignments: assignments,
+      ),
+      '${employee.name}: назначение изменено — $targetName.',
+    );
+  }
+
+  GameState _fireEmployee(GameState state, String employeeId) {
+    final employee = state.employeeById(employeeId);
+    if (employee == null) {
+      return state;
+    }
+    final severance = employee.salary * 0.5;
+    if (state.cash < severance) {
+      return _withFeed(
+        state,
+        'Для увольнения ${employee.name} нужна компенсация ${severance.round()} ₽.',
+      );
+    }
+    return _withFeed(
+      state.copyWith(
+        cash: state.cash - severance,
+        employees: state.employees
+            .where((item) => item.id != employeeId)
+            .toList(growable: false),
+        employeeAssignments: state.employeeAssignments
+            .where((item) => item.employeeId != employeeId)
+            .toList(growable: false),
+      ),
+      '${employee.name} покинул компанию. Выплачено ${severance.round()} ₽.',
+    );
+  }
+
+  GameState _giveRaise(GameState state, String employeeId, double percent) {
+    final employee = state.employeeById(employeeId);
+    if (employee == null || percent < 5 || percent > 30) {
+      return state;
+    }
+    final newSalary = employee.salary * (1 + percent / 100);
+    final retentionBonus = newSalary - employee.salary;
+    if (state.cash < retentionBonus) {
+      return state;
+    }
+    return _withFeed(
+      state.copyWith(
+        cash: state.cash - retentionBonus,
+        employees: state.employees
+            .map(
+              (item) => item.id == employeeId
+                  ? item.managedCopyWith(
+                      salary: newSalary,
+                      loyalty: math.min(100, item.loyalty + 7).toInt(),
+                      morale: math.min(100, item.morale + 6).toInt(),
+                    )
+                  : item,
+            )
+            .toList(growable: false),
+      ),
+      '${employee.name}: зарплата повышена на ${percent.round()}% до ${newSalary.round()} ₽/мес.',
+    );
+  }
+
+  GameState _trainEmployee(
+    GameState state,
+    String employeeId,
+    String programId,
+  ) {
+    final employee = state.employeeById(employeeId);
+    final program = OperationsCatalog.trainingProgramById(programId);
+    if (employee == null || state.cash < program.cost) {
+      return state;
+    }
+    final updated = employee.managedCopyWith(
+      skill: math.min(100, employee.skill + program.skillDelta).toInt(),
+      speed: math.min(100, employee.speed + program.speedDelta).toInt(),
+      quality: math.min(100, employee.quality + program.qualityDelta).toInt(),
+      autonomy: math
+          .min(100, employee.autonomy + program.autonomyDelta)
+          .toInt(),
+      communication: math
+          .min(100, employee.communication + program.communicationDelta)
+          .toInt(),
+      reliability: math
+          .min(100, employee.reliability + program.reliabilityDelta)
+          .toInt(),
+      morale: math.min(100, employee.morale + 3).toInt(),
+    );
+    return _withFeed(
+      state.copyWith(
+        cash: state.cash - program.cost,
+        employees: state.employees
+            .map((item) => item.id == employeeId ? updated : item)
+            .toList(growable: false),
+      ),
+      '${employee.name} завершил программу «${program.name}» за ${program.cost.round()} ₽.',
+    );
+  }
+
+  GameState _purchaseSecurityControl(
+    GameState state,
+    String productId,
+    String controlId,
+  ) {
+    final product = state.productById(productId);
+    final control = OperationsCatalog.securityControlById(controlId);
+    if (product == null ||
+        product.stage == ProductStage.failed ||
+        state.hasSecurityControl(productId, controlId)) {
+      return state;
+    }
+    if (state.cash < control.setupCost) {
+      return _withFeed(
+        state,
+        '${product.name}: внедрение ${control.name} стоит ${control.setupCost.round()} ₽.',
+      );
+    }
+    final deployment = ProductSecurityControl(
+      productId: productId,
+      controlId: controlId,
+      installedAtMinutes: state.simulationMinutes,
+    );
+    return _withNews(
+      _withFeed(
+        state.copyWith(
+          cash: state.cash - control.setupCost,
+          securityControls: <ProductSecurityControl>[
+            ...state.securityControls,
+            deployment,
+          ],
+        ),
+        '${product.name}: внедрён ${control.name}. Риск атаки пересчитан.',
+      ),
+      NewsItem(
+        id: 'security_control_${product.id}_${control.id}_${state.simulationMinutes}',
+        kind: NewsKind.security,
+        title: '${product.name}: усилена безопасность',
+        body:
+            '${control.name}: +${control.securityDelta.round()} security, ${control.monthlyCost.round()} ₽/мес.',
+        simulationMinutes: state.simulationMinutes,
+        critical: false,
+      ),
+    );
+  }
+
+  GameState _runSecurityAudit(GameState state, String productId) {
+    final product = state.productById(productId);
+    const auditCost = 75000.0;
+    if (product == null || state.cash < auditCost) {
+      return state;
+    }
+    final risk = state.productSecurityRisk(product);
+    final findings = math.max(0, (risk * 12).round() - 1).toInt();
+    final audit = SecurityAuditRecord(
+      productId: productId,
+      simulationMinutes: state.simulationMinutes,
+      riskPercent: risk * 100,
+      findingsCount: findings,
+    );
+    return _withFeed(
+      state.copyWith(
+        cash: state.cash - auditCost,
+        securityAudits: <SecurityAuditRecord>[...state.securityAudits, audit],
+      ),
+      '${product.name}: аудит завершён. Риск ${(risk * 100).toStringAsFixed(1)}%, найдено проблем: $findings.',
     );
   }
 
@@ -954,9 +1503,11 @@ class GameEngine {
     }
 
     final productRisk =
-        (100 - product.securityScore) / 100 * 0.35 +
-        (1 - product.featureCoverage) * 0.25 +
-        (product.stage == ProductStage.live ? 0 : 0.18);
+        (state.productSecurityRisk(product) * 0.70 +
+                (1 - product.featureCoverage) * 0.25 +
+                (product.stage == ProductStage.live ? 0 : 0.18))
+            .clamp(0, 1)
+            .toDouble();
     if (productRisk > investor.riskTolerance + 0.18) {
       return _withFeed(
         state,
@@ -1305,7 +1856,18 @@ class GameEngine {
     if (product == null || product.stage != ProductStage.live) {
       return state;
     }
-    final walletCatastrophe = product.category == ProductCategory.cryptoWallet;
+    final wallet = product.category == ProductCategory.cryptoWallet;
+    final hardenedWallet =
+        wallet &&
+        state.hasSecurityControl(productId, 'kms_encryption') &&
+        state.hasSecurityControl(productId, 'backup_dr') &&
+        state.hasSecurityControl(productId, 'soc_response');
+    final walletCatastrophe = wallet && !hardenedWallet;
+    final incidentMultiplier = state.productIncidentMultiplier(productId);
+    final ordinaryUserFactor = (0.70 + (1 - incidentMultiplier) * 0.17).clamp(
+      0.70,
+      0.87,
+    );
     final updatedProducts = state.products
         .map((item) {
           if (item.id != productId) {
@@ -1323,10 +1885,21 @@ class GameEngine {
               monthlyGrowth: 0,
             );
           }
+          if (hardenedWallet) {
+            return item.copyWith(
+              users: (item.users * 0.55).round(),
+              mau: (item.mau * 0.48).round(),
+              dau: (item.dau * 0.40).round(),
+              rating: math.max(1.5, item.rating - 1.2).toDouble(),
+              securityScore: math.max(12, item.securityScore - 20).toDouble(),
+              reliability: math.max(0.76, item.reliability - 0.028).toDouble(),
+              monthlyRevenue: item.monthlyRevenue * 0.38,
+            );
+          }
           return item.copyWith(
-            users: (item.users * 0.72).round(),
-            mau: (item.mau * 0.68).round(),
-            dau: (item.dau * 0.60).round(),
+            users: (item.users * ordinaryUserFactor).round(),
+            mau: (item.mau * (ordinaryUserFactor - 0.04)).round(),
+            dau: (item.dau * (ordinaryUserFactor - 0.10)).round(),
             rating: math.max(1, item.rating - 0.8).toDouble(),
             securityScore: math.max(5, item.securityScore - 14).toDouble(),
             reliability: math.max(0.70, item.reliability - 0.035).toDouble(),
@@ -1340,7 +1913,17 @@ class GameEngine {
             kind: NewsKind.security,
             title: '${product.name}: украдены средства пользователей',
             body:
-                'Доверие уничтожено: 92% пользователей ушли, продукт фактически погиб.',
+                'Нет полного KMS + backup + SOC контура. Доверие уничтожено: 92% пользователей ушли, продукт фактически погиб.',
+            simulationMinutes: state.simulationMinutes,
+            critical: true,
+          )
+        : hardenedWallet
+        ? NewsItem(
+            id: 'wallet_contained_${state.simulationMinutes}_$productId',
+            kind: NewsKind.security,
+            title: '${product.name}: атаку удалось ограничить',
+            body:
+                'KMS, disaster recovery и SOC сохранили продукт, но часть средств и 45% пользователей потеряны.',
             simulationMinutes: state.simulationMinutes,
             critical: true,
           )
@@ -1348,7 +1931,8 @@ class GameEngine {
             id: 'breach_${state.simulationMinutes}_$productId',
             kind: NewsKind.security,
             title: 'Утечка данных в ${product.name}',
-            body: 'Ушло около 28% пользователей. Рейтинг и доверие снизились.',
+            body:
+                'Масштаб потерь снижен внедрёнными контролями. Пользователей осталось ${(ordinaryUserFactor * 100).round()}%.',
             simulationMinutes: state.simulationMinutes,
             critical: true,
           );
@@ -1373,8 +1957,11 @@ class GameEngine {
     if (state.criticalEvent == CriticalEventType.lostControl) {
       return state;
     }
+    final responseMultiplier = state.criticalProductId == null
+        ? 1.0
+        : state.productIncidentMultiplier(state.criticalProductId!);
     final cost = state.criticalEvent == CriticalEventType.securityBreach
-        ? 240000.0
+        ? 240000.0 * (0.55 + responseMultiplier * 0.45)
         : 90000.0;
     return _withFeed(
       state.copyWith(
@@ -1394,6 +1981,9 @@ class GameEngine {
     required double designScore,
     required double securityScore,
     required double reliability,
+    required double qualityBonus,
+    required double retentionBonus,
+    required double freshnessPenalty,
   }) {
     final competitor = GameCatalog.competitorFor(product.category);
     final segments = GameCatalog.marketSegments
@@ -1434,7 +2024,9 @@ class GameEngine {
       final organic = segment.addressableUsers * (0.0007 + preference * 0.0048);
       final cac = (2200 - preference * 1500).clamp(280, 2200).toDouble();
       final paidVisitors = product.marketingBudget / cac;
-      monthlyNewUsers += organic + paidVisitors * (0.18 + preference * 0.72);
+      monthlyNewUsers +=
+          (organic + paidVisitors * (0.18 + preference * 0.72)) *
+          (1 - freshnessPenalty * 0.72);
       weightedPreference += preference * segment.addressableUsers;
       totalAddressable += segment.addressableUsers;
     }
@@ -1453,7 +2045,9 @@ class GameEngine {
         (0.18 +
                 designScore / 330 +
                 featureCoverage * 0.22 +
-                preference * 0.18 -
+                preference * 0.18 +
+                qualityBonus / 500 -
+                freshnessPenalty * 0.12 -
                 overload * 0.12)
             .clamp(0.05, 0.92)
             .toDouble();
@@ -1463,7 +2057,10 @@ class GameEngine {
                 featureRetentionBonus +
                 designScore / 500 +
                 reliability * 0.14 +
-                ecosystemBoost -
+                ecosystemBoost +
+                retentionBonus +
+                qualityBonus / 600 -
+                freshnessPenalty * 0.16 -
                 overload * 0.10)
             .clamp(0.08, 0.92)
             .toDouble();
@@ -1472,6 +2069,7 @@ class GameEngine {
                 retention * 0.14 +
                 (1 - preference) * 0.08 +
                 overload * 0.10 +
+                freshnessPenalty * 0.11 +
                 (100 - securityScore) / 1000)
             .clamp(0.015, 0.38)
             .toDouble();
@@ -1480,7 +2078,9 @@ class GameEngine {
                 designScore * 0.20 +
                 securityScore * 0.24 +
                 featureCoverage * 100 * 0.22 +
-                reliability * 100 * 0.12)
+                reliability * 100 * 0.12 +
+                qualityBonus -
+                freshnessPenalty * 24)
             .clamp(1, 100)
             .toDouble();
 
@@ -1510,31 +2110,6 @@ class GameEngine {
       MonetizationModel.transactionFee => mau * product.price * 0.18,
     };
     return base * reliability * (1 + ecosystemBoost * 0.55);
-  }
-
-  double _developmentCapacity(GameState state) {
-    final builders = state.employees.where(
-      (employee) => const <EmployeeRole>[
-        EmployeeRole.frontend,
-        EmployeeRole.backend,
-        EmployeeRole.mobile,
-        EmployeeRole.aiMl,
-        EmployeeRole.qa,
-        EmployeeRole.devOps,
-      ].contains(employee.role),
-    );
-    final peopleCapacity = builders.fold<double>(
-      35,
-      (sum, employee) =>
-          sum +
-          employee.skill * 0.42 +
-          employee.speed * 0.34 +
-          employee.quality * 0.24,
-    );
-    final comfortMultiplier = 0.86 + state.office.comfortScore / 500;
-    return peopleCapacity *
-        state.office.communicationEfficiency *
-        comfortMultiplier;
   }
 
   double _roleQualityForProduct(

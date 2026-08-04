@@ -3,12 +3,17 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
 import '../../../domain/catalog/game_catalog.dart';
+import '../../../domain/catalog/product_evolution_catalog.dart';
 import '../../../domain/commands/game_action.dart';
+import '../../../domain/entities/game_state.dart';
 import '../../../domain/entities/models.dart';
+import '../../../domain/entities/product_evolution_models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/metric_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../security/security_center_screen.dart';
+import '../operations/operations_screen.dart';
 
 class ProductDetailScreen extends StatelessWidget {
   const ProductDetailScreen({
@@ -67,8 +72,34 @@ class ProductDetailScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        'Команда и выбранный стек определяют скорость. После 100% продукт можно выпустить.',
+                        'Назначенная проектная команда и выбранный стек определяют скорость. Сотрудники в резерве не дают скрытый бонус.',
                         style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 10),
+                      _LabelValue(
+                        'Назначено сотрудников',
+                        '${state.employeesForProduct(product.id).length}',
+                      ),
+                      _LabelValue(
+                        'Development capacity',
+                        state
+                            .productDevelopmentCapacity(product.id)
+                            .toStringAsFixed(0),
+                        last: true,
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  OperationsScreen(controller: controller),
+                            ),
+                          ),
+                          icon: const Icon(Icons.account_tree_outlined),
+                          label: const Text('Управлять проектной командой'),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       SizedBox(
@@ -99,6 +130,17 @@ class ProductDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 18),
               ],
+              SectionHeader(
+                title: 'Специалисты для разработки',
+                subtitle:
+                    'Для каждого типа продукта нужны конкретные роли. Нехватка специальностей замедляет разработку и снижает качество исполнения.',
+                hintTitle: 'Почему важны специальности',
+                hintBody:
+                    'Development capacity учитывает не только средние навыки, но и покрытие обязательных ролей. Один сильный backend-разработчик не заменяет security, design или QA.',
+              ),
+              const SizedBox(height: 10),
+              _ProductTeamRequirementsCard(state: state, product: product),
+              const SizedBox(height: 18),
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
@@ -145,6 +187,17 @@ class ProductDetailScreen extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 18),
+              SectionHeader(
+                title: 'Свежесть продукта',
+                subtitle:
+                    'Без обновлений органический рост, retention и рейтинг постепенно снижаются.',
+                hintTitle: 'Как работает устаревание',
+                hintBody:
+                    'Первые 21 игровой день после обновления продукт считается свежим. Затем штраф растёт постепенно. Любая крупная функция или техническое улучшение обновляет дату свежести.',
+              ),
+              const SizedBox(height: 10),
+              _FreshnessCard(state: state, product: product),
               const SizedBox(height: 18),
               const SectionHeader(
                 title: 'Продукт против лидера рынка',
@@ -237,16 +290,63 @@ class ProductDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               SectionHeader(
+                title: 'Собственная AI',
+                subtitle: product.category == ProductCategory.aiAssistant
+                    ? 'Выберите: публичный рынок или внутренняя корпоративная AI.'
+                    : 'Корпоративная AI ускоряет разработку и немного повышает качество, но требует compute и OPEX.',
+                hintTitle: 'Публичная и корпоративная AI',
+                hintBody:
+                    'Публичная AI конкурирует за пользователей и приносит выручку. Корпоративная AI не продаётся на рынке: её можно подключать к другим продуктам для +18% development capacity и +4 quality.',
+                hintBullets: const [
+                  'Одна корпоративная AI может обслуживать несколько продуктов.',
+                  'Каждое подключение стоит 45 000 ₽ в месяц.',
+                  'Нагрузка растёт на AI-продукте и зависит от масштаба подключённых продуктов.',
+                ],
+              ),
+              const SizedBox(height: 10),
+              _AiUsageCard(
+                state: state,
+                product: product,
+                controller: controller,
+              ),
+              const SizedBox(height: 18),
+              const SectionHeader(
+                title: 'Постоянные технические улучшения',
+                subtitle:
+                    'Доступны всегда, даже когда все крупные функции roadmap уже реализованы.',
+                hintTitle: 'Бесконечное развитие продукта',
+                hintBody:
+                    'Улучшения можно повторять. Каждый следующий уровень дороже, но снова делает продукт свежим и даёт конкретный технический эффект.',
+              ),
+              const SizedBox(height: 10),
+              ...ProductEvolutionCatalog.improvements.map(
+                (option) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _ContinuousImprovementCard(
+                    state: state,
+                    product: product,
+                    option: option,
+                    onApply: () => controller.dispatch(
+                      ApplyProductImprovement(
+                        productId: product.id,
+                        type: option.type,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SectionHeader(
                 title: 'Roadmap продукта',
                 subtitle: availableFeatures.isEmpty
-                    ? 'Все доступные функции этой категории уже реализованы.'
+                    ? 'Все крупные функции реализованы. Продукт продолжает развиваться через постоянные технические улучшения выше.'
                     : 'Добавляйте ожидаемые рынком функции. После релиза внедрение стоит на 25% дороже.',
               ),
               const SizedBox(height: 10),
               if (availableFeatures.isEmpty)
                 const AppCard(
                   child: Text(
-                    'Функциональное покрытие максимально для выбранной категории.',
+                    'Крупные функции завершены. Следите за свежестью и продолжайте улучшать скорость, алгоритмы, дизайн, security и reliability.',
                   ),
                 )
               else
@@ -381,18 +481,48 @@ class ProductDetailScreen extends StatelessWidget {
                       _LabelValue(
                         'Security score',
                         '${product.securityScore.round()} / 100',
+                      ),
+                      _LabelValue(
+                        'Расчётный риск',
+                        percent(
+                          state.productSecurityRisk(product),
+                          fractionDigits: 1,
+                        ),
+                      ),
+                      _LabelValue(
+                        'Контролей внедрено',
+                        '${state.securityControlIdsFor(product.id).length}',
+                      ),
+                      _LabelValue(
+                        'Security OPEX',
+                        '${money(state.productSecurityMonthlyCost(product.id))}/мес.',
                         last: true,
                       ),
                       const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () => controller.dispatch(
-                            TriggerSecurityIncident(product.id),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton.tonalIcon(
+                              onPressed: () => Navigator.of(context).push<void>(
+                                MaterialPageRoute(
+                                  builder: (_) => SecurityCenterScreen(
+                                    controller: controller,
+                                  ),
+                                ),
+                              ),
+                              icon: const Icon(Icons.shield_outlined),
+                              label: const Text('Центр безопасности'),
+                            ),
                           ),
-                          icon: const Icon(Icons.security_outlined),
-                          label: const Text('Запустить red-team сценарий'),
-                        ),
+                          const SizedBox(width: 8),
+                          IconButton.outlined(
+                            tooltip: 'Red-team сценарий',
+                            onPressed: () => controller.dispatch(
+                              TriggerSecurityIncident(product.id),
+                            ),
+                            icon: const Icon(Icons.bug_report_outlined),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -402,6 +532,320 @@ class ProductDetailScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _ProductTeamRequirementsCard extends StatelessWidget {
+  const _ProductTeamRequirementsCard({
+    required this.state,
+    required this.product,
+  });
+
+  final GameState state;
+  final Product product;
+
+  @override
+  Widget build(BuildContext context) {
+    final requirements = state.roleRequirementsFor(product);
+    final coverage = state.productRoleCoverage(product.id);
+    return AppCard(
+      hintTitle: 'Покрытие ролей',
+      hintBody:
+          'Зелёная строка означает, что минимум по роли выполнен. Красная — роли не хватает. Покрытие напрямую входит в расчёт development capacity.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Покрытие ${(coverage * 100).toStringAsFixed(0)}%',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              Text(
+                '${state.employeesForProduct(product.id).length} в проекте',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          LinearProgressIndicator(value: coverage),
+          const SizedBox(height: 12),
+          ...requirements.map((requirement) {
+            final actual = state.assignedRoleCount(
+              product.id,
+              requirement.role,
+            );
+            final ready = actual >= requirement.minimumCount;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 9),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    ready ? Icons.check_circle_outline : Icons.error_outline,
+                    color: ready ? AppColors.green : AppColors.red,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${roleName(requirement.role)}: $actual/${requirement.minimumCount}',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          requirement.reason,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _FreshnessCard extends StatelessWidget {
+  const _FreshnessCard({required this.state, required this.product});
+
+  final GameState state;
+  final Product product;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = state.productFreshnessScore(product);
+    final days = state.productAgeSinceUpdateDays(product);
+    final latest = state.latestProductUpdate(product);
+    final danger = score < 65;
+    return AppCard(
+      hintTitle: 'Свежесть',
+      hintBody:
+          'Устаревание не убивает продукт мгновенно. Оно уменьшает органический приток, activation, retention и quality, а churn растёт.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${score.toStringAsFixed(0)} / 100',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: danger ? AppColors.red : AppColors.green,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Text('${days.toStringAsFixed(1)} дн. без обновления'),
+            ],
+          ),
+          const SizedBox(height: 10),
+          LinearProgressIndicator(value: score / 100),
+          const SizedBox(height: 10),
+          Text(
+            'Последнее обновление: ${latest?.reason ?? 'создание продукта'}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AiUsageCard extends StatelessWidget {
+  const _AiUsageCard({
+    required this.state,
+    required this.product,
+    required this.controller,
+  });
+
+  final GameState state;
+  final Product product;
+  final GameController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    if (product.category == ProductCategory.aiAssistant) {
+      final mode = state.aiDeploymentModeFor(product.id);
+      final targets = state.productAiIntegrations
+          .where((item) => item.aiProductId == product.id)
+          .map((item) => state.productById(item.targetProductId)?.name)
+          .whereType<String>()
+          .toList(growable: false);
+      return AppCard(
+        hintTitle: 'Режим AI-продукта',
+        hintBody:
+            'Режим можно менять. При возврате на публичный рынок внутренние подключения этой AI отключаются.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SegmentedButton<AiDeploymentMode>(
+              segments: const [
+                ButtonSegment(
+                  value: AiDeploymentMode.publicMarket,
+                  label: Text('Рынок'),
+                  icon: Icon(Icons.public_outlined),
+                ),
+                ButtonSegment(
+                  value: AiDeploymentMode.corporate,
+                  label: Text('Корпоративная'),
+                  icon: Icon(Icons.business_outlined),
+                ),
+              ],
+              selected: <AiDeploymentMode>{mode},
+              onSelectionChanged: (selection) => controller.dispatch(
+                SetAiDeploymentMode(
+                  productId: product.id,
+                  mode: selection.first,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _LabelValue('Внутренних подключений', '${targets.length}'),
+            _LabelValue(
+              'Дополнительный compute',
+              state.corporateAiComputeDemandFor(product.id).toStringAsFixed(1),
+              last: true,
+            ),
+            if (targets.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text('Используют: ${targets.join(', ')}'),
+            ],
+          ],
+        ),
+      );
+    }
+
+    final current = state.corporateAiForTarget(product.id);
+    final available = state.corporateAiProducts;
+    return AppCard(
+      hintTitle: 'AI в продукте',
+      hintBody:
+          'К продукту можно подключить одну корпоративную AI. Она ускоряет разработку, повышает quality и добавляет постоянную нагрузку на серверы.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DropdownButtonFormField<String>(
+            initialValue: current?.id ?? '__none__',
+            decoration: const InputDecoration(labelText: 'Корпоративная AI'),
+            items: [
+              const DropdownMenuItem(
+                value: '__none__',
+                child: Text('Не использовать'),
+              ),
+              ...available.map(
+                (ai) => DropdownMenuItem(value: ai.id, child: Text(ai.name)),
+              ),
+            ],
+            onChanged: (value) {
+              if (value == null || value == '__none__') {
+                controller.dispatch(DisconnectCorporateAi(product.id));
+              } else {
+                controller.dispatch(
+                  ConnectCorporateAi(
+                    aiProductId: value,
+                    targetProductId: product.id,
+                  ),
+                );
+              }
+            },
+          ),
+          const SizedBox(height: 10),
+          if (available.isEmpty)
+            Text(
+              'Сначала выпустите AI-продукт и переведите его в корпоративный режим.',
+              style: Theme.of(context).textTheme.bodySmall,
+            )
+          else
+            const Text(
+              '+18% development capacity • +4 quality • 45 000 ₽/мес.',
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContinuousImprovementCard extends StatelessWidget {
+  const _ContinuousImprovementCard({
+    required this.state,
+    required this.product,
+    required this.option,
+    required this.onApply,
+  });
+
+  final GameState state;
+  final Product product;
+  final ProductImprovementOption option;
+  final VoidCallback onApply;
+
+  @override
+  Widget build(BuildContext context) {
+    final level = state.improvementLevel(product.id, option.type);
+    final cost = state.improvementCost(product.id, option.type);
+    final canAfford = state.cash >= cost;
+    return AppCard(
+      hintTitle: option.name,
+      hintBody: option.description,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  option.name,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              Text('L$level → L${level + 1}'),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(option.description),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: [
+              Chip(label: Text(money(cost))),
+              Chip(label: Text('+${money(option.monthlyCostDelta)}/мес.')),
+              if (option.speedMultiplier != 1)
+                Chip(
+                  label: Text(
+                    'Speed ×${option.speedMultiplier.toStringAsFixed(3)}',
+                  ),
+                ),
+              if (option.designDelta != 0)
+                Chip(label: Text('Design +${option.designDelta}')),
+              if (option.securityDelta != 0)
+                Chip(label: Text('Security +${option.securityDelta}')),
+              if (option.qualityDelta != 0)
+                Chip(label: Text('Quality +${option.qualityDelta}')),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: canAfford ? onApply : null,
+              icon: const Icon(Icons.upgrade_outlined),
+              label: Text(
+                canAfford ? 'Выпустить улучшение' : 'Недостаточно денег',
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

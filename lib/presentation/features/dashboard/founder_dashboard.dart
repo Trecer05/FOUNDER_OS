@@ -10,6 +10,7 @@ import '../more/more_screen.dart';
 import '../overview/overview_screen.dart';
 import '../products/products_screen.dart';
 import '../team/team_screen.dart';
+import '../tutorial/founder_tutorial_dialog.dart';
 
 class FounderDashboard extends StatefulWidget {
   const FounderDashboard({required this.controller, super.key});
@@ -23,11 +24,24 @@ class FounderDashboard extends StatefulWidget {
 class _FounderDashboardState extends State<FounderDashboard> {
   int _tab = 0;
   CriticalEventType _shownEvent = CriticalEventType.none;
+  bool _tutorialShowing = false;
 
   @override
   void initState() {
     super.initState();
     widget.controller.addListener(_handleControllerUpdate);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowTutorial());
+  }
+
+  Future<void> _maybeShowTutorial() async {
+    if (!mounted ||
+        _tutorialShowing ||
+        widget.controller.state.onboardingCompleted) {
+      return;
+    }
+    _tutorialShowing = true;
+    await showFounderTutorial(context, widget.controller);
+    _tutorialShowing = false;
   }
 
   @override

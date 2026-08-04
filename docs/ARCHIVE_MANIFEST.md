@@ -1,32 +1,36 @@
-# ARCHIVE_MANIFEST
+# ARCHIVE_MANIFEST — guidance/AI/product evolution v5
 
-Этот пакет является overlay для существующего Flutter-проекта `founder_os`.
+Overlay-пакет для корня существующего Flutter-проекта `founder_os`, применяемый поверх operations/security v4.
 
-## Перезаписывается
+## Заменяет/добавляет
 
-- `lib/`
-- `test/`
-- `docs/`
-- `pubspec.yaml`
-- `README.md`
+- `lib/` — домен, движок, persistence и UI;
+- `test/` — domain/snapshot/widget tests;
+- `docs/` — проектная документация;
+- `tools/verify_product_evolution_v5.sh`;
+- `README.md`;
+- `pubspec.yaml`.
 
-## Не затрагивается
+## Не изменяет
 
-- `ios/`
-- `android/`
-- Bundle ID / applicationId;
-- signing / Team;
-- deployment target / SDK settings;
-- Xcode schemes;
-- git history и remote.
+- `ios/`;
+- `android/`;
+- Bundle ID;
+- applicationId;
+- signing;
+- deployment targets;
+- Xcode scheme/configuration.
 
-## Локальные gates после установки
+## Главные новые файлы
 
-1. `flutter pub get`
-2. `dart format lib test`
-3. `flutter analyze`
-4. `flutter test --reporter expanded`
-5. `git diff --check`
-6. `flutter build ios --simulator --debug`
-7. `flutter build apk --debug`
-8. ручной smoke test в Simulator
+- `lib/domain/entities/product_evolution_models.dart`;
+- `lib/domain/catalog/product_evolution_catalog.dart`;
+- `lib/presentation/features/tutorial/founder_tutorial_dialog.dart`;
+- `lib/presentation/shared/widgets/info_hint_button.dart`;
+- `docs/NEXT_STEP_V5.md`.
+
+## Snapshot
+
+- целевая версия: v5;
+- v3/v4 читаются контролируемо;
+- существующие продукты при миграции получают update marker на текущее игровое время, чтобы не стартовать сразу устаревшими.

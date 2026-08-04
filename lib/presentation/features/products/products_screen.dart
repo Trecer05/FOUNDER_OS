@@ -54,6 +54,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
             title: 'Продукты',
             subtitle:
                 '${state.products.length} продуктов. Все продуктовые метрики находятся здесь, а не на главном экране.',
+            hintTitle: 'Список продуктов',
+            hintBody:
+                'Карточка показывает состояние продукта, свежесть, нагрузку и покрытие обязательных специальностей. Нажмите на продукт, чтобы управлять roadmap, AI и постоянными улучшениями.',
             trailing: FilledButton.icon(
               key: const Key('open-product-builder'),
               onPressed: () async {
@@ -147,7 +150,17 @@ class _ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = controller.state;
     final load = state.productServerLoad(product);
+    final freshness = state.productFreshnessScore(product);
+    final roleCoverage = state.productRoleCoverage(product.id);
+    final missingRoles = state
+        .missingRoleRequirements(product.id)
+        .map((item) => roleName(item.role))
+        .toSet()
+        .join(', ');
     return AppCard(
+      hintTitle: 'Карточка ${product.name}',
+      hintBody:
+          'Freshness падает без обновлений. Team показывает покрытие обязательных ролей. Load выше 100% означает, что продукту не хватает выделенной мощности.',
       onTap: () {
         Navigator.of(context).push<void>(
           MaterialPageRoute(
@@ -205,6 +218,8 @@ class _ProductCard extends StatelessWidget {
                 _MetricPill('MRR', money(product.monthlyRevenue)),
                 _MetricPill('Rating', product.rating.toStringAsFixed(1)),
                 _MetricPill('Load', percent(load, fractionDigits: 0)),
+                _MetricPill('Fresh', '${freshness.toStringAsFixed(0)}/100'),
+                _MetricPill('Team', percent(roleCoverage)),
               ],
             ),
           ],
@@ -213,6 +228,13 @@ class _ProductCard extends StatelessWidget {
             '${GameCatalog.frameworkById(product.frameworkId).name} • ${product.featureIds.length} функций • ${directPercent(product.allocatedCapacityPercent)} мощности',
             style: Theme.of(context).textTheme.bodySmall,
           ),
+          if (missingRoles.isNotEmpty) ...[
+            const SizedBox(height: 5),
+            Text(
+              'Не хватает: $missingRoles',
+              style: const TextStyle(color: AppColors.red),
+            ),
+          ],
         ],
       ),
     );

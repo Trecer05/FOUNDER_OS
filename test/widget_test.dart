@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:founder_os/app/app.dart';
 import 'package:founder_os/application/controllers/game_controller.dart';
+import 'package:founder_os/domain/commands/game_action.dart';
 import 'package:founder_os/domain/entities/game_state.dart';
+import 'package:founder_os/domain/simulation/engine/game_engine.dart';
 import 'package:founder_os/persistence/storage/snapshot_store.dart';
+import 'package:founder_os/presentation/features/operations/operations_screen.dart';
 
 class _MemorySnapshotStore implements SnapshotStore {
   GameState? value;
@@ -32,6 +35,12 @@ Future<GameController> _pumpApp(WidgetTester tester) async {
   await tester.pumpWidget(FounderOsApp(controller: controller));
   await tester.pumpAndSettle();
 
+  final tutorialSkip = find.byKey(const Key('tutorial-skip'));
+  if (tutorialSkip.evaluate().isNotEmpty) {
+    await tester.tap(tutorialSkip);
+    await tester.pumpAndSettle();
+  }
+
   return controller;
 }
 
@@ -54,7 +63,6 @@ void main() {
     expect(find.text('Тип продукта'), findsOneWidget);
 
     final productList = find.byType(Scrollable).first;
-
     await tester.scrollUntilVisible(
       find.text('Название и framework'),
       350,
@@ -72,11 +80,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Функции'), findsOneWidget);
-
     final createButton = find.byKey(const Key('create-configured-product'));
     expect(createButton, findsOneWidget);
-
     await tester.tap(createButton);
     await tester.pumpAndSettle();
 
@@ -93,21 +98,79 @@ void main() {
     await tester.tap(find.byIcon(Icons.groups_2_outlined));
     await tester.pumpAndSettle();
 
+    expect(find.text('Средние показатели'), findsOneWidget);
     expect(find.text('Все роли'), findsOneWidget);
     expect(find.text('Сортировка'), findsOneWidget);
 
-    final searchField = find.byType(TextField).first;
+    final searchField = find.byKey(const Key('team-candidate-search'));
+    expect(searchField, findsOneWidget);
+
+    await tester.ensureVisible(searchField);
     await tester.enterText(searchField, 'Анна');
     await tester.pumpAndSettle();
 
-    expect(find.text('Анна Миронова'), findsOneWidget);
+    final teamList = find.byKey(const Key('team-screen-list'));
+    expect(teamList, findsOneWidget);
+
+    final candidateName = find.text('Анна Миронова');
+
+    for (
+      var attempt = 0;
+      attempt < 12 && candidateName.evaluate().isEmpty;
+      attempt++
+    ) {
+      await tester.drag(teamList, const Offset(0, -260));
+      await tester.pumpAndSettle();
+    }
+
+    expect(candidateName, findsOneWidget);
     expect(find.byKey(const Key('hire-c_anna')), findsOneWidget);
 
-    expect(find.text('78'), findsOneWidget);
-    expect(find.text('84'), findsOneWidget);
-    expect(find.text('73'), findsOneWidget);
-    expect(find.text('68'), findsOneWidget);
-    expect(find.text('80'), findsOneWidget);
-    expect(find.text('74'), findsOneWidget);
+    expect(find.text('78'), findsWidgets);
+    expect(find.text('84'), findsWidgets);
+    expect(find.text('73'), findsWidgets);
+    expect(find.text('68'), findsWidgets);
+    expect(find.text('80'), findsWidgets);
+    expect(find.text('74'), findsWidgets);
+  });
+
+  testWidgets('operations screen assigns an employee to a product', (
+    tester,
+  ) async {
+    const engine = GameEngine();
+    var state = GameState.initial().copyWith(cash: 10000000);
+    state = engine.reduce(
+      state,
+      const CreateConfiguredProduct(
+        name: 'Nova',
+        blueprintId: 'ai_assistant',
+        frameworkId: 'fastapi_react',
+        languageIds: <String>['typescript', 'python'],
+        technologyIds: <String>['postgresql', 'vector_db'],
+        featureIds: <String>['chat_history', 'file_analysis'],
+      ),
+    );
+    state = engine.reduce(state, const HireCandidate('c_anna'));
+
+    final store = _MemorySnapshotStore()..value = state;
+    final controller = GameController(snapshotStore: store, startClock: false);
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(home: OperationsScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    final productId = controller.state.products.single.id;
+    await tester.tap(find.byKey(Key('manage-team-$productId')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(Key('assign-c_anna-to-$productId')));
+    await tester.pumpAndSettle();
+
+    expect(controller.state.employeesForProduct(productId), hasLength(1));
   });
 }

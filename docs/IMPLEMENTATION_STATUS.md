@@ -2,34 +2,54 @@
 
 Дата: 4 августа 2026.
 
-## Реализовано в кодовом пакете
+## База v3 — проверено
 
-- [x] List-first навигация и отдельные экраны.
-- [x] Product builder: framework, languages, technologies, features.
-- [x] Product roadmap: добавление функций до/после релиза с точной ценой и пересчётом метрик.
-- [x] Полные product metrics только в product list/detail.
-- [x] Candidate market с фильтрами, поиском, сортировкой и numeric metrics.
-- [x] Отдельные списки office / server room / hardware / allocation.
-- [x] Physical infrastructure constraints и влияние physical security на атаки.
-- [x] Office capacity/comfort/communication/hiring boost влияют на найм и скорость разработки.
-- [x] Many-to-many ecosystem links без self/duplicate.
-- [x] Segment-based competitor model.
-- [x] Investors, refusal/counteroffers, входящие предложения, equity, revenue share, buyback и loss of control.
-- [x] External stakes, product acquisition, company acquisition и migration choice.
-- [x] Security incidents, catastrophic crypto-wallet breach и focused news.
-- [x] Snapshot schema v3 и legacy migration.
-- [x] Unit/widget tests подготовлены.
-- [x] Документация обновлена.
+- [x] `flutter analyze` без ошибок;
+- [x] полный `flutter test`;
+- [x] iOS Simulator debug build;
+- [x] ветка `feat/mvp-vertical-slice` отправлена на GitHub, commit `2d70d2d`.
 
-## Не проверено в среде подготовки архива
+## Operations/security v4 — проверено до подготовки v5
 
-- [ ] `dart format`.
-- [ ] `flutter analyze`.
-- [ ] полный `flutter test`.
-- [ ] iOS Simulator build.
-- [ ] Android debug build.
-- [ ] ручной smoke test UI.
-- [ ] force quit / restore на устройстве.
-- [ ] длительный баланс и performance profile.
+- [x] 15 domain tests;
+- [x] 4 snapshot/migration tests;
+- [x] 3 widget tests;
+- [x] полный набор: 22 tests passed;
+- [x] `git diff --check`;
+- [x] iOS Simulator debug build;
+- [x] ручной запуск на физическом iPhone;
+- [x] базовая оценка плавности и нагрева: критических проблем не обнаружено;
+- [ ] Android debug build;
+- [ ] длительная симуляция 30+ игровых дней.
 
-Статус нельзя повышать до «проверено», пока эти пункты не пройдут на локальной машине проекта.
+## Guidance/AI/product evolution v5 — реализовано в пакете
+
+- [x] onboarding из пяти шагов и повторный запуск;
+- [x] поясняющие `i`-кнопки на карточках и метриках;
+- [x] средние показатели команды;
+- [x] category-specific product role requirements;
+- [x] role coverage и причины нехватки специалистов;
+- [x] public/corporate AI deployment modes;
+- [x] подключение корпоративной AI к продуктам;
+- [x] AI development/quality boost, compute demand и OPEX;
+- [x] product freshness/staleness;
+- [x] повторяемые continuous improvements с растущей стоимостью;
+- [x] snapshot schema v5;
+- [x] controlled migration v3/v4;
+- [x] domain/widget tests подготовлены;
+- [x] документация обновлена.
+
+## Требует проверки после применения v5
+
+- [ ] `dart format lib test`;
+- [ ] `flutter analyze`;
+- [ ] точечные evolution/AI/migration tests;
+- [ ] полный `flutter test`;
+- [ ] iOS Simulator build;
+- [ ] profile-сборка на физическом iPhone;
+- [ ] force quit / restore после миграции v4 → v5;
+- [ ] визуальная проверка подсказок и карточек на 430×932;
+- [ ] Android debug build;
+- [ ] длительная симуляция устаревания и обновлений.
+
+V5 нельзя считать проверенной до прохождения этих пунктов на локальной машине проекта.

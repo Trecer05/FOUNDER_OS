@@ -1,8 +1,17 @@
 import '../entities/game_state.dart';
 import '../entities/models.dart';
+import '../entities/product_evolution_models.dart';
 
 sealed class GameAction {
   const GameAction();
+}
+
+class CompleteOnboarding extends GameAction {
+  const CompleteOnboarding();
+}
+
+class RestartOnboarding extends GameAction {
+  const RestartOnboarding();
 }
 
 class AdvanceTime extends GameAction {
@@ -53,6 +62,35 @@ class AddProductFeature extends GameAction {
   final String featureId;
 }
 
+class SetAiDeploymentMode extends GameAction {
+  const SetAiDeploymentMode({required this.productId, required this.mode});
+
+  final String productId;
+  final AiDeploymentMode mode;
+}
+
+class ConnectCorporateAi extends GameAction {
+  const ConnectCorporateAi({
+    required this.aiProductId,
+    required this.targetProductId,
+  });
+
+  final String aiProductId;
+  final String targetProductId;
+}
+
+class DisconnectCorporateAi extends GameAction {
+  const DisconnectCorporateAi(this.targetProductId);
+  final String targetProductId;
+}
+
+class ApplyProductImprovement extends GameAction {
+  const ApplyProductImprovement({required this.productId, required this.type});
+
+  final String productId;
+  final ProductImprovementType type;
+}
+
 class SetProductMonetization extends GameAction {
   const SetProductMonetization({required this.productId, required this.model});
 
@@ -80,6 +118,47 @@ class SetProductAllocation extends GameAction {
 class HireCandidate extends GameAction {
   const HireCandidate(this.candidateId);
   final String candidateId;
+}
+
+class AssignEmployeeToProduct extends GameAction {
+  const AssignEmployeeToProduct({required this.employeeId, this.productId});
+
+  final String employeeId;
+  final String? productId;
+}
+
+class FireEmployee extends GameAction {
+  const FireEmployee(this.employeeId);
+  final String employeeId;
+}
+
+class GiveEmployeeRaise extends GameAction {
+  const GiveEmployeeRaise({required this.employeeId, required this.percent});
+
+  final String employeeId;
+  final double percent;
+}
+
+class TrainEmployee extends GameAction {
+  const TrainEmployee({required this.employeeId, required this.programId});
+
+  final String employeeId;
+  final String programId;
+}
+
+class PurchaseSecurityControl extends GameAction {
+  const PurchaseSecurityControl({
+    required this.productId,
+    required this.controlId,
+  });
+
+  final String productId;
+  final String controlId;
+}
+
+class RunSecurityAudit extends GameAction {
+  const RunSecurityAudit(this.productId);
+  final String productId;
 }
 
 class RentOffice extends GameAction {

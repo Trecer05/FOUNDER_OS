@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
 import '../../../domain/catalog/game_catalog.dart';
+import '../../../domain/catalog/product_evolution_catalog.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/models.dart';
 import '../../../domain/simulation/product_estimator.dart';
@@ -88,6 +89,9 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
             title: 'Тип продукта',
             subtitle:
                 'Категория определяет рынок, нагрузку и ожидания пользователей.',
+            hintTitle: 'Категория продукта',
+            hintBody:
+                'Категория задаёт конкурентов, пользовательские сегменты, базовую compute-нагрузку и требуемые специальности.',
           ),
           const SizedBox(height: 10),
           ...GameCatalog.productBlueprints.map(
@@ -301,6 +305,36 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                   },
                 ),
               ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SectionHeader(
+            title: 'Необходимые специальности',
+            subtitle:
+                'Эти роли понадобятся после создания продукта. Нехватка ролей снижает development capacity.',
+            hintTitle: 'Команда под тип продукта',
+            hintBody:
+                'Требования зависят от категории. Например, AI требует AI/ML и DevOps, а криптокошелёк — усиленную security-команду.',
+          ),
+          const SizedBox(height: 10),
+          AppCard(
+            hintTitle: 'Минимальный состав',
+            hintBody:
+                'Это не жёсткая блокировка запуска. Игрок может начать меньшей командой, но скорость и итоговое качество будут ниже.',
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children:
+                  ProductEvolutionCatalog.roleRequirements(_blueprint.category)
+                      .map(
+                        (item) => Chip(
+                          avatar: const Icon(Icons.person_outline, size: 18),
+                          label: Text(
+                            '${roleName(item.role)} ×${item.minimumCount}',
+                          ),
+                        ),
+                      )
+                      .toList(growable: false),
             ),
           ),
           const SizedBox(height: 16),

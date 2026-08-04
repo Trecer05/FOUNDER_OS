@@ -58,3 +58,66 @@
 ## Входящие предложения инвесторов
 
 Раз в семь игровых дней детерминированная проверка может создать входящее предложение. Вероятность зависит от quality, feature coverage, users и числа успешных продуктов. Thesis, readiness и risk tolerance остаются обязательными фильтрами.
+
+## Snapshot v4
+
+Новые сериализуемые поля:
+
+- `employeeAssignments`;
+- `securityControls`;
+- `securityAudits`.
+
+Сохранения v3 читаются тем же decoder и получают пустые новые коллекции. Версии ниже v3 проходят через контролируемую legacy migration.
+
+## Operations flow
+
+`OperationsScreen → GameAction → GameEngine.reduce → GameState → UI`
+
+Новые действия:
+
+- `AssignEmployeeToProduct`;
+- `FireEmployee`;
+- `GiveEmployeeRaise`;
+- `TrainEmployee`;
+- `PurchaseSecurityControl`;
+- `RunSecurityAudit`.
+
+Производительность разработки рассчитывается `GameState.productDevelopmentCapacity(productId)` только по назначенным сотрудникам. Security risk и OPEX также вычисляются из state/catalog без UI-логики.
+
+## Product evolution v5
+
+### New domain data
+
+- `ProductRoleRequirement` — role/minimum/reason;
+- `ProductAiDeployment` — product/mode;
+- `ProductAiIntegration` — AI provider/target/time;
+- `ProductImprovementOption` — catalog effect/cost/OPEX;
+- `ProductImprovementRecord` — product/type/level/time;
+- `ProductUpdateRecord` — product/update time/reason.
+
+### Flow
+
+`View → GameAction → GameEngine.reduce → GameState → View`
+
+New actions:
+
+- `CompleteOnboarding`;
+- `RestartOnboarding`;
+- `SetAiDeploymentMode`;
+- `ConnectCorporateAi`;
+- `DisconnectCorporateAi`;
+- `ApplyProductImprovement`.
+
+Role coverage, AI boost, compute demand, freshness and improvement costs are selectors/getters on `GameState`; Views do not mutate gameplay fields directly.
+
+### Determinism
+
+Freshness is derived from `simulationMinutes` and persisted update records. AI and improvements contain no wall-clock dependency. The same snapshot, seed and action sequence produces the same state.
+
+### Persistence
+
+`currentSnapshotVersion = 5`. Missing v5 collections decode as empty. For v3/v4, decoder creates migration update records at saved `simulationMinutes`. Unsupported future versions throw controlled `FormatException`.
+
+### Performance
+
+The new calculations are linear in product/employee/integration count and run inside the existing simulation tick. No network calls or dependencies are added. Profile-run on physical iPhone remains a release gate.

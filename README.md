@@ -1,17 +1,31 @@
-# founder_os
+# FOUNDER.OS
 
-A new Flutter project.
+Портретный real-time tycoon об управлении технологической компанией. Игрок собирает продукты из конкретного стека и функций, нанимает людей по числовым параметрам, арендует офис и серверную, устанавливает физическое серверное оборудование, распределяет compute между продуктами, конкурирует за пользовательские сегменты, строит экосистему, привлекает инвесторов и проводит M&A.
 
-## Getting Started
+## Текущий vertical slice
 
-This project is a starting point for a Flutter application.
+- непрерывное время: пауза, 1x, 2x, 4x и пропуск ночи;
+- список продуктов и отдельные карточки с полными метриками;
+- roadmap продукта: функции можно добавлять во время разработки и после релиза за измеримую цену;
+- конфигуратор: категория, framework, языки, технологии и функции;
+- рынок кандидатов с поиском, фильтрами и числовыми показателями;
+- отдельные списки офисов, серверных помещений и серверного оборудования;
+- процентное распределение общей compute-мощности по продуктам;
+- рыночная модель сравнения с конкурентом по сегментам;
+- экосистема many-to-many без дубликатов и без объединения выручки;
+- инвесторы, отказы/контрофферы, входящие предложения, доли, revenue share и обратный выкуп;
+- внешний инвестиционный портфель, покупка продукта и компании;
+- атаки, критические события и сфокусированная новостная лента;
+- snapshot v3 с миграцией старых сохранений.
 
-A few resources to get you started if this is your first Flutter project:
+## Проверка
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```bash
+flutter pub get
+dart format lib test
+flutter analyze
+flutter test --reporter expanded
+flutter build ios --simulator --debug
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Архитектура: `View → GameAction → GameEngine.reduce → GameState → View`.

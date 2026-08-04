@@ -1,13 +1,13 @@
-# ARCHIVE_MANIFEST — guidance/AI/product evolution v5
+# ARCHIVE_MANIFEST — business loop and UX fixes v6
 
-Overlay-пакет для корня существующего Flutter-проекта `founder_os`, применяемый поверх operations/security v4.
+Overlay-пакет для корня существующего Flutter-проекта `founder_os`, применяемый поверх ветки `feat/guidance-ai-evolution-v5`.
 
-## Заменяет/добавляет
+## Заменяет или добавляет
 
 - `lib/` — домен, движок, persistence и UI;
-- `test/` — domain/snapshot/widget tests;
-- `docs/` — проектная документация;
-- `tools/verify_product_evolution_v5.sh`;
+- `test/` — domain, snapshot и widget tests;
+- `docs/` — актуальная проектная документация;
+- `tools/verify_business_v6.sh`;
 - `README.md`;
 - `pubspec.yaml`.
 
@@ -15,22 +15,31 @@ Overlay-пакет для корня существующего Flutter-прое
 
 - `ios/`;
 - `android/`;
-- Bundle ID;
-- applicationId;
-- signing;
+- Bundle ID и applicationId;
+- signing и provisioning;
 - deployment targets;
 - Xcode scheme/configuration.
 
 ## Главные новые файлы
 
-- `lib/domain/entities/product_evolution_models.dart`;
-- `lib/domain/catalog/product_evolution_catalog.dart`;
-- `lib/presentation/features/tutorial/founder_tutorial_dialog.dart`;
-- `lib/presentation/shared/widgets/info_hint_button.dart`;
-- `docs/NEXT_STEP_V5.md`.
+- `lib/domain/entities/business_models.dart`;
+- `lib/domain/catalog/contract_catalog.dart`;
+- `lib/presentation/features/contracts/contracts_screen.dart`;
+- `docs/NEXT_STEP_V6.md`;
+- `tools/verify_business_v6.sh`.
+
+## Ключевые изменения
+
+- новый продукт начинает разработку с `0%`;
+- выбор проектной команды применяется одной кнопкой после множественного выбора;
+- remote-сотрудники не занимают офисные места;
+- continuous improvements доступны только live-продукту;
+- добавлены клиентские контракты, управление ценой подписки и проектная сводка;
+- общие placeholder-подсказки удалены: `i` появляется только при наличии конкретного объяснения.
 
 ## Snapshot
 
-- целевая версия: v5;
-- v3/v4 читаются контролируемо;
-- существующие продукты при миграции получают update marker на текущее игровое время, чтобы не стартовать сразу устаревшими.
+- целевая версия: v6;
+- v5 читается с пустым списком контрактов;
+- v3/v4 продолжают проходить существующую controlled migration;
+- неизвестная будущая версия завершается контролируемой ошибкой.

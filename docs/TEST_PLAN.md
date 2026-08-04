@@ -131,3 +131,55 @@ flutter build apk --debug
 10. Repeat an update and verify rising price.
 11. Run 10–15 minutes at 4x in profile mode; note frame drops, heat and battery.
 12. Force quit and verify AI links/improvements/freshness restore.
+
+## Business loop and UX fixes v6
+
+### Domain
+
+- новый продукт имеет `developmentProgress == 0`;
+- полный onsite-офис блокирует только onsite-кандидата;
+- remote-кандидат нанимается при заполненном офисе;
+- меньший офис сравнивается с onsite count;
+- continuous improvement до релиза не меняет cash или level;
+- после релиза improvement применяется;
+- price до релиза не меняется;
+- live subscription price меняется и clamp-ится в допустимый диапазон;
+- контракт платит точный аванс;
+- контракт завершается и платит остаток при достаточной мощности;
+- контракт проваливается после deadline при недостаточной мощности;
+- duplicate active template и четвёртый active contract отклоняются;
+- параллельные контракты делят capacity.
+
+### Persistence
+
+- snapshot v6 round-trip сохраняет client contracts;
+- snapshot v5 без `clientContracts` мигрирует с пустой коллекцией;
+- v3/v4 migrations сохраняют продукты, AI, operations и freshness;
+- future version остаётся controlled error.
+
+### Widget
+
+- выбор первого сотрудника не закрывает assignment sheet;
+- можно отметить нескольких сотрудников;
+- до «Сохранить команду» `GameState` не меняется;
+- после сохранения весь состав назначен;
+- Team search использует стабильный key и прокрутку;
+- Contracts screen принимает заказ;
+- subscription slider присутствует только у live subscription-продукта;
+- Overview показывает project summary;
+- карточка без реального hint не показывает `i`.
+
+### Manual physical iPhone
+
+1. Создать продукт и подтвердить старт `0%`.
+2. Заполнить onsite-офис, затем нанять remote-кандидата.
+3. Отметить 2–3 сотрудников в sheet и сохранить одним действием.
+4. Убедиться, что improvement недоступен до launch и доступен после.
+5. Принять простой контракт, увидеть аванс и прогресс.
+6. Назначить/снять сотрудников с продукта и сравнить contract speed.
+7. Взять два контракта и проверить разделение мощности.
+8. Изменить subscription price и сравнить revenue/market response.
+9. Проверить project cards на Overview.
+10. Открыть все видимые `i`: ни одна не должна содержать общий placeholder.
+11. Force quit и проверить восстановление contracts/price/team.
+12. Запустить profile mode на 10–15 минут и проверить scroll, heat и cold start.

@@ -6,6 +6,7 @@ import '../../../domain/commands/game_action.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
+import '../contracts/contracts_screen.dart';
 import '../ecosystem/ecosystem_screen.dart';
 import '../security/security_center_screen.dart';
 import '../tutorial/founder_tutorial_dialog.dart';
@@ -68,6 +69,18 @@ class MoreScreen extends StatelessWidget {
             context,
             CompetitorIntelligenceScreen(controller: controller),
           ),
+        ),
+        const SizedBox(height: 10),
+        _MenuCard(
+          icon: Icons.handshake_outlined,
+          title: 'Клиентские контракты',
+          subtitle:
+              '${state.activeContracts.length} активных • ${state.unassignedEmployees.length} сотрудников в резерве',
+          warning: state.activeContracts.any(
+            (contract) =>
+                contract.deadlineAtMinutes - state.simulationMinutes < 2 * 1440,
+          ),
+          onTap: () => _open(context, ContractsScreen(controller: controller)),
         ),
         const SizedBox(height: 10),
         _MenuCard(
@@ -175,6 +188,8 @@ class _MenuCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       onTap: onTap,
+      hintTitle: title,
+      hintBody: subtitle,
       child: Row(
         children: [
           CircleAvatar(

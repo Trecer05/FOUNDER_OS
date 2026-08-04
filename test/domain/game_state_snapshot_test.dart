@@ -3,14 +3,17 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:founder_os/domain/commands/game_action.dart';
 import 'package:founder_os/domain/entities/game_state.dart';
+import 'package:founder_os/domain/entities/models.dart';
+import 'package:founder_os/domain/entities/operations_models.dart';
 import 'package:founder_os/domain/entities/product_evolution_models.dart';
 import 'package:founder_os/domain/simulation/engine/game_engine.dart';
 
 void main() {
   const engine = GameEngine();
 
-  test('version 5 snapshot round-trips AI, evolution and operations', () {
+  test('version 6 snapshot round-trips AI, evolution and operations', () {
     var state = GameState.initial().copyWith(cash: 10000000);
+
     state = engine.reduce(
       state,
       const CreateConfiguredProduct(
@@ -22,6 +25,7 @@ void main() {
         featureIds: <String>['chat_history', 'file_analysis'],
       ),
     );
+
     state = engine.reduce(
       state,
       const CreateConfiguredProduct(
@@ -33,44 +37,69 @@ void main() {
         featureIds: <String>['autoscaling', 'monitoring'],
       ),
     );
-    state = engine.reduce(state, const HireCandidate('c_anna'));
+
+    final firstProduct = state.products[0];
+    final secondProduct = state.products[1];
+    final anna = state.candidateById('c_anna')!;
+
     state = engine.reduce(
       state,
       ConnectProducts(
-        firstProductId: state.products[0].id,
-        secondProductId: state.products[1].id,
+        firstProductId: firstProduct.id,
+        secondProductId: secondProduct.id,
       ),
     );
-    state = engine.reduce(
-      state,
-      AssignEmployeeToProduct(
-        employeeId: 'c_anna',
-        productId: state.products[0].id,
-      ),
+
+    state = state.copyWith(
+      candidates: state.candidates
+          .where((candidate) => candidate.id != anna.id)
+          .toList(growable: false),
+      employees: <Employee>[anna.toEmployee()],
+      employeeAssignments: <EmployeeAssignment>[
+        EmployeeAssignment(
+          employeeId: anna.id,
+          productId: firstProduct.id,
+          assignedAtMinutes: state.simulationMinutes,
+        ),
+      ],
+      securityControls: <ProductSecurityControl>[
+        ProductSecurityControl(
+          productId: firstProduct.id,
+          controlId: 'secure_sdlc',
+          installedAtMinutes: state.simulationMinutes,
+        ),
+      ],
+      securityAudits: <SecurityAuditRecord>[
+        SecurityAuditRecord(
+          productId: firstProduct.id,
+          simulationMinutes: state.simulationMinutes,
+          riskPercent: 24,
+          findingsCount: 3,
+        ),
+      ],
+      productImprovements: <ProductImprovementRecord>[
+        ProductImprovementRecord(
+          productId: firstProduct.id,
+          type: ProductImprovementType.algorithms,
+          level: 1,
+          appliedAtMinutes: state.simulationMinutes,
+        ),
+      ],
+      productUpdates: <ProductUpdateRecord>[
+        ProductUpdateRecord(
+          productId: firstProduct.id,
+          updatedAtMinutes: state.simulationMinutes,
+          reason: 'Snapshot fixture',
+        ),
+      ],
+      productAiDeployments: <ProductAiDeployment>[
+        ProductAiDeployment(
+          productId: firstProduct.id,
+          mode: AiDeploymentMode.corporate,
+        ),
+      ],
+      onboardingCompleted: true,
     );
-    state = engine.reduce(
-      state,
-      PurchaseSecurityControl(
-        productId: state.products[0].id,
-        controlId: 'secure_sdlc',
-      ),
-    );
-    state = engine.reduce(state, RunSecurityAudit(state.products[0].id));
-    state = engine.reduce(
-      state,
-      ApplyProductImprovement(
-        productId: state.products[0].id,
-        type: ProductImprovementType.algorithms,
-      ),
-    );
-    state = engine.reduce(
-      state,
-      SetAiDeploymentMode(
-        productId: state.products[0].id,
-        mode: AiDeploymentMode.corporate,
-      ),
-    );
-    state = engine.reduce(state, const CompleteOnboarding());
 
     final restored = GameState.decode(state.encode());
 
@@ -82,14 +111,14 @@ void main() {
     expect(restored.securityControls, hasLength(1));
     expect(restored.securityAudits, hasLength(1));
     expect(restored.productImprovements, hasLength(1));
-    expect(restored.productUpdates, isNotEmpty);
+    expect(restored.productUpdates, hasLength(1));
     expect(restored.productAiDeployments, hasLength(1));
     expect(restored.onboardingCompleted, isTrue);
     expect(restored.snapshotVersion, currentSnapshotVersion);
   });
 
   test(
-    'legacy snapshot migrates to version 5 with controlled reset of model',
+    'legacy snapshot migrates to version 6 with controlled reset of model',
     () {
       final legacy = jsonEncode(<String, Object?>{
         'snapshotVersion': 2,
@@ -152,6 +181,7 @@ void main() {
     expect(migrated.productAiIntegrations, isEmpty);
     expect(migrated.productImprovements, isEmpty);
     expect(migrated.productUpdates, isEmpty);
+    expect(migrated.clientContracts, isEmpty);
     expect(migrated.onboardingCompleted, isFalse);
   });
 
@@ -196,5 +226,29 @@ void main() {
       () => GameState.decode('{"snapshotVersion":999}'),
       throwsA(isA<FormatException>()),
     );
+  });
+
+  test('version 6 snapshot keeps client contracts', () {
+    const engine = GameEngine();
+    final state = engine.reduce(
+      GameState.initial(),
+      const AcceptClientContract('landing_launch'),
+    );
+    final decoded = GameState.decode(state.encode());
+    expect(decoded.snapshotVersion, 6);
+    expect(decoded.clientContracts, hasLength(1));
+    expect(decoded.clientContracts.single.templateId, 'landing_launch');
+  });
+
+  test('version 5 snapshot migrates with empty contract state', () {
+    final json =
+        jsonDecode(GameState.initial().encode()) as Map<String, dynamic>;
+    json['snapshotVersion'] = 5;
+    json.remove('clientContracts');
+
+    final migrated = GameState.decode(jsonEncode(json));
+
+    expect(migrated.snapshotVersion, 6);
+    expect(migrated.clientContracts, isEmpty);
   });
 }

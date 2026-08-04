@@ -9,6 +9,7 @@ import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/metric_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../products/product_detail_screen.dart';
 
 class OverviewScreen extends StatelessWidget {
   const OverviewScreen({required this.controller, super.key});
@@ -77,8 +78,9 @@ class OverviewScreen extends StatelessWidget {
             children: [
               _SummaryRow(label: 'Продукты', value: '${state.products.length}'),
               _SummaryRow(
-                label: 'Сотрудники / места',
-                value: '${state.employees.length} / ${state.office.capacity}',
+                label: 'Команда',
+                value:
+                    '${state.onSiteEmployeeCount}/${state.office.capacity} в офисе • ${state.remoteEmployeeCount} remote',
               ),
               _SummaryRow(
                 label: 'Compute capacity',
@@ -92,6 +94,10 @@ class OverviewScreen extends StatelessWidget {
                 ),
               ),
               _SummaryRow(
+                label: 'Активные контракты',
+                value: '${state.activeContracts.length}',
+              ),
+              _SummaryRow(
                 label: 'Инвесторы',
                 value: '${state.investorAgreements.length}',
               ),
@@ -103,6 +109,42 @@ class OverviewScreen extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 18),
+        SectionHeader(
+          title: 'Проекты',
+          subtitle: state.products.isEmpty
+              ? 'Собственных продуктов пока нет.'
+              : 'Короткая сводка по разработке, команде, деньгам и состоянию каждого продукта.',
+          hintTitle: 'Сводка по проектам',
+          hintBody:
+              'Здесь нет полной продуктовой аналитики. Карточка помогает быстро заметить остановившуюся разработку, нехватку ролей, убыток, устаревание или перегрузку. Нажмите на неё для подробностей.',
+        ),
+        const SizedBox(height: 10),
+        if (state.products.isEmpty)
+          const AppCard(
+            hintTitle: 'Первый продукт',
+            hintBody:
+                'Откройте вкладку «Продукты», выберите категорию, стек и функции. Новый проект начнётся с 0% разработки.',
+            child: Text('Создайте первый продукт во вкладке «Продукты».'),
+          )
+        else
+          ...state.products.map(
+            (product) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _ProjectSummaryCard(
+                state: state,
+                product: product,
+                onTap: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) => ProductDetailScreen(
+                      controller: controller,
+                      productId: product.id,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         const SizedBox(height: 18),
         SectionHeader(
           title: 'Важные новости',
@@ -181,6 +223,94 @@ class OverviewScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ProjectSummaryCard extends StatelessWidget {
+  const _ProjectSummaryCard({
+    required this.state,
+    required this.product,
+    required this.onTap,
+  });
+
+  final GameState state;
+  final Product product;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final teamCount = state.employeesForProduct(product.id).length;
+    final coverage = state.productRoleCoverage(product.id);
+    final live = product.stage == ProductStage.live;
+    final net =
+        product.monthlyRevenue -
+        product.monthlyCost -
+        state.productSecurityMonthlyCost(product.id) -
+        state.productImprovementMonthlyCost(product.id);
+    return AppCard(
+      key: Key('overview-project-${product.id}'),
+      onTap: onTap,
+      hintTitle: 'Сводка ${product.name}',
+      hintBody: live
+          ? 'Показывает стадию, размер команды, покрытие обязательных ролей, свежесть, пользователей и приблизительный прямой результат продукта без общих расходов компании.'
+          : 'Показывает прогресс разработки, назначенную команду и покрытие обязательных ролей. При нулевой скорости назначьте сотрудников в разделе «Операции».',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text(
+                      '${categoryName(product.category)} • ${stageName(product.stage)}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.textMuted),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (!live) ...[
+            LinearProgressIndicator(value: product.developmentProgress),
+            const SizedBox(height: 7),
+            Text(
+              'Разработка ${(product.developmentProgress * 100).toStringAsFixed(1)}%',
+            ),
+          ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Chip(label: Text('Команда $teamCount')),
+              Chip(label: Text('Роли ${(coverage * 100).round()}%')),
+              if (live)
+                Chip(label: Text('Users ${compactNumber(product.users)}')),
+              if (live)
+                Chip(
+                  label: Text(
+                    'Свежесть ${state.productFreshnessScore(product).round()}',
+                  ),
+                ),
+              if (live)
+                Chip(
+                  label: Text('${net >= 0 ? '+' : ''}${money(net)}/мес.'),
+                  backgroundColor: (net >= 0 ? AppColors.green : AppColors.red)
+                      .withAlpha(18),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

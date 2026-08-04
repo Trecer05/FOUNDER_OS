@@ -116,8 +116,62 @@ Freshness is derived from `simulationMinutes` and persisted update records. AI a
 
 ### Persistence
 
-`currentSnapshotVersion = 5`. Missing v5 collections decode as empty. For v3/v4, decoder creates migration update records at saved `simulationMinutes`. Unsupported future versions throw controlled `FormatException`.
+В рамках v5 целевой версией была `5`. Missing evolution collections decode as empty. Для v3/v4 decoder создаёт migration update records на сохранённом `simulationMinutes`. Unsupported future versions throw controlled `FormatException`.
 
 ### Performance
 
 The new calculations are linear in product/employee/integration count and run inside the existing simulation tick. No network calls or dependencies are added. Profile-run on physical iPhone remains a release gate.
+
+## Business loop and UX fixes v6
+
+### Domain additions
+
+- `ContractTemplate` — неизменяемые параметры заказа из каталога;
+- `ClientContract` — versioned runtime state контракта;
+- `ContractStatus` — `active`, `completed`, `failed`;
+- `clientContracts` в `GameState`;
+- selectors для active/completed contracts, role coverage и contract capacity.
+
+### Actions
+
+- `AcceptClientContract(templateId)`;
+- `SetProductPrice(productId, price)`.
+
+Все действия проходят через `GameEngine.reduce`. View не меняет cash, price, progress, assignment или contract status напрямую.
+
+### Contract tick
+
+`_simulateMinutes` обновляет simulation time и затем вызывает `_advanceClientContracts`.
+
+- рабочее время ограничивается оставшимися минутами до deadline;
+- role coverage и reserve team формируют effective capacity;
+- effective capacity делится на число active contracts;
+- completion и failure дают детерминированные cash operations и feed messages;
+- wall-clock time не используется.
+
+### Hiring and assignment
+
+- `onSiteEmployeeCount` является единственным источником проверки office capacity;
+- remote не входит в этот selector;
+- assignment sheet хранит временный `Set<String>` и отправляет actions только после подтверждения.
+
+### Pricing
+
+`SetProductPrice` проверяет live stage и subscription model, затем clamp-ит значение относительно `basePrice`. Market scoring и revenue уже читают `Product.price`, поэтому отдельной UI-формулы нет.
+
+### Persistence
+
+`currentSnapshotVersion = 6`. Поле `clientContracts` отсутствует в v5 и декодируется как пустая коллекция. v3/v4 продолжают существующую migration цепочку. Unsupported future version завершается контролируемой ошибкой.
+
+### Verification order
+
+1. `dart format lib test`;
+2. `flutter analyze`;
+3. domain tests;
+4. snapshot tests;
+5. widget tests;
+6. полный `flutter test`;
+7. `git diff --check`;
+8. iOS Simulator build;
+9. profile-run и force quit/restore на iPhone;
+10. Android debug build.

@@ -98,6 +98,13 @@ class SetProductMonetization extends GameAction {
   final MonetizationModel model;
 }
 
+class SetProductPrice extends GameAction {
+  const SetProductPrice({required this.productId, required this.price});
+
+  final String productId;
+  final double price;
+}
+
 class SetProductMarketingBudget extends GameAction {
   const SetProductMarketingBudget({
     required this.productId,
@@ -199,6 +206,11 @@ class DisconnectProducts extends GameAction {
 
   final String firstProductId;
   final String secondProductId;
+}
+
+class AcceptClientContract extends GameAction {
+  const AcceptClientContract(this.templateId);
+  final String templateId;
 }
 
 class RequestInvestorFunding extends GameAction {

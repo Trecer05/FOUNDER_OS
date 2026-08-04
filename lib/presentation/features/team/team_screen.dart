@@ -60,7 +60,7 @@ class _TeamScreenState extends State<TeamScreen> {
         SectionHeader(
           title: 'Команда',
           subtitle:
-              '${state.employees.length}/${state.office.capacity} мест • payroll ${money(state.monthlyPayroll)}/мес.',
+              '${state.onSiteEmployeeCount}/${state.office.capacity} в офисе • ${state.remoteEmployeeCount} remote • payroll ${money(state.monthlyPayroll)}/мес.',
           hintTitle: 'Как читать команду',
           hintBody:
               'Общие значения сверху — средние показатели всех нанятых сотрудников. Реальный вклад в продукт дают только люди, назначенные на него в разделе «Операции».',
@@ -185,6 +185,9 @@ class _TeamScreenState extends State<TeamScreen> {
           ),
           const SizedBox(height: 10),
           AppCard(
+            hintTitle: 'Фильтры рынка кандидатов',
+            hintBody:
+                'Сортировка не меняет характеристики кандидатов. Remote-сотрудник не занимает место в офисе, но получает полную зарплату и может быть назначен на любой продукт.',
             child: Column(
               children: [
                 Row(
@@ -241,7 +244,8 @@ class _TeamScreenState extends State<TeamScreen> {
                 child: _CandidateCard(
                   candidate: candidate,
                   canHire:
-                      state.employees.length < state.office.capacity &&
+                      (candidate.remote ||
+                          state.onSiteEmployeeCount < state.office.capacity) &&
                       state.cash >= candidate.salary * 0.35,
                   onHire: () =>
                       widget.controller.dispatch(HireCandidate(candidate.id)),
@@ -321,6 +325,9 @@ class _CandidateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
+      hintTitle: 'Кандидат ${candidate.name}',
+      hintBody:
+          'Сравнивайте роль, зарплату, signing bonus и шесть точных рабочих характеристик. ${candidate.remote ? 'Remote-кандидат не занимает офисное место.' : 'Office-кандидату требуется свободное место.'}',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -381,7 +388,9 @@ class _CandidateCard extends StatelessWidget {
               child: Text(
                 canHire
                     ? 'Нанять • signing ${money(candidate.salary * 0.35)}'
-                    : 'Нет места или денег',
+                    : candidate.remote
+                    ? 'Недостаточно денег'
+                    : 'Нет офисного места или денег',
               ),
             ),
           ),
@@ -398,6 +407,9 @@ class _EmployeeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
+      hintTitle: 'Сотрудник ${employee.name}',
+      hintBody:
+          'Зарплата списывается каждый месяц. Реальный вклад в разработку появляется после назначения на продукт. Сотрудники в резерве могут выполнять клиентские контракты.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

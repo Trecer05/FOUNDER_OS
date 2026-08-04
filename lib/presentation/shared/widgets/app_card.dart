@@ -25,14 +25,13 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hint = showHint
+    final hasRealHint = showHint && hintTitle != null && hintBody != null;
+    final hint = hasRealHint
         ? Align(
             alignment: Alignment.centerRight,
             child: InfoHintButton(
-              title: hintTitle ?? 'Как читать эту карточку',
-              body:
-                  hintBody ??
-                  'Здесь собраны показатели и действия конкретной сущности. Перед подтверждением сравнивайте стоимость, требования, нагрузку и ожидаемый эффект.',
+              title: hintTitle!,
+              body: hintBody!,
               bullets: hintBullets,
             ),
           )

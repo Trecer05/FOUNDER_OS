@@ -194,70 +194,126 @@ class _ProductTeamCard extends StatelessWidget {
 
   Future<void> _showAssignmentSheet(BuildContext context) async {
     final state = controller.state;
+    final selectedEmployeeIds = state
+        .employeesForProduct(product.id)
+        .map((employee) => employee.id)
+        .toSet();
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom + 16,
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 620),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Команда ${product.name}',
-                  style: Theme.of(sheetContext).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Один сотрудник может работать только над одним продуктом. Переназначение происходит сразу.',
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: state.employees.isEmpty
-                      ? const Center(child: Text('Сотрудников пока нет.'))
-                      : ListView.separated(
-                          itemCount: state.employees.length,
-                          separatorBuilder: (_, _) => const Divider(height: 1),
-                          itemBuilder: (_, index) {
-                            final employee = state.employees[index];
-                            final assignment = state.assignmentForEmployee(
-                              employee.id,
-                            );
-                            final selected =
-                                assignment?.productId == product.id;
-                            final currentProduct = assignment == null
-                                ? null
-                                : state.productById(assignment.productId);
-                            return CheckboxListTile(
-                              key: Key(
-                                'assign-${employee.id}-to-${product.id}',
-                              ),
-                              value: selected,
-                              title: Text(employee.name),
-                              subtitle: Text(
-                                '${roleName(employee.role)} • ${currentProduct == null ? 'резерв' : currentProduct.name}',
-                              ),
-                              onChanged: (_) {
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              bottom: MediaQuery.viewInsetsOf(sheetContext).bottom + 16,
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 650),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Команда ${product.name}',
+                    style: Theme.of(sheetContext).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Выбрано: ${selectedEmployeeIds.length}. Отметьте весь состав, затем нажмите «Сохранить команду».',
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Сотрудник, выбранный для этого продукта, будет снят с другого проекта только после сохранения.',
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: state.employees.isEmpty
+                        ? const Center(child: Text('Сотрудников пока нет.'))
+                        : ListView.separated(
+                            itemCount: state.employees.length,
+                            separatorBuilder: (_, _) =>
+                                const Divider(height: 1),
+                            itemBuilder: (_, index) {
+                              final employee = state.employees[index];
+                              final assignment = state.assignmentForEmployee(
+                                employee.id,
+                              );
+                              final selected = selectedEmployeeIds.contains(
+                                employee.id,
+                              );
+                              final currentProduct = assignment == null
+                                  ? null
+                                  : state.productById(assignment.productId);
+                              return CheckboxListTile(
+                                key: Key(
+                                  'assign-${employee.id}-to-${product.id}',
+                                ),
+                                value: selected,
+                                title: Text(employee.name),
+                                subtitle: Text(
+                                  '${roleName(employee.role)} • ${currentProduct == null ? 'резерв' : currentProduct.name}',
+                                ),
+                                onChanged: (value) => setSheetState(() {
+                                  if (value ?? false) {
+                                    selectedEmployeeIds.add(employee.id);
+                                  } else {
+                                    selectedEmployeeIds.remove(employee.id);
+                                  }
+                                }),
+                              );
+                            },
+                          ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          child: const Text('Отмена'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        flex: 2,
+                        child: FilledButton.icon(
+                          key: Key('save-team-${product.id}'),
+                          onPressed: () {
+                            for (final employee in state.employees) {
+                              final assignment = state.assignmentForEmployee(
+                                employee.id,
+                              );
+                              final shouldBeSelected = selectedEmployeeIds
+                                  .contains(employee.id);
+                              final wasSelected =
+                                  assignment?.productId == product.id;
+                              if (shouldBeSelected && !wasSelected) {
                                 controller.dispatch(
                                   AssignEmployeeToProduct(
                                     employeeId: employee.id,
-                                    productId: selected ? null : product.id,
+                                    productId: product.id,
                                   ),
                                 );
-                                Navigator.of(sheetContext).pop();
-                              },
-                            );
+                              } else if (!shouldBeSelected && wasSelected) {
+                                controller.dispatch(
+                                  AssignEmployeeToProduct(
+                                    employeeId: employee.id,
+                                  ),
+                                );
+                              }
+                            }
+                            Navigator.of(sheetContext).pop();
                           },
+                          icon: const Icon(Icons.save_outlined),
+                          label: const Text('Сохранить команду'),
                         ),
-                ),
-              ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

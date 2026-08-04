@@ -1,14 +1,16 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import '../catalog/contract_catalog.dart';
 import '../catalog/game_catalog.dart';
 import '../catalog/operations_catalog.dart';
 import '../catalog/product_evolution_catalog.dart';
+import 'business_models.dart';
 import 'models.dart';
 import 'operations_models.dart';
 import 'product_evolution_models.dart';
 
-const int currentSnapshotVersion = 5;
+const int currentSnapshotVersion = 6;
 
 enum GameSpeed {
   x1(1),
@@ -36,6 +38,7 @@ class GameState {
     required this.productAiIntegrations,
     required this.productImprovements,
     required this.productUpdates,
+    required this.clientContracts,
     required this.ecosystemLinks,
     required this.selectedOfficeId,
     required this.selectedServerRoomId,
@@ -72,6 +75,7 @@ class GameState {
     productAiIntegrations: const <ProductAiIntegration>[],
     productImprovements: const <ProductImprovementRecord>[],
     productUpdates: const <ProductUpdateRecord>[],
+    clientContracts: const <ClientContract>[],
     ecosystemLinks: const <EcosystemLink>[],
     selectedOfficeId: 'garage',
     selectedServerRoomId: 'closet',
@@ -130,6 +134,7 @@ class GameState {
   final List<ProductAiIntegration> productAiIntegrations;
   final List<ProductImprovementRecord> productImprovements;
   final List<ProductUpdateRecord> productUpdates;
+  final List<ClientContract> clientContracts;
   final List<EcosystemLink> ecosystemLinks;
   final String selectedOfficeId;
   final String selectedServerRoomId;
@@ -205,6 +210,58 @@ class GameState {
   List<Employee> get unassignedEmployees => employees
       .where((employee) => assignmentForEmployee(employee.id) == null)
       .toList(growable: false);
+
+  int get onSiteEmployeeCount =>
+      employees.where((employee) => !employee.remote).length;
+
+  int get remoteEmployeeCount =>
+      employees.where((employee) => employee.remote).length;
+
+  int get availableOfficeSeats =>
+      math.max(0, office.capacity - onSiteEmployeeCount).toInt();
+
+  List<ClientContract> get activeContracts => clientContracts
+      .where((contract) => contract.status == ContractStatus.active)
+      .toList(growable: false);
+
+  List<ClientContract> get completedContracts => clientContracts
+      .where((contract) => contract.status == ContractStatus.completed)
+      .toList(growable: false);
+
+  ContractTemplate contractTemplate(String templateId) =>
+      ContractCatalog.byId(templateId);
+
+  bool hasActiveContractTemplate(String templateId) =>
+      activeContracts.any((contract) => contract.templateId == templateId);
+
+  double contractRoleCoverage(ContractTemplate template) {
+    if (template.requiredRoles.isEmpty) {
+      return 1;
+    }
+    final reserveRoles = unassignedEmployees
+        .map((employee) => employee.role)
+        .toList(growable: false);
+    final covered = template.requiredRoles
+        .where((role) => reserveRoles.contains(role))
+        .length;
+    return covered / template.requiredRoles.length;
+  }
+
+  double get contractDevelopmentCapacity {
+    final reserve = unassignedEmployees;
+    if (reserve.isEmpty) {
+      return 18;
+    }
+    return 18 +
+        reserve.fold<double>(
+          0,
+          (sum, employee) =>
+              sum +
+              employee.skill * 0.28 +
+              employee.speed * 0.24 +
+              employee.quality * 0.14,
+        );
+  }
 
   List<String> securityControlIdsFor(String productId) => securityControls
       .where((item) => item.productId == productId)
@@ -746,6 +803,7 @@ class GameState {
     List<ProductAiIntegration>? productAiIntegrations,
     List<ProductImprovementRecord>? productImprovements,
     List<ProductUpdateRecord>? productUpdates,
+    List<ClientContract>? clientContracts,
     List<EcosystemLink>? ecosystemLinks,
     String? selectedOfficeId,
     String? selectedServerRoomId,
@@ -795,6 +853,9 @@ class GameState {
       ),
       productUpdates: List<ProductUpdateRecord>.unmodifiable(
         productUpdates ?? this.productUpdates,
+      ),
+      clientContracts: List<ClientContract>.unmodifiable(
+        clientContracts ?? this.clientContracts,
       ),
       ecosystemLinks: List<EcosystemLink>.unmodifiable(
         ecosystemLinks ?? this.ecosystemLinks,
@@ -856,6 +917,7 @@ class GameState {
         .map((item) => item.toJson())
         .toList(),
     'productUpdates': productUpdates.map((item) => item.toJson()).toList(),
+    'clientContracts': clientContracts.map((item) => item.toJson()).toList(),
     'ecosystemLinks': ecosystemLinks.map((item) => item.toJson()).toList(),
     'selectedOfficeId': selectedOfficeId,
     'selectedServerRoomId': selectedServerRoomId,
@@ -932,6 +994,10 @@ class GameState {
       productUpdates: _decodeList(
         json['productUpdates'],
         ProductUpdateRecord.fromJson,
+      ),
+      clientContracts: _decodeList(
+        json['clientContracts'],
+        ClientContract.fromJson,
       ),
       ecosystemLinks: _decodeList(
         json['ecosystemLinks'],

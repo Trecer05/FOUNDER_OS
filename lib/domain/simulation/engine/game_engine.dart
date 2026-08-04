@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 
+import '../../catalog/contract_catalog.dart';
 import '../../catalog/game_catalog.dart';
 import '../../catalog/operations_catalog.dart';
 import '../../catalog/product_evolution_catalog.dart';
 import '../../commands/game_action.dart';
+import '../../entities/business_models.dart';
 import '../../entities/game_state.dart';
 import '../../entities/models.dart';
 import '../../entities/operations_models.dart';
@@ -59,6 +61,11 @@ class GameEngine {
         action.productId,
         action.model,
       ),
+      SetProductPrice() => _setProductPrice(
+        state,
+        action.productId,
+        action.price,
+      ),
       SetProductMarketingBudget() => _setMarketingBudget(
         state,
         action.productId,
@@ -106,6 +113,7 @@ class GameEngine {
         action.firstProductId,
         action.secondProductId,
       ),
+      AcceptClientContract() => _acceptClientContract(state, action.templateId),
       RequestInvestorFunding() => _requestFunding(state, action),
       AcceptInvestorOffer() => _acceptOffer(state, action.offerId),
       RejectInvestorOffer() => _rejectOffer(state, action.offerId),
@@ -370,6 +378,7 @@ class GameEngine {
     );
     final cashDelta = next.monthlyProfit * monthFraction;
     next = next.copyWith(cash: next.cash + cashDelta);
+    next = _advanceClientContracts(next, deltaMinutes);
 
     if (next.products.any(
           (product) =>
@@ -437,6 +446,72 @@ class GameEngine {
       );
     }
 
+    return next;
+  }
+
+  GameState _advanceClientContracts(GameState state, int deltaMinutes) {
+    if (state.activeContracts.isEmpty || deltaMinutes <= 0) {
+      return state;
+    }
+    var cashDelta = 0.0;
+    final messages = <String>[];
+    final updated = state.clientContracts
+        .map((contract) {
+          if (contract.status != ContractStatus.active) {
+            return contract;
+          }
+          final template = ContractCatalog.byId(contract.templateId);
+          final roleCoverage = state.contractRoleCoverage(template);
+          final parallelLoad = math.max(1, state.activeContracts.length);
+          final effectiveCapacity =
+              state.contractDevelopmentCapacity *
+              (0.45 + roleCoverage * 0.55) /
+              parallelLoad;
+          final previousMinutes = state.simulationMinutes - deltaMinutes;
+          final minutesBeforeDeadline = math.max(
+            0,
+            contract.deadlineAtMinutes - previousMinutes,
+          );
+          final workableMinutes = math.min(deltaMinutes, minutesBeforeDeadline);
+          final gameHours = workableMinutes / 60;
+          final progressDelta =
+              gameHours *
+              (0.30 + effectiveCapacity / 80) /
+              template.developmentHours;
+          final nextProgress = math
+              .min(1, contract.progress + progressDelta)
+              .toDouble();
+          if (nextProgress >= 1) {
+            final remainingReward =
+                contract.reward * (1 - template.upfrontPercent);
+            cashDelta += remainingReward;
+            messages.add(
+              '${template.client}: контракт «${template.name}» завершён. Получено ${remainingReward.round()} ₽.',
+            );
+            return contract.copyWith(
+              status: ContractStatus.completed,
+              progress: 1,
+            );
+          }
+          if (state.simulationMinutes >= contract.deadlineAtMinutes) {
+            final penalty = contract.reward * 0.10;
+            cashDelta -= penalty;
+            messages.add(
+              '${template.client}: срок «${template.name}» сорван. Штраф ${penalty.round()} ₽.',
+            );
+            return contract.copyWith(status: ContractStatus.failed);
+          }
+          return contract.copyWith(progress: nextProgress);
+        })
+        .toList(growable: false);
+
+    var next = state.copyWith(
+      cash: state.cash + cashDelta,
+      clientContracts: updated,
+    );
+    for (final message in messages) {
+      next = _withFeed(next, message);
+    }
     return next;
   }
 
@@ -670,7 +745,7 @@ class GameEngine {
       languageIds: List<String>.unmodifiable(action.languageIds),
       technologyIds: List<String>.unmodifiable(action.technologyIds),
       featureIds: List<String>.unmodifiable(action.featureIds),
-      developmentProgress: 0.68,
+      developmentProgress: 0,
       users: 0,
       dau: 0,
       mau: 0,
@@ -963,6 +1038,12 @@ class GameEngine {
     if (product == null || product.stage == ProductStage.failed) {
       return state;
     }
+    if (product.stage != ProductStage.live) {
+      return _withFeed(
+        state,
+        '${product.name}: постоянные технические улучшения доступны только после выхода на рынок.',
+      );
+    }
     final option = ProductEvolutionCatalog.improvementByType(type);
     final currentLevel = state.improvementLevel(productId, type);
     final cost = state.improvementCost(productId, type);
@@ -1055,6 +1136,38 @@ class GameEngine {
     );
   }
 
+  GameState _setProductPrice(GameState state, String productId, double price) {
+    final product = state.productById(productId);
+    if (product == null || product.stage != ProductStage.live) {
+      return _withFeed(
+        state,
+        'Цена подписки меняется только у выпущенного продукта.',
+      );
+    }
+    if (product.monetization != MonetizationModel.subscription) {
+      return _withFeed(
+        state,
+        '${product.name}: сначала выберите модель «Подписка».',
+      );
+    }
+    final blueprint = GameCatalog.blueprintById(product.blueprintId);
+    final minimum = math.max(49, blueprint.basePrice * 0.25).toDouble();
+    final maximum = math.max(minimum, blueprint.basePrice * 4).toDouble();
+    final normalized = price.clamp(minimum, maximum).toDouble();
+    return _withFeed(
+      state.copyWith(
+        products: state.products
+            .map(
+              (item) => item.id == productId
+                  ? item.copyWith(price: normalized)
+                  : item,
+            )
+            .toList(growable: false),
+      ),
+      '${product.name}: цена подписки ${normalized.round()} ₽/мес.',
+    );
+  }
+
   GameState _setMarketingBudget(
     GameState state,
     String productId,
@@ -1115,10 +1228,14 @@ class GameEngine {
 
   GameState _hireCandidate(GameState state, String candidateId) {
     final candidate = state.candidateById(candidateId);
-    if (candidate == null || state.employees.length >= state.office.capacity) {
+    if (candidate == null) {
+      return state;
+    }
+    if (!candidate.remote &&
+        state.onSiteEmployeeCount >= state.office.capacity) {
       return _withFeed(
         state,
-        'Найм заблокирован: в офисе ${state.office.capacity} мест.',
+        'Найм заблокирован: все ${state.office.capacity} офисных мест заняты. Remote-кандидаты по-прежнему доступны.',
       );
     }
     final employerBrandDiscount = state.office.hiringBoostPercent
@@ -1355,7 +1472,7 @@ class GameEngine {
       return state;
     }
     final office = GameCatalog.officeById(officeId);
-    if (office.capacity < state.employees.length ||
+    if (office.capacity < state.onSiteEmployeeCount ||
         state.cash < office.deposit) {
       return state;
     }
@@ -1473,6 +1590,39 @@ class GameEngine {
       ecosystemLinks: state.ecosystemLinks
           .where((item) => item.key != key)
           .toList(growable: false),
+    );
+  }
+
+  GameState _acceptClientContract(GameState state, String templateId) {
+    final template = ContractCatalog.byId(templateId);
+    if (state.hasActiveContractTemplate(templateId)) {
+      return _withFeed(state, '${template.name}: контракт уже выполняется.');
+    }
+    if (state.activeContracts.length >= 3) {
+      return _withFeed(
+        state,
+        'Одновременно можно вести не больше трёх клиентских контрактов.',
+      );
+    }
+    final sequence = state.rngCounter + 1;
+    final upfront = template.reward * template.upfrontPercent;
+    final contract = ClientContract(
+      id: '${template.id}_$sequence',
+      templateId: template.id,
+      status: ContractStatus.active,
+      progress: 0,
+      acceptedAtMinutes: state.simulationMinutes,
+      deadlineAtMinutes:
+          state.simulationMinutes + template.deadlineDays * 24 * 60,
+      reward: template.reward,
+    );
+    return _withFeed(
+      state.copyWith(
+        cash: state.cash + upfront,
+        clientContracts: <ClientContract>[...state.clientContracts, contract],
+        rngCounter: sequence,
+      ),
+      '${template.client}: контракт «${template.name}» принят. Аванс ${upfront.round()} ₽.',
     );
   }
 

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
@@ -59,6 +61,9 @@ class ProductDetailScreen extends StatelessWidget {
               const SizedBox(height: 12),
               if (product.stage == ProductStage.development) ...[
                 AppCard(
+                  hintTitle: 'Разработка продукта',
+                  hintBody:
+                      'Новый продукт начинается с 0%. Прогресс растёт только вместе с игровым временем и зависит от назначенной команды, покрытия ролей, выбранного стека и корпоративной AI.',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -206,6 +211,9 @@ class ProductDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               AppCard(
+                hintTitle: 'Сравнение с лидером',
+                hintBody:
+                    'Рынок сравнивает скорость, дизайн, безопасность, надёжность, функции и цену. Зелёная строка означает преимущество вашего продукта.',
                 child: Column(
                   children: [
                     _ComparisonHeader(
@@ -258,6 +266,9 @@ class ProductDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               AppCard(
+                hintTitle: 'Технологический стек',
+                hintBody:
+                    'Framework, языки, технологии и функции задают стоимость разработки, скорость, качество, надёжность и серверную нагрузку.',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -313,7 +324,7 @@ class ProductDetailScreen extends StatelessWidget {
               const SectionHeader(
                 title: 'Постоянные технические улучшения',
                 subtitle:
-                    'Доступны всегда, даже когда все крупные функции roadmap уже реализованы.',
+                    'После релиза доступны всегда, даже когда все крупные функции roadmap уже реализованы.',
                 hintTitle: 'Бесконечное развитие продукта',
                 hintBody:
                     'Улучшения можно повторять. Каждый следующий уровень дороже, но снова делает продукт свежим и даёт конкретный технический эффект.',
@@ -369,11 +380,17 @@ class ProductDetailScreen extends StatelessWidget {
               const SizedBox(height: 8),
               const SectionHeader(
                 title: 'Монетизация и маркетинг',
+                hintTitle: 'Цена, модель и реклама',
+                hintBody:
+                    'Цена влияет одновременно на выручку и привлекательность продукта для чувствительных к стоимости сегментов. Реклама увеличивает тестовый трафик, но не исправляет слабые retention и quality.',
                 subtitle:
                     'Реклама приводит тестовый трафик, но слабое качество ограничивает активацию и retention.',
               ),
               const SizedBox(height: 10),
               AppCard(
+                hintTitle: 'Настройки монетизации',
+                hintBody:
+                    'Модель определяет формулу выручки. Подписка использует регулируемую цену; реклама зависит от MAU; usage-based и transaction fee зависят от цены и активности. Маркетинговый бюджет списывается каждый месяц.',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -401,6 +418,17 @@ class ProductDetailScreen extends StatelessWidget {
                         }
                       },
                     ),
+                    if (product.stage == ProductStage.live &&
+                        product.monetization ==
+                            MonetizationModel.subscription) ...[
+                      const SizedBox(height: 14),
+                      _SubscriptionPriceControl(
+                        product: product,
+                        onChanged: (price) => controller.dispatch(
+                          SetProductPrice(productId: product.id, price: price),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 14),
                     Text(
                       'Рекламный бюджет / мес.',
@@ -436,6 +464,9 @@ class ProductDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               AppCard(
+                hintTitle: 'Нагрузка продукта',
+                hintBody:
+                    'Выделение — доля общей серверной мощности. Загрузка выше 100% означает дефицит; длительная перегрузка ухудшает скорость, uptime и удержание пользователей.',
                 child: Column(
                   children: [
                     _LabelValue(
@@ -475,6 +506,9 @@ class ProductDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 AppCard(
+                  hintTitle: 'Риск безопасности',
+                  hintBody:
+                      'Расчётный риск учитывает security score, масштаб, загрузку серверов, физическую защиту и установленные security controls. Красный team-сценарий запускает тестовый инцидент.',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -775,6 +809,78 @@ class _AiUsageCard extends StatelessWidget {
   }
 }
 
+class _SubscriptionPriceControl extends StatefulWidget {
+  const _SubscriptionPriceControl({
+    required this.product,
+    required this.onChanged,
+  });
+
+  final Product product;
+  final ValueChanged<double> onChanged;
+
+  @override
+  State<_SubscriptionPriceControl> createState() =>
+      _SubscriptionPriceControlState();
+}
+
+class _SubscriptionPriceControlState extends State<_SubscriptionPriceControl> {
+  double? _draftPrice;
+
+  @override
+  void didUpdateWidget(covariant _SubscriptionPriceControl oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.product.price != widget.product.price) {
+      _draftPrice = null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final blueprint = GameCatalog.blueprintById(widget.product.blueprintId);
+    final minimum = math.max(49, blueprint.basePrice * 0.25).toDouble();
+    final maximum = math.max(minimum, blueprint.basePrice * 4).toDouble();
+    final value = (_draftPrice ?? widget.product.price)
+        .clamp(minimum, maximum)
+        .toDouble();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Цена подписки',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            Text(
+              '${value.round()} ₽/мес.',
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ],
+        ),
+        Slider(
+          key: const Key('subscription-price-slider'),
+          value: value,
+          min: minimum,
+          max: maximum,
+          divisions: 15,
+          label: '${value.round()} ₽',
+          onChanged: (next) => setState(() => _draftPrice = next),
+          onChangeEnd: (next) {
+            widget.onChanged(next);
+            setState(() => _draftPrice = null);
+          },
+        ),
+        Text(
+          'Базовая цена категории: ${blueprint.basePrice.round()} ₽. Более высокая цена увеличивает доход с платящего пользователя, но ухудшает ценовую конкурентоспособность.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+}
+
 class _ContinuousImprovementCard extends StatelessWidget {
   const _ContinuousImprovementCard({
     required this.state,
@@ -792,7 +898,8 @@ class _ContinuousImprovementCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final level = state.improvementLevel(product.id, option.type);
     final cost = state.improvementCost(product.id, option.type);
-    final canAfford = state.cash >= cost;
+    final released = product.stage == ProductStage.live;
+    final canAfford = released && state.cash >= cost;
     return AppCard(
       hintTitle: option.name,
       hintBody: option.description,
@@ -840,7 +947,11 @@ class _ContinuousImprovementCard extends StatelessWidget {
               onPressed: canAfford ? onApply : null,
               icon: const Icon(Icons.upgrade_outlined),
               label: Text(
-                canAfford ? 'Выпустить улучшение' : 'Недостаточно денег',
+                !released
+                    ? 'Доступно после релиза'
+                    : canAfford
+                    ? 'Выпустить улучшение'
+                    : 'Недостаточно денег',
               ),
             ),
           ),

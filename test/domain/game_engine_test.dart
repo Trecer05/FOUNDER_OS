@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:founder_os/domain/catalog/contract_catalog.dart';
 import 'package:founder_os/domain/commands/game_action.dart';
+import 'package:founder_os/domain/entities/business_models.dart';
 import 'package:founder_os/domain/entities/game_state.dart';
 import 'package:founder_os/domain/entities/models.dart';
 import 'package:founder_os/domain/entities/product_evolution_models.dart';
@@ -36,14 +38,14 @@ void main() {
 
   test('candidate hiring respects numeric office capacity', () {
     var state = GameState.initial();
-    state = engine.reduce(state, const HireCandidate('c_anna'));
     state = engine.reduce(state, const HireCandidate('c_timur'));
-    state = engine.reduce(state, const HireCandidate('c_daria'));
-    final fullOffice = engine.reduce(state, const HireCandidate('c_ilya'));
+    state = engine.reduce(state, const HireCandidate('c_ilya'));
+    state = engine.reduce(state, const HireCandidate('c_maksim'));
+    final fullOffice = engine.reduce(state, const HireCandidate('c_roman'));
 
-    expect(state.employees, hasLength(3));
-    expect(state.candidateById('c_anna'), isNull);
-    expect(fullOffice.employees, hasLength(3));
+    expect(state.onSiteEmployeeCount, 3);
+    expect(fullOffice.onSiteEmployeeCount, 3);
+    expect(fullOffice.candidateById('c_roman'), isNotNull);
     expect(fullOffice.office.capacity, 3);
   });
 
@@ -202,6 +204,9 @@ void main() {
         ),
       );
       final product = state.products.single;
+      state = state.copyWith(
+        products: <Product>[product.copyWith(developmentProgress: 0.5)],
+      );
       state = engine.reduce(
         state,
         RequestInvestorFunding(
@@ -651,6 +656,11 @@ void main() {
     );
     final product = state.products.single;
     state = state.copyWith(
+      products: <Product>[
+        product.copyWith(stage: ProductStage.live, developmentProgress: 1),
+      ],
+    );
+    state = state.copyWith(
       simulationMinutes: state.simulationMinutes + 50 * 1440,
     );
     expect(state.productFreshnessScore(product), lessThan(70));
@@ -676,6 +686,152 @@ void main() {
       state.improvementCost(product.id, ProductImprovementType.performance),
       greaterThan(firstCost),
     );
+  });
+
+  test('new product starts at zero percent development', () {
+    const engine = GameEngine();
+    final state = engine.reduce(
+      GameState.initial().copyWith(cash: 10000000),
+      const CreateConfiguredProduct(
+        name: 'Zero Start',
+        blueprintId: 'team_saas',
+        frameworkId: 'flutter_firebase',
+        languageIds: <String>['typescript'],
+        technologyIds: <String>['postgresql'],
+        featureIds: <String>['realtime_collaboration'],
+      ),
+    );
+    expect(state.products.single.developmentProgress, 0);
+  });
+
+  test('remote candidate can be hired when office seats are full', () {
+    const engine = GameEngine();
+    var state = GameState.initial().copyWith(cash: 10000000);
+    final onSiteCandidates = state.candidates
+        .where((item) => !item.remote)
+        .take(state.office.capacity);
+    for (final candidate in onSiteCandidates) {
+      state = engine.reduce(state, HireCandidate(candidate.id));
+    }
+    expect(state.onSiteEmployeeCount, state.office.capacity);
+    state = engine.reduce(state, const HireCandidate('c_anna'));
+    expect(state.employeeById('c_anna'), isNotNull);
+    expect(state.remoteEmployeeCount, 1);
+  });
+
+  test('continuous improvements are blocked before launch', () {
+    const engine = GameEngine();
+    var state = engine.reduce(
+      GameState.initial().copyWith(cash: 10000000),
+      const CreateConfiguredProduct(
+        name: 'Prelaunch',
+        blueprintId: 'team_saas',
+        frameworkId: 'flutter_firebase',
+        languageIds: <String>['typescript'],
+        technologyIds: <String>['postgresql'],
+        featureIds: <String>['realtime_collaboration'],
+      ),
+    );
+    final productId = state.products.single.id;
+    final cash = state.cash;
+    state = engine.reduce(
+      state,
+      ApplyProductImprovement(
+        productId: productId,
+        type: ProductImprovementType.performance,
+      ),
+    );
+    expect(
+      state.improvementLevel(productId, ProductImprovementType.performance),
+      0,
+    );
+    expect(state.cash, cash);
+  });
+
+  test('subscription price is configurable only after launch', () {
+    const engine = GameEngine();
+    var state = engine.reduce(
+      GameState.initial().copyWith(cash: 10000000),
+      const CreateConfiguredProduct(
+        name: 'Pricing',
+        blueprintId: 'team_saas',
+        frameworkId: 'flutter_firebase',
+        languageIds: <String>['typescript'],
+        technologyIds: <String>['postgresql'],
+        featureIds: <String>['realtime_collaboration'],
+      ),
+    );
+    final id = state.products.single.id;
+    state = engine.reduce(state, SetProductPrice(productId: id, price: 1500));
+    expect(state.products.single.price, 890);
+    state = state.copyWith(
+      products: <Product>[
+        state.products.single.copyWith(
+          stage: ProductStage.live,
+          developmentProgress: 1,
+        ),
+      ],
+    );
+    state = engine.reduce(state, SetProductPrice(productId: id, price: 1500));
+    expect(state.products.single.price, 1500);
+  });
+
+  test('client contract pays upfront and finishes through simulation', () {
+    const engine = GameEngine();
+    var state = GameState.initial().copyWith(cash: 1000000, paused: false);
+    final template = ContractCatalog.byId('landing_launch');
+    state = engine.reduce(state, const AcceptClientContract('landing_launch'));
+    expect(state.activeContracts, hasLength(1));
+    expect(state.cash, 1000000 + template.reward * template.upfrontPercent);
+    state = engine.reduce(state, const AdvanceTime(2750));
+    expect(state.completedContracts, hasLength(1));
+    expect(state.activeContracts, isEmpty);
+    expect(state.cash, greaterThan(1000000));
+  });
+
+  test('parallel contracts share the available reserve capacity', () {
+    const engine = GameEngine();
+    var single = GameState.initial().copyWith(paused: false);
+    single = engine.reduce(
+      single,
+      const AcceptClientContract('landing_launch'),
+    );
+    single = engine.reduce(single, const AdvanceTime(1000));
+
+    var parallel = GameState.initial().copyWith(paused: false);
+    parallel = engine.reduce(
+      parallel,
+      const AcceptClientContract('landing_launch'),
+    );
+    parallel = engine.reduce(
+      parallel,
+      const AcceptClientContract('internal_dashboard'),
+    );
+    parallel = engine.reduce(parallel, const AdvanceTime(1000));
+
+    final singleProgress = single.clientContracts
+        .firstWhere((item) => item.templateId == 'landing_launch')
+        .progress;
+    final parallelProgress = parallel.clientContracts
+        .firstWhere((item) => item.templateId == 'landing_launch')
+        .progress;
+
+    expect(parallelProgress, lessThan(singleProgress));
+  });
+
+  test('contract can fail when deadline passes without enough capacity', () {
+    const engine = GameEngine();
+    var state = GameState.initial().copyWith(cash: 1000000, paused: false);
+    state = engine.reduce(
+      state,
+      const AcceptClientContract('internal_dashboard'),
+    );
+
+    state = engine.reduce(state, const AdvanceTime(5100));
+
+    expect(state.clientContracts.single.status, ContractStatus.failed);
+    expect(state.completedContracts, isEmpty);
+    expect(state.activeContracts, isEmpty);
   });
 }
 

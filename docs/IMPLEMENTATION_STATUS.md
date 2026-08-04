@@ -9,7 +9,7 @@
 - [x] iOS Simulator debug build;
 - [x] ветка `feat/mvp-vertical-slice` отправлена на GitHub, commit `2d70d2d`.
 
-## Operations/security v4 — проверено до подготовки v5
+## Operations/security v4 — проверено
 
 - [x] 15 domain tests;
 - [x] 4 snapshot/migration tests;
@@ -22,34 +22,48 @@
 - [ ] Android debug build;
 - [ ] длительная симуляция 30+ игровых дней.
 
-## Guidance/AI/product evolution v5 — реализовано в пакете
+## Guidance/AI/product evolution v5 — проверено пользователем на iPhone
 
-- [x] onboarding из пяти шагов и повторный запуск;
-- [x] поясняющие `i`-кнопки на карточках и метриках;
+- [x] onboarding и повторный запуск;
 - [x] средние показатели команды;
-- [x] category-specific product role requirements;
-- [x] role coverage и причины нехватки специалистов;
-- [x] public/corporate AI deployment modes;
-- [x] подключение корпоративной AI к продуктам;
-- [x] AI development/quality boost, compute demand и OPEX;
+- [x] role requirements и role coverage;
+- [x] public/corporate AI и внутренние интеграции;
 - [x] product freshness/staleness;
-- [x] повторяемые continuous improvements с растущей стоимостью;
-- [x] snapshot schema v5;
-- [x] controlled migration v3/v4;
-- [x] domain/widget tests подготовлены;
+- [x] повторяемые continuous improvements;
+- [x] snapshot schema v5 и controlled migrations;
+- [x] полный локальный набор тестов проходил перед установкой;
+- [x] физический iPhone: игра запускается и в целом работает плавно;
+- [x] собран фактический UX/logic feedback для v6;
+- [ ] Android debug build;
+- [ ] длительный balance/performance run.
+
+## Business loop and UX fixes v6 — реализовано в пакете
+
+- [x] старт разработки с `0%`;
+- [x] пакетное сохранение проектной команды;
+- [x] отдельный учёт onsite/remote при найме и аренде офиса;
+- [x] запрет continuous improvements до релиза;
+- [x] пять клиентских контрактов;
+- [x] аванс, финальная выплата, deadline и штраф;
+- [x] required roles и разделение мощности параллельных контрактов;
+- [x] регулировка subscription price;
+- [x] проектная сводка на Overview;
+- [x] удаление placeholder-подсказок;
+- [x] snapshot schema v6 и миграция v5 → v6;
+- [x] новые domain/snapshot/widget tests подготовлены;
 - [x] документация обновлена.
 
-## Требует проверки после применения v5
+## Требует проверки после применения v6
 
 - [ ] `dart format lib test`;
 - [ ] `flutter analyze`;
-- [ ] точечные evolution/AI/migration tests;
+- [ ] точечные domain/snapshot/widget tests;
 - [ ] полный `flutter test`;
-- [ ] iOS Simulator build;
-- [ ] profile-сборка на физическом iPhone;
-- [ ] force quit / restore после миграции v4 → v5;
-- [ ] визуальная проверка подсказок и карточек на 430×932;
-- [ ] Android debug build;
-- [ ] длительная симуляция устаревания и обновлений.
+- [ ] `git diff --check`;
+- [ ] iOS Simulator debug build;
+- [ ] profile-run на физическом iPhone;
+- [ ] force quit / restore snapshot v6;
+- [ ] ручная проверка контрактного дедлайна и нескольких контрактов;
+- [ ] Android debug build.
 
-V5 нельзя считать проверенной до прохождения этих пунктов на локальной машине проекта.
+V6 нельзя считать проверенной или готовой к merge до прохождения этих пунктов на локальной машине проекта.

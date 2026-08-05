@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
 import '../../../domain/catalog/game_catalog.dart';
+import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/management_models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
@@ -24,6 +25,13 @@ class FinanceScreen extends StatefulWidget {
 
 class _FinanceScreenState extends State<FinanceScreen> {
   _FinanceSeries _series = _FinanceSeries.cash;
+  final TextEditingController _promoController = TextEditingController();
+
+  @override
+  void dispose() {
+    _promoController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +112,117 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   ),
                   MetricCard(label: 'Valuation', value: money(state.valuation)),
                 ],
+              ),
+              const SizedBox(height: 18),
+              SectionHeader(
+                title: 'Ликвидность и кредит',
+                subtitle: state.cash >= 0
+                    ? 'Баланс положительный. Кредитный кризис не активен.'
+                    : 'Отрицательный баланс требует исправления в течение ограниченного срока.',
+              ),
+              const SizedBox(height: 10),
+              AppCard(
+                hintTitle: 'Правила отрицательного баланса',
+                hintBody:
+                    'Первая неделя в минусе — время исправить экономику. После недели банк может предложить кредит. Повторный минус при погашении менее 70% приводит к банкротству; после 70% доступна последняя неделя.',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (state.negativeCashSinceMinutes != null)
+                      _FinanceStatusRow(
+                        label: 'В минусе',
+                        value:
+                            '${((state.simulationMinutes - state.negativeCashSinceMinutes!) / 1440).clamp(0, 999).toStringAsFixed(1)} дн.',
+                      ),
+                    _FinanceStatusRow(
+                      label: 'Кредитное предложение',
+                      value: state.creditOffered ? 'Доступно' : 'Нет',
+                    ),
+                    if (state.activeLoan != null) ...[
+                      _FinanceStatusRow(
+                        label: 'Остаток кредита',
+                        value: money(state.activeLoan!.remaining),
+                      ),
+                      _FinanceStatusRow(
+                        label: 'Погашено',
+                        value: percent(state.activeLoan!.repaidFraction),
+                      ),
+                      _FinanceStatusRow(
+                        label: 'Платёж / неделю',
+                        value: money(state.activeLoan!.weeklyPayment),
+                        last: true,
+                      ),
+                    ] else
+                      _FinanceStatusRow(
+                        label: 'Активный кредит',
+                        value: 'Нет',
+                        last: true,
+                      ),
+                    if (state.creditOffered && state.activeLoan == null) ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          key: const Key('accept-emergency-loan'),
+                          onPressed: () => widget.controller.dispatch(
+                            const AcceptEmergencyLoan(),
+                          ),
+                          icon: const Icon(Icons.account_balance_outlined),
+                          label: const Text('Запросить экстренный кредит'),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Банк может отказать: учитываются выпущенные продукты, контракты, burn и security-риск.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              const SectionHeader(
+                title: 'Тестовые промокоды',
+                subtitle:
+                    'Инструмент только для проверки экономики и кризисных сценариев.',
+              ),
+              const SizedBox(height: 10),
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      key: const Key('debug-promo-field'),
+                      controller: _promoController,
+                      autocorrect: false,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(
+                        labelText: 'Промокод',
+                        hintText: 'FOUNDER-RICH',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.tonalIcon(
+                        key: const Key('redeem-debug-promo'),
+                        onPressed: () {
+                          widget.controller.dispatch(
+                            RedeemDebugPromo(_promoController.text),
+                          );
+                          _promoController.clear();
+                        },
+                        icon: const Icon(Icons.science_outlined),
+                        label: const Text('Применить'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('FOUNDER-RICH — добавить 5 млн ₽.'),
+                    const Text(
+                      'FOUNDER-BROKE — установить баланс −500 тыс. ₽.',
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 18),
               const SectionHeader(
@@ -208,6 +327,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       label: 'Инвесторы',
                       value: state.investorPayouts,
                       total: state.monthlyCosts,
+                    ),
+                    _BreakdownBar(
+                      label: 'Платежи по кредиту',
+                      value: state.monthlyLoanPayment,
+                      total: state.monthlyCosts,
                       last: true,
                     ),
                   ],
@@ -272,6 +396,43 @@ class _FinanceScreenState extends State<FinanceScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _FinanceStatusRow extends StatelessWidget {
+  const _FinanceStatusRow({
+    required this.label,
+    required this.value,
+    this.last = false,
+  });
+
+  final String label;
+  final String value;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              Expanded(child: Text(label)),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.end,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (!last) const Divider(),
+      ],
     );
   }
 }

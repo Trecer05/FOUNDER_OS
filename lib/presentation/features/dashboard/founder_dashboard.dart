@@ -100,7 +100,8 @@ class _FounderDashboardState extends State<FounderDashboard> {
         title: Text(content.title),
         content: Text(content.body),
         actions: [
-          if (event == CriticalEventType.lostControl)
+          if (event == CriticalEventType.lostControl ||
+              event == CriticalEventType.insolvency)
             FilledButton(
               onPressed: () async {
                 Navigator.of(dialogContext).pop();
@@ -309,6 +310,13 @@ _EventContent _eventContent(
         'Доля основателя упала ниже 50%. Инвесторы получили контроль над компанией. Эта сессия завершена.',
     action: 'Начать заново',
     icon: Icons.account_balance_outlined,
+  ),
+  CriticalEventType.insolvency => const _EventContent(
+    title: 'Компания обанкротилась',
+    body:
+        'Отрицательный баланс не был восстановлен в срок. Кредитные условия нарушены, компания больше не может оплачивать работу.',
+    action: 'Начать заново',
+    icon: Icons.money_off_csred_outlined,
   ),
   CriticalEventType.none => const _EventContent(
     title: '',

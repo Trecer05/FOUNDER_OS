@@ -159,6 +159,7 @@ extension ManagedEmployee on Employee {
       morale: morale ?? this.morale,
       workload: workload ?? this.workload,
       remote: remote,
+      languageIds: languageIds,
     );
   }
 }

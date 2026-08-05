@@ -5,13 +5,15 @@ import '../catalog/contract_catalog.dart';
 import '../catalog/game_catalog.dart';
 import '../catalog/operations_catalog.dart';
 import '../catalog/product_evolution_catalog.dart';
+import '../catalog/product_strategy_catalog.dart';
 import 'business_models.dart';
 import 'management_models.dart';
 import 'models.dart';
 import 'operations_models.dart';
 import 'product_evolution_models.dart';
+import 'product_strategy_models.dart';
 
-const int currentSnapshotVersion = 7;
+const int currentSnapshotVersion = 8;
 
 enum GameSpeed {
   x1(1),
@@ -44,6 +46,13 @@ class GameState {
     required this.monetizationChanges,
     required this.financeHistory,
     required this.financeTransactions,
+    required this.advertisingCampaigns,
+    required this.priceChanges,
+    required this.productFeatureDevelopments,
+    required this.activeLoan,
+    required this.negativeCashSinceMinutes,
+    required this.creditOffered,
+    required this.liquidityGraceUsed,
     required this.ecosystemLinks,
     required this.selectedOfficeId,
     required this.selectedServerRoomId,
@@ -69,7 +78,7 @@ class GameState {
     simulationMinutes: 8 * 60,
     speed: GameSpeed.x1,
     paused: true,
-    cash: 2600000,
+    cash: 450000,
     products: const <Product>[],
     candidates: List<Candidate>.unmodifiable(GameCatalog.initialCandidates),
     employees: const <Employee>[],
@@ -85,6 +94,13 @@ class GameState {
     monetizationChanges: const <ProductMonetizationChange>[],
     financeHistory: const <FinanceHistoryPoint>[],
     financeTransactions: const <FinanceTransaction>[],
+    advertisingCampaigns: const <AdvertisingCampaign>[],
+    priceChanges: const <ProductPriceChange>[],
+    productFeatureDevelopments: const <ProductFeatureDevelopment>[],
+    activeLoan: null,
+    negativeCashSinceMinutes: null,
+    creditOffered: false,
+    liquidityGraceUsed: false,
     ecosystemLinks: const <EcosystemLink>[],
     selectedOfficeId: 'garage',
     selectedServerRoomId: 'closet',
@@ -123,8 +139,8 @@ class GameState {
     rngSeed: 20260804,
     rngCounter: 0,
     feed: const <String>[
-      'Компания зарегистрирована. На счету 2,6 млн ₽.',
-      'Сначала выберите продукт, стек и ожидаемые пользователями функции.',
+      'Компания зарегистрирована. На счету 450 тыс. ₽.',
+      'Первый безопасный шаг — сайт компании. Крупный продукт без выручки быстро сожжёт деньги.',
     ],
   );
 
@@ -148,6 +164,13 @@ class GameState {
   final List<ProductMonetizationChange> monetizationChanges;
   final List<FinanceHistoryPoint> financeHistory;
   final List<FinanceTransaction> financeTransactions;
+  final List<AdvertisingCampaign> advertisingCampaigns;
+  final List<ProductPriceChange> priceChanges;
+  final List<ProductFeatureDevelopment> productFeatureDevelopments;
+  final CompanyLoan? activeLoan;
+  final int? negativeCashSinceMinutes;
+  final bool creditOffered;
+  final bool liquidityGraceUsed;
   final List<EcosystemLink> ecosystemLinks;
   final String selectedOfficeId;
   final String selectedServerRoomId;
@@ -411,31 +434,156 @@ class GameState {
         .toDouble();
   }
 
-  double productDevelopmentCapacity(String productId) {
+  DevelopmentStaffingSnapshot developmentStaffingFor(String productId) {
+    final product = productById(productId);
+    if (product == null) {
+      return const DevelopmentStaffingSnapshot(
+        teamSize: 0,
+        minimumTeamSize: 0,
+        optimalTeamSize: 0,
+        maximumEfficientTeamSize: 0,
+        languageCoverage: 0,
+        roleCoverage: 0,
+        efficiency: 0,
+        status: 'Продукт не найден',
+        criticalEmployeeIds: <String>[],
+        movableEmployeeIds: <String>[],
+      );
+    }
+    final strategy = ProductStrategyCatalog.strategyFor(product.blueprintId);
+    final phase = ProductStrategyCatalog.phaseFor(product.developmentProgress);
     final team = employeesForProduct(productId);
+    final selectedLanguages = product.languageIds.toSet();
+    final coveredLanguages = <String>{};
+    for (final employee in team) {
+      coveredLanguages.addAll(
+        employee.languageIds.where(selectedLanguages.contains),
+      );
+    }
+    final languageCoverage = selectedLanguages.isEmpty
+        ? 1.0
+        : coveredLanguages.length / selectedLanguages.length;
+    final roleCoverage = productRoleCoverage(productId);
+    final teamSize = team.length;
+    final sizeEfficiency = teamSize == 0
+        ? 0.10
+        : teamSize < strategy.minimumTeamSize
+        ? (0.30 + 0.70 * teamSize / math.max(1, strategy.minimumTeamSize))
+              .clamp(0.18, 1.0)
+              .toDouble()
+        : teamSize <= strategy.maximumEfficientTeamSize
+        ? 1.0
+        : (1 - (teamSize - strategy.maximumEfficientTeamSize) * 0.07)
+              .clamp(0.52, 1.0)
+              .toDouble();
+    final efficiency =
+        (sizeEfficiency *
+                (0.38 + languageCoverage * 0.62) *
+                (0.52 + roleCoverage * 0.48))
+            .clamp(0.05, 1.0)
+            .toDouble();
+
+    final criticalIds = <String>[];
+    final movableIds = <String>[];
+    for (final employee in team) {
+      final phaseCritical = phase.criticalRoles.contains(employee.role);
+      final uniqueLanguage = employee.languageIds.any((language) {
+        if (!selectedLanguages.contains(language)) {
+          return false;
+        }
+        return team
+            .where((other) => other.id != employee.id)
+            .where((other) => other.languageIds.contains(language))
+            .isEmpty;
+      });
+      if (phaseCritical ||
+          uniqueLanguage ||
+          teamSize <= strategy.minimumTeamSize) {
+        criticalIds.add(employee.id);
+      } else {
+        movableIds.add(employee.id);
+      }
+    }
+
+    final status = teamSize == 0
+        ? 'Проект почти стоит: работает только основатель'
+        : teamSize < strategy.minimumTeamSize
+        ? 'Недокомплект'
+        : teamSize > strategy.maximumEfficientTeamSize
+        ? 'Перегруз команды: коммуникации съедают скорость'
+        : teamSize < strategy.optimalTeamSize
+        ? 'Рабочая команда, но до оптимума не хватает людей'
+        : 'Сбалансированная команда';
+    return DevelopmentStaffingSnapshot(
+      teamSize: teamSize,
+      minimumTeamSize: strategy.minimumTeamSize,
+      optimalTeamSize: strategy.optimalTeamSize,
+      maximumEfficientTeamSize: strategy.maximumEfficientTeamSize,
+      languageCoverage: languageCoverage,
+      roleCoverage: roleCoverage,
+      efficiency: efficiency,
+      status: status,
+      criticalEmployeeIds: List<String>.unmodifiable(criticalIds),
+      movableEmployeeIds: List<String>.unmodifiable(movableIds),
+    );
+  }
+
+  double productDevelopmentCapacity(String productId) {
     final product = productById(productId);
     if (product == null) {
       return 0;
     }
-    final roleCoverage = productRoleCoverage(productId);
+    final team = employeesForProduct(productId);
+    final staffing = developmentStaffingFor(productId);
+    final phase = developmentPhaseFor(product);
     final aiMultiplier = 1 + productAiDevelopmentBoost(productId);
     if (team.isEmpty) {
-      return 22 * (0.75 + roleCoverage * 0.25) * aiMultiplier;
+      return 0.12 * staffing.efficiency * aiMultiplier;
     }
-    final base = team.fold<double>(
-      0,
-      (sum, employee) =>
-          sum +
-          employee.skill * 0.42 +
-          employee.speed * 0.34 +
-          employee.quality * 0.24,
-    );
-    final comfortMultiplier = 0.86 + office.comfortScore / 500;
-    final roleMultiplier = 0.55 + roleCoverage * 0.45;
-    return base *
+
+    const engineeringRoles = <EmployeeRole>{
+      EmployeeRole.frontend,
+      EmployeeRole.backend,
+      EmployeeRole.mobile,
+      EmployeeRole.aiMl,
+      EmployeeRole.devOps,
+      EmployeeRole.security,
+      EmployeeRole.qa,
+    };
+    const languageIndependentRoles = <EmployeeRole>{
+      EmployeeRole.productManager,
+      EmployeeRole.designer,
+      EmployeeRole.growth,
+      EmployeeRole.sales,
+      EmployeeRole.support,
+    };
+    final selectedLanguages = product.languageIds.toSet();
+    var effectiveFte = 0.0;
+    for (final employee in team) {
+      final productivity =
+          (employee.skill * 0.40 +
+              employee.speed * 0.34 +
+              employee.quality * 0.18 +
+              employee.autonomy * 0.08) /
+          100;
+      final phaseWeight = phase.criticalRoles.contains(employee.role)
+          ? 1.0
+          : engineeringRoles.contains(employee.role)
+          ? 0.58
+          : 0.30;
+      final languageMatch = languageIndependentRoles.contains(employee.role)
+          ? 0.90
+          : employee.languageIds.any(selectedLanguages.contains)
+          ? 1.0
+          : 0.28;
+      effectiveFte += productivity * phaseWeight * languageMatch;
+    }
+
+    final comfortMultiplier = 0.90 + office.comfortScore / 1000;
+    return effectiveFte *
+        staffing.efficiency *
         office.communicationEfficiency *
         comfortMultiplier *
-        roleMultiplier *
         aiMultiplier;
   }
 
@@ -764,6 +912,153 @@ class GameState {
   double get serverLoad =>
       totalComputeUnits <= 0 ? 0 : totalComputeDemand / totalComputeUnits;
 
+  bool get contractsUnlocked => products.any((product) {
+    if (product.stage != ProductStage.live) {
+      return false;
+    }
+    return ProductStrategyCatalog.strategyFor(
+      product.blueprintId,
+    ).contractsUnlock;
+  });
+
+  DevelopmentPhaseDefinition developmentPhaseFor(Product product) =>
+      ProductStrategyCatalog.phaseFor(product.developmentProgress);
+
+  ProductFeatureDevelopment? activeFeatureDevelopmentFor(String productId) {
+    for (final work in productFeatureDevelopments) {
+      if (work.productId == productId && work.progress < 1) {
+        return work;
+      }
+    }
+    return null;
+  }
+
+  double featureDevelopmentRemainingHours(String productId) {
+    final work = activeFeatureDevelopmentFor(productId);
+    if (work == null) {
+      return 0;
+    }
+    return math.max(0, work.requiredHours * (1 - work.progress)).toDouble();
+  }
+
+  List<AdvertisingCampaign> activeCampaignsFor(String productId) =>
+      advertisingCampaigns
+          .where(
+            (item) =>
+                item.productId == productId &&
+                item.status == AdvertisingCampaignStatus.active,
+          )
+          .toList(growable: false);
+
+  ProductPriceChange? latestPriceChangeFor(String productId) {
+    ProductPriceChange? latest;
+    for (final change in priceChanges) {
+      if (change.productId == productId &&
+          (latest == null ||
+              change.changedAtMinutes > latest.changedAtMinutes)) {
+        latest = change;
+      }
+    }
+    return latest;
+  }
+
+  double currentPriceSentiment(Product product) {
+    final latest = latestPriceChangeFor(product.id);
+    if (latest == null) {
+      return product.priceSentiment;
+    }
+    final elapsedDays =
+        math.max(0, simulationMinutes - latest.changedAtMinutes) / 1440;
+    final decay = (1 - elapsedDays / 45).clamp(0, 1).toDouble();
+    return latest.initialSentimentShock * decay;
+  }
+
+  PriceImpactForecast priceImpactForecast(Product product, double newPrice) {
+    final currentPrice = math.max(1, product.price).toDouble();
+    final normalized = math.max(1, newPrice).toDouble();
+    final changeRatio = normalized / currentPrice - 1;
+    final trustProtection = (0.35 + product.brandTrust * 0.65)
+        .clamp(0.25, 1.0)
+        .toDouble();
+    final userChange = changeRatio >= 0
+        ? -changeRatio * (0.42 / trustProtection)
+        : -changeRatio * (0.20 + product.brandAwareness * 0.18);
+    final churnDelta = changeRatio >= 0
+        ? changeRatio * (0.11 / trustProtection)
+        : changeRatio * 0.035;
+    final expectedUsers = math.max(
+      0,
+      product.mau * (1 + userChange.clamp(-0.72, 0.35)),
+    );
+    final before = product.mau * currentPrice * 0.092;
+    final after = expectedUsers * normalized * 0.092;
+    final shock = changeRatio >= 0
+        ? (changeRatio * (1.15 - product.brandTrust)).clamp(0, 0.85)
+        : (changeRatio * 0.25).clamp(-0.25, 0);
+    return PriceImpactForecast(
+      currentPrice: currentPrice,
+      proposedPrice: normalized,
+      expectedRevenueBefore: before,
+      expectedRevenueAfter: after,
+      expectedUserChangePercent: userChange.clamp(-0.72, 0.35).toDouble(),
+      expectedChurnDelta: churnDelta.clamp(-0.05, 0.18).toDouble(),
+      sentimentShock: shock.toDouble(),
+      note:
+          'Это прогноз, а не гарантия. Через 45 игровых дней ценовой шок постепенно сходит на нет.',
+    );
+  }
+
+  AdvertisingForecast advertisingForecast({
+    required Product product,
+    required String agencyId,
+    required String channelId,
+    required double budget,
+  }) {
+    final agency = ProductStrategyCatalog.agencyById(agencyId);
+    final channel = ProductStrategyCatalog.channelById(channelId);
+    final effectiveBudget = budget / (1 + agency.feePercent);
+    final categoryFit = channel.bestForCategories.contains(product.category)
+        ? 1.0
+        : 0.72;
+    final impressions = channel.billingModel == AdvertisingBillingModel.cpc
+        ? (effectiveBudget / math.max(1, channel.baseCpc) * 18).round()
+        : (effectiveBudget / math.max(1, channel.baseCpm) * 1000).round();
+    final clicks = channel.billingModel == AdvertisingBillingModel.cpm
+        ? (impressions * (0.006 + agency.quality * 0.008)).round()
+        : (effectiveBudget / math.max(1, channel.baseCpc)).round();
+    final maturity =
+        (0.08 + product.brandAwareness * 0.52 + product.brandTrust * 0.40)
+            .clamp(0.05, 0.95)
+            .toDouble();
+    final qualityFactor =
+        (product.qualityScore / 100 * 0.52 +
+                product.retention30d * 0.28 +
+                product.reliability * 0.20)
+            .clamp(0.10, 1.0)
+            .toDouble();
+    final conversion =
+        (0.015 + agency.quality * 0.035 + channel.trustWeight * 0.018) *
+        maturity *
+        qualityFactor *
+        categoryFit;
+    final expected = (clicks * conversion).round();
+    final spread = (1 - agency.forecastAccuracy) * 0.75 + 0.18;
+    return AdvertisingForecast(
+      impressions: math.max(0, impressions),
+      clicks: math.max(0, clicks),
+      usersLow: math.max(0, (expected * (1 - spread)).round()),
+      usersExpected: math.max(0, expected),
+      usersHigh: math.max(0, (expected * (1 + spread)).round()),
+      effectiveBudget: effectiveBudget,
+      note: maturity < 0.22
+          ? 'Бренду пока не доверяют: даже большой бюджет даст мало пользователей.'
+          : 'Диапазон зависит от доверия, качества продукта, канала и точности агентства.',
+    );
+  }
+
+  double get monthlyLoanPayment =>
+      activeLoan == null ? 0 : activeLoan!.weeklyPayment * (43200 / (7 * 1440));
+
   double get monthlyPayroll =>
       employees.fold<double>(0, (sum, item) => sum + item.salary);
 
@@ -807,7 +1102,8 @@ class GameState {
         (sum, item) =>
             sum + item.monthlyCost + productImprovementMonthlyCost(item.id),
       ) +
-      investorPayouts;
+      investorPayouts +
+      monthlyLoanPayment;
 
   double get monthlyProfit =>
       monthlyProductRevenue + portfolioIncome - monthlyCosts;
@@ -945,6 +1241,15 @@ class GameState {
     List<ProductMonetizationChange>? monetizationChanges,
     List<FinanceHistoryPoint>? financeHistory,
     List<FinanceTransaction>? financeTransactions,
+    List<AdvertisingCampaign>? advertisingCampaigns,
+    List<ProductPriceChange>? priceChanges,
+    List<ProductFeatureDevelopment>? productFeatureDevelopments,
+    CompanyLoan? activeLoan,
+    bool clearActiveLoan = false,
+    int? negativeCashSinceMinutes,
+    bool clearNegativeCashSinceMinutes = false,
+    bool? creditOffered,
+    bool? liquidityGraceUsed,
     List<EcosystemLink>? ecosystemLinks,
     String? selectedOfficeId,
     String? selectedServerRoomId,
@@ -1011,6 +1316,21 @@ class GameState {
       financeTransactions: List<FinanceTransaction>.unmodifiable(
         financeTransactions ?? this.financeTransactions,
       ),
+      advertisingCampaigns: List<AdvertisingCampaign>.unmodifiable(
+        advertisingCampaigns ?? this.advertisingCampaigns,
+      ),
+      priceChanges: List<ProductPriceChange>.unmodifiable(
+        priceChanges ?? this.priceChanges,
+      ),
+      productFeatureDevelopments: List<ProductFeatureDevelopment>.unmodifiable(
+        productFeatureDevelopments ?? this.productFeatureDevelopments,
+      ),
+      activeLoan: clearActiveLoan ? null : activeLoan ?? this.activeLoan,
+      negativeCashSinceMinutes: clearNegativeCashSinceMinutes
+          ? null
+          : negativeCashSinceMinutes ?? this.negativeCashSinceMinutes,
+      creditOffered: creditOffered ?? this.creditOffered,
+      liquidityGraceUsed: liquidityGraceUsed ?? this.liquidityGraceUsed,
       ecosystemLinks: List<EcosystemLink>.unmodifiable(
         ecosystemLinks ?? this.ecosystemLinks,
       ),
@@ -1082,6 +1402,17 @@ class GameState {
     'financeTransactions': financeTransactions
         .map((item) => item.toJson())
         .toList(),
+    'advertisingCampaigns': advertisingCampaigns
+        .map((item) => item.toJson())
+        .toList(),
+    'priceChanges': priceChanges.map((item) => item.toJson()).toList(),
+    'productFeatureDevelopments': productFeatureDevelopments
+        .map((item) => item.toJson())
+        .toList(),
+    'activeLoan': activeLoan?.toJson(),
+    'negativeCashSinceMinutes': negativeCashSinceMinutes,
+    'creditOffered': creditOffered,
+    'liquidityGraceUsed': liquidityGraceUsed,
     'ecosystemLinks': ecosystemLinks.map((item) => item.toJson()).toList(),
     'selectedOfficeId': selectedOfficeId,
     'selectedServerRoomId': selectedServerRoomId,
@@ -1179,6 +1510,27 @@ class GameState {
         json['financeTransactions'],
         FinanceTransaction.fromJson,
       ),
+      advertisingCampaigns: _decodeList(
+        json['advertisingCampaigns'],
+        AdvertisingCampaign.fromJson,
+      ),
+      priceChanges: _decodeList(
+        json['priceChanges'],
+        ProductPriceChange.fromJson,
+      ),
+      productFeatureDevelopments: _decodeList(
+        json['productFeatureDevelopments'],
+        ProductFeatureDevelopment.fromJson,
+      ),
+      activeLoan: json['activeLoan'] is Map
+          ? CompanyLoan.fromJson(
+              (json['activeLoan']! as Map).cast<String, Object?>(),
+            )
+          : null,
+      negativeCashSinceMinutes: (json['negativeCashSinceMinutes'] as num?)
+          ?.toInt(),
+      creditOffered: json['creditOffered'] as bool? ?? false,
+      liquidityGraceUsed: json['liquidityGraceUsed'] as bool? ?? false,
       ecosystemLinks: _decodeList(
         json['ecosystemLinks'],
         EcosystemLink.fromJson,

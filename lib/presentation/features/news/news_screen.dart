@@ -142,6 +142,7 @@ String _kindName(NewsKind kind) => switch (kind) {
   NewsKind.market => 'Рынок',
   NewsKind.product => 'Продукты',
   NewsKind.infrastructure => 'Инфра',
+  NewsKind.finance => 'Финансы',
 };
 
 IconData _kindIcon(NewsKind kind) => switch (kind) {
@@ -152,6 +153,7 @@ IconData _kindIcon(NewsKind kind) => switch (kind) {
   NewsKind.market => Icons.query_stats_outlined,
   NewsKind.product => Icons.rocket_launch_outlined,
   NewsKind.infrastructure => Icons.dns_outlined,
+  NewsKind.finance => Icons.account_balance_wallet_outlined,
 };
 
 Color _kindColor(NewsKind kind) => switch (kind) {
@@ -162,4 +164,5 @@ Color _kindColor(NewsKind kind) => switch (kind) {
   NewsKind.market => AppColors.yellow,
   NewsKind.product => AppColors.cyan,
   NewsKind.infrastructure => AppColors.textMuted,
+  NewsKind.finance => AppColors.red,
 };

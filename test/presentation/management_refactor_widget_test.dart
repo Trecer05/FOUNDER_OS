@@ -4,6 +4,7 @@ import 'package:founder_os/app/app.dart';
 import 'package:founder_os/application/controllers/game_controller.dart';
 import 'package:founder_os/domain/commands/game_action.dart';
 import 'package:founder_os/domain/entities/game_state.dart';
+import 'package:founder_os/domain/entities/models.dart';
 import 'package:founder_os/domain/simulation/engine/game_engine.dart';
 import 'package:founder_os/persistence/storage/snapshot_store.dart';
 import 'package:founder_os/presentation/features/contracts/contract_detail_screen.dart';
@@ -128,6 +129,24 @@ Future<GameController> _controllerWithContract() async {
   );
   state = engine.reduce(state, const HireCandidate('c_anna'));
   state = engine.reduce(state, const HireCandidate('c_daria'));
+  state = engine.reduce(
+    state,
+    const CreateConfiguredProduct(
+      name: 'Founder Site',
+      blueprintId: 'company_website',
+      frameworkId: 'static_web',
+      languageIds: <String>['html_css'],
+      technologyIds: <String>[],
+      featureIds: <String>['landing_page'],
+      monetization: MonetizationModel.advertising,
+    ),
+  );
+  final website = state.products.single;
+  state = state.copyWith(
+    products: <Product>[
+      website.copyWith(stage: ProductStage.live, developmentProgress: 1),
+    ],
+  );
   state = engine.reduce(state, const AcceptClientContract('landing_launch'));
   final store = _MemorySnapshotStore()..value = state;
   final controller = GameController(snapshotStore: store, startClock: false);

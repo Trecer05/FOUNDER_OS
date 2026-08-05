@@ -29,7 +29,6 @@ class OverviewScreen extends StatelessWidget {
               'Только сводные показатели. Метрики каждого продукта находятся в его карточке.',
         ),
         const SizedBox(height: 12),
-
         GridView.count(
           crossAxisCount: 2,
           shrinkWrap: true,
@@ -262,6 +261,9 @@ class _ProjectSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final teamCount = state.employeesForProduct(product.id).length;
     final coverage = state.productRoleCoverage(product.id);
+    final staffing = state.developmentStaffingFor(product.id);
+    final phase = state.developmentPhaseFor(product);
+    final featureWork = state.activeFeatureDevelopmentFor(product.id);
     final live = product.stage == ProductStage.live;
     final net =
         product.monthlyRevenue -
@@ -303,8 +305,10 @@ class _ProjectSummaryCard extends StatelessWidget {
             LinearProgressIndicator(value: product.developmentProgress),
             const SizedBox(height: 7),
             Text(
-              'Разработка ${(product.developmentProgress * 100).toStringAsFixed(1)}%',
+              '${phase.name} • ${(product.developmentProgress * 100).toStringAsFixed(1)}%',
             ),
+            const SizedBox(height: 4),
+            Text(staffing.status, style: Theme.of(context).textTheme.bodySmall),
           ],
           const SizedBox(height: 8),
           Wrap(
@@ -313,6 +317,16 @@ class _ProjectSummaryCard extends StatelessWidget {
             children: [
               Chip(label: Text('Команда $teamCount')),
               Chip(label: Text('Роли ${(coverage * 100).round()}%')),
+              if (!live)
+                Chip(
+                  label: Text('Эфф. ${(staffing.efficiency * 100).round()}%'),
+                ),
+              if (featureWork != null)
+                Chip(
+                  label: Text(
+                    'Update ${(featureWork.progress * 100).toStringAsFixed(0)}%',
+                  ),
+                ),
               if (live)
                 Chip(label: Text('Users ${compactNumber(product.users)}')),
               if (live)
@@ -418,21 +432,16 @@ class _SummaryRow extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
+              Expanded(flex: 2, child: Text(label)),
               const SizedBox(width: 12),
-              Flexible(
+              Expanded(
+                flex: 3,
                 child: Text(
                   value,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.end,
+                  softWrap: true,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),

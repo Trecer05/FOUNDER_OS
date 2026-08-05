@@ -16,14 +16,12 @@ class GlobalTimeControlBar extends StatelessWidget {
     if (MediaQuery.viewInsetsOf(context).bottom > 0) {
       return const SizedBox.shrink();
     }
-
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
         final state = controller.state;
         final blocked =
             state.criticalEvent != CriticalEventType.none || state.gameOver;
-
         return Material(
           color: AppColors.surface,
           elevation: 8,
@@ -133,7 +131,6 @@ class _SpeedButton extends StatelessWidget {
         : selected
         ? AppColors.primary
         : AppColors.textMuted;
-
     return Semantics(
       button: true,
       selected: selected,

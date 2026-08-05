@@ -51,7 +51,7 @@ Future<GameController> _pumpApp(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('player configures a product from the product list', (
+  testWidgets('player configures a product through the seven-step wizard', (
     tester,
   ) async {
     final controller = await _pumpApp(tester);
@@ -61,97 +61,77 @@ void main() {
 
     final builderButton = find.byKey(const Key('open-product-builder'));
     expect(builderButton, findsOneWidget);
-
     await tester.tap(builderButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('Новый продукт'), findsOneWidget);
-    expect(find.text('Тип продукта'), findsOneWidget);
+    expect(find.text('Новый проект • 1/7'), findsOneWidget);
+    expect(find.text('Что именно строим'), findsOneWidget);
+    expect(find.text('Сайт компании'), findsOneWidget);
 
-    final productList = find.byType(Scrollable).first;
-    await tester.scrollUntilVisible(
-      find.text('Название и framework'),
-      350,
-      scrollable: productList,
-    );
-    await tester.pumpAndSettle();
+    for (var step = 0; step < 6; step += 1) {
+      final next = find.byKey(const Key('product-wizard-next'));
+      expect(next, findsOneWidget);
+      await tester.tap(next);
+      await tester.pumpAndSettle();
+    }
 
-    expect(find.text('Название и framework'), findsOneWidget);
-    expect(find.text('Flutter + Firebase'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.text('Функции'),
-      350,
-      scrollable: productList,
-    );
-    await tester.pumpAndSettle();
-
+    expect(find.text('Проверка проекта'), findsOneWidget);
+    expect(find.textContaining('рабочих часов'), findsWidgets);
     final createButton = find.byKey(const Key('create-configured-product'));
     expect(createButton, findsOneWidget);
     await tester.tap(createButton);
     await tester.pumpAndSettle();
 
     expect(controller.state.products, hasLength(1));
-    expect(controller.state.products.single.name, 'Nova One');
-    expect(find.text('Nova One'), findsWidgets);
+    expect(controller.state.products.single.name, 'First Landing');
+    expect(controller.state.products.single.blueprintId, 'company_website');
+    expect(find.text('First Landing'), findsWidgets);
   });
 
-  testWidgets('team screen exposes filters and numeric hiring metrics', (
-    tester,
-  ) async {
-    await _pumpApp(tester);
+  testWidgets(
+    'team screen exposes filters languages and numeric hiring metrics',
+    (tester) async {
+      await _pumpApp(tester);
 
-    await tester.tap(find.byIcon(Icons.groups_2_outlined));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(TeamScreen), findsOneWidget);
-    expect(find.text('Средние показатели'), findsOneWidget);
-
-    final teamList = find.byKey(const Key('team-screen-list'));
-    final searchField = find.byKey(const Key('team-candidate-search'));
-
-    for (
-      var attempt = 0;
-      attempt < 12 && searchField.evaluate().isEmpty;
-      attempt++
-    ) {
-      await tester.drag(teamList, const Offset(0, -240));
+      await tester.tap(find.byIcon(Icons.groups_2_outlined));
       await tester.pumpAndSettle();
-    }
 
-    expect(searchField, findsOneWidget);
-    expect(find.text('Все роли'), findsOneWidget);
+      expect(find.byType(TeamScreen), findsOneWidget);
+      expect(find.text('Средние показатели'), findsOneWidget);
 
-    await tester.enterText(searchField, 'Анна');
-    await tester.pumpAndSettle();
+      final teamList = find.byKey(const Key('team-screen-list'));
+      final searchField = find.byKey(const Key('team-candidate-search'));
+      for (
+        var attempt = 0;
+        attempt < 12 && searchField.evaluate().isEmpty;
+        attempt += 1
+      ) {
+        await tester.drag(teamList, const Offset(0, -240));
+        await tester.pumpAndSettle();
+      }
 
-    final sortingLabel = find.text('Сортировка');
-    for (
-      var attempt = 0;
-      attempt < 8 && sortingLabel.evaluate().isEmpty;
-      attempt++
-    ) {
-      await tester.drag(teamList, const Offset(0, -180));
+      expect(searchField, findsOneWidget);
+      expect(find.text('Все роли'), findsOneWidget);
+      await tester.enterText(searchField, 'Анна');
       await tester.pumpAndSettle();
-    }
 
-    expect(sortingLabel, findsOneWidget);
+      final candidateName = find.text('Анна Миронова');
+      for (
+        var attempt = 0;
+        attempt < 12 && candidateName.evaluate().isEmpty;
+        attempt += 1
+      ) {
+        await tester.drag(teamList, const Offset(0, -240));
+        await tester.pumpAndSettle();
+      }
 
-    final candidateName = find.text('Анна Миронова');
-    for (
-      var attempt = 0;
-      attempt < 12 && candidateName.evaluate().isEmpty;
-      attempt++
-    ) {
-      await tester.drag(teamList, const Offset(0, -240));
-      await tester.pumpAndSettle();
-    }
-
-    expect(candidateName, findsOneWidget);
-    expect(find.byKey(const Key('hire-c_anna')), findsOneWidget);
-    expect(find.text('78'), findsWidgets);
-    expect(find.text('84'), findsWidgets);
-  });
+      expect(candidateName, findsOneWidget);
+      expect(find.byKey(const Key('hire-c_anna')), findsOneWidget);
+      expect(find.textContaining('HTML + CSS'), findsWidgets);
+      expect(find.text('78'), findsWidgets);
+      expect(find.text('84'), findsWidgets);
+    },
+  );
 
   testWidgets('operations screen assigns an employee to a product', (
     tester,
@@ -214,7 +194,7 @@ void main() {
         name: 'Zero Start',
         blueprintId: 'team_saas',
         frameworkId: 'flutter_firebase',
-        languageIds: <String>['typescript'],
+        languageIds: <String>['dart'],
         technologyIds: <String>['postgresql'],
         featureIds: <String>['realtime_collaboration'],
       ),
@@ -241,7 +221,7 @@ void main() {
     );
 
     expect(projectCard, findsOneWidget);
-    expect(find.text('Разработка 0.0%'), findsOneWidget);
+    expect(find.text('Исследование и требования • 0.0%'), findsOneWidget);
   });
 
   testWidgets('live subscription product exposes working price control', (
@@ -254,7 +234,7 @@ void main() {
         name: 'Pricing UI',
         blueprintId: 'team_saas',
         frameworkId: 'flutter_firebase',
-        languageIds: <String>['typescript'],
+        languageIds: <String>['dart'],
         technologyIds: <String>['postgresql'],
         featureIds: <String>['realtime_collaboration'],
       ),
@@ -298,7 +278,7 @@ void main() {
   });
 
   testWidgets('contracts screen accepts a simple client order', (tester) async {
-    final store = _MemorySnapshotStore();
+    final store = _MemorySnapshotStore()..value = _releasedWebsiteState();
     final controller = GameController(snapshotStore: store, startClock: false);
     addTearDown(controller.dispose);
     await controller.initialize();
@@ -322,4 +302,26 @@ void main() {
     expect(controller.state.activeContracts, hasLength(1));
     expect(controller.state.activeContracts.single.progress, 0);
   });
+}
+
+GameState _releasedWebsiteState() {
+  const engine = GameEngine();
+  var state = engine.reduce(
+    GameState.initial().copyWith(cash: 1000000, onboardingCompleted: true),
+    const CreateConfiguredProduct(
+      name: 'Founder Site',
+      blueprintId: 'company_website',
+      frameworkId: 'static_web',
+      languageIds: <String>['html_css'],
+      technologyIds: <String>[],
+      featureIds: <String>['landing_page'],
+      monetization: MonetizationModel.advertising,
+    ),
+  );
+  final product = state.products.single;
+  return state.copyWith(
+    products: <Product>[
+      product.copyWith(stage: ProductStage.live, developmentProgress: 1),
+    ],
+  );
 }

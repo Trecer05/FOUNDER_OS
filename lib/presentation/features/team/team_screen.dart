@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
+import '../../../domain/catalog/game_catalog.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/models.dart';
 import '../../shared/widgets/app_card.dart';
@@ -43,10 +44,16 @@ class _TeamScreenState extends State<TeamScreen> {
         state.candidates
             .where((candidate) {
               final roleMatch = _role == null || candidate.role == _role;
+              final languageMatch = candidate.languageIds.any(
+                (id) => GameCatalog.languageById(
+                  id,
+                ).name.toLowerCase().contains(query),
+              );
               final searchMatch =
                   query.isEmpty ||
                   candidate.name.toLowerCase().contains(query) ||
-                  roleName(candidate.role).toLowerCase().contains(query);
+                  roleName(candidate.role).toLowerCase().contains(query) ||
+                  languageMatch;
               final remoteMatch = !_remoteOnly || candidate.remote;
               return roleMatch && searchMatch && remoteMatch;
             })
@@ -161,7 +168,7 @@ class _TeamScreenState extends State<TeamScreen> {
             controller: _searchController,
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(
-              hintText: 'Имя или роль',
+              hintText: 'Имя, роль или язык',
               prefixIcon: Icon(Icons.search),
             ),
           ),
@@ -333,7 +340,7 @@ class _CandidateCard extends StatelessWidget {
     return AppCard(
       hintTitle: 'Кандидат ${candidate.name}',
       hintBody:
-          '${roleName(candidate.role)}: ${rolePurpose(candidate.role)} ${candidate.remote ? 'Remote-кандидат не занимает офисное место.' : 'Office-кандидату требуется свободное место.'} Сравните зарплату и рабочие характеристики перед наймом.',
+          '${roleName(candidate.role)}: ${rolePurpose(candidate.role)} Языки: ${candidate.languageIds.isEmpty ? 'не указаны' : candidate.languageIds.map((id) => GameCatalog.languageById(id).name).join(', ')}. ${candidate.remote ? 'Remote-кандидат не занимает офисное место.' : 'Office-кандидату требуется свободное место.'} Сравните зарплату и рабочие характеристики перед наймом.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -368,7 +375,22 @@ class _CandidateCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: candidate.languageIds.isEmpty
+                ? const <Widget>[Chip(label: Text('Языки не указаны'))]
+                : candidate.languageIds
+                      .map(
+                        (id) => Chip(
+                          avatar: const Icon(Icons.code, size: 16),
+                          label: Text(GameCatalog.languageById(id).name),
+                        ),
+                      )
+                      .toList(growable: false),
+          ),
+          const SizedBox(height: 12),
           GridView.count(
             crossAxisCount: 3,
             shrinkWrap: true,
@@ -415,7 +437,7 @@ class _EmployeeCard extends StatelessWidget {
     return AppCard(
       hintTitle: 'Сотрудник ${employee.name}',
       hintBody:
-          '${roleName(employee.role)}: ${rolePurpose(employee.role)} Зарплата списывается каждый месяц. Реальный вклад появляется только после назначения на продукт или контракт.',
+          '${roleName(employee.role)}: ${rolePurpose(employee.role)} Языки: ${employee.languageIds.isEmpty ? 'не указаны' : employee.languageIds.map((id) => GameCatalog.languageById(id).name).join(', ')}. Зарплата списывается каждый месяц. Реальный вклад появляется только после назначения на продукт или контракт.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -457,6 +479,9 @@ class _EmployeeCard extends StatelessWidget {
               _ValueChip('Morale ${employee.morale}'),
               _ValueChip('Load ${employee.workload}%'),
               _ValueChip('Loyalty ${employee.loyalty}'),
+              ...employee.languageIds.map(
+                (id) => _ValueChip(GameCatalog.languageById(id).name),
+              ),
             ],
           ),
         ],

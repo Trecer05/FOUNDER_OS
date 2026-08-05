@@ -173,6 +173,9 @@ class _ProductWorkCard extends StatelessWidget {
     final team = state.employeesForProduct(product.id);
     final coverage = state.productRoleCoverage(product.id);
     final capacity = state.productDevelopmentCapacity(product.id);
+    final staffing = state.developmentStaffingFor(product.id);
+    final phase = state.developmentPhaseFor(product);
+    final featureWork = state.activeFeatureDevelopmentFor(product.id);
     return AppCard(
       key: Key('work-product-${product.id}'),
       onTap: () => Navigator.of(context).push<void>(
@@ -220,6 +223,15 @@ class _ProductWorkCard extends StatelessWidget {
           if (product.stage == ProductStage.development) ...[
             LinearProgressIndicator(value: product.developmentProgress),
             const SizedBox(height: 7),
+            Text('${phase.name} • ${staffing.status}'),
+            const SizedBox(height: 7),
+          ] else if (featureWork != null) ...[
+            LinearProgressIndicator(value: featureWork.progress),
+            const SizedBox(height: 7),
+            Text(
+              'Обновление: ${state.featureDevelopmentRemainingHours(product.id).round()} ч. осталось',
+            ),
+            const SizedBox(height: 7),
           ],
           Wrap(
             spacing: 8,
@@ -227,7 +239,8 @@ class _ProductWorkCard extends StatelessWidget {
             children: [
               Chip(label: Text('Команда ${team.length}')),
               Chip(label: Text('Роли ${(coverage * 100).round()}%')),
-              Chip(label: Text('Capacity ${capacity.round()}')),
+              Chip(label: Text('Capacity ${capacity.toStringAsFixed(2)} FTE')),
+              Chip(label: Text('Эфф. ${(staffing.efficiency * 100).round()}%')),
               if (product.stage == ProductStage.development)
                 Chip(
                   label: Text(

@@ -74,12 +74,16 @@ class MoreScreen extends StatelessWidget {
         _MenuCard(
           icon: Icons.handshake_outlined,
           title: 'Клиентские контракты',
-          subtitle:
-              '${state.activeContracts.length} активных • ${state.contractEmployeeAssignments.length} назначений',
-          warning: state.activeContracts.any(
-            (contract) =>
-                contract.deadlineAtMinutes - state.simulationMinutes < 2 * 1440,
-          ),
+          subtitle: state.contractsUnlocked
+              ? '${state.activeContracts.length} активных • ${state.contractEmployeeAssignments.length} назначений'
+              : 'Закрыто до релиза сайта компании',
+          warning:
+              state.contractsUnlocked &&
+              state.activeContracts.any(
+                (contract) =>
+                    contract.deadlineAtMinutes - state.simulationMinutes <
+                    2 * 1440,
+              ),
           onTap: () => _open(context, ContractsScreen(controller: controller)),
         ),
         const SizedBox(height: 10),

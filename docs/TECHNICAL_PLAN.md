@@ -175,3 +175,31 @@ The new calculations are linear in product/employee/integration count and run in
 8. iOS Simulator build;
 9. profile-run и force quit/restore на iPhone;
 10. Android debug build.
+
+## Product development economy v8
+
+### Data model
+
+- `ProductStrategyProfile` — scope, hours, setup, team range, investor gate, stack limits and monetization;
+- `LanguageStrategyProfile` / `FrameworkStrategyProfile` — explanation and complexity modifiers;
+- `DevelopmentPhaseDefinition` / `DevelopmentStaffingSnapshot` — current phase and explainable staffing;
+- `ProductFeatureDevelopment` — persisted feature work queue;
+- `AdvertisingAgency`, `AdvertisingChannel`, `AdvertisingCampaign` — campaign economics;
+- `ProductPriceChange` — persisted sentiment shock;
+- `CompanyLoan` — principal, remaining debt and weekly schedule.
+
+### Deterministic work calendar
+
+`_workingHoursBetween(startMinutes, deltaMinutes)` is the shared resolver for product and contract work. It counts only Monday–Friday, 09:00–18:00. Progress is `productiveHours × effectiveFte / requiredHours`. No wall-clock dependency is used.
+
+### Stack validation
+
+UI and engine read the same `ProductStrategyCatalog`. The reducer revalidates framework allow-list, required languages, stack limits, investor count, features and monetization. `ProductEstimator` computes the same setup, hours, coherence and warnings shown before confirmation.
+
+### Liquidity reducer
+
+`_advanceLoanAndLiquidity(previous, next)` runs after cash accrual. It tracks `negativeCashSinceMinutes`, credit availability, repayment fraction, grace use and `CriticalEventType.insolvency`. Bank approval is derived from released economics, contracts, monthly burn and product security risk.
+
+### Persistence
+
+`currentSnapshotVersion = 8`. New lists and nullable fields decode with controlled defaults when reading v3–v7 snapshots. Snapshot tests cover campaigns, price changes, feature work, loan/liquidity state and existing v7 entities.

@@ -42,6 +42,33 @@ class ContractsScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
+              if (!state.contractsUnlocked) ...[
+                const AppCard(
+                  hintTitle: 'Как открыть контракты',
+                  hintBody:
+                      'Контракты становятся доступны после публичного релиза сайта компании. Это первый дешёвый продукт и подтверждение, что компания способна завершать работу.',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.lock_outline,
+                        color: AppColors.textMuted,
+                        size: 34,
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        'Контракты пока закрыты',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      SizedBox(height: 5),
+                      Text(
+                        'Создайте и выпустите «Сайт компании». После релиза заказы появятся здесь и внутри карточки сайта.',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
@@ -95,24 +122,27 @@ class ContractsScreen extends StatelessWidget {
                   ),
                 ),
               ],
-              const SizedBox(height: 18),
-              const SectionHeader(
-                title: 'Доступные заказы',
-                subtitle:
-                    'После принятия заказ появится в общей сводке проектов.',
-              ),
-              const SizedBox(height: 10),
-              ...ContractCatalog.templates.map(
-                (template) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _ContractOfferCard(
-                    state: state,
-                    template: template,
-                    onAccept: () =>
-                        controller.dispatch(AcceptClientContract(template.id)),
+              if (state.contractsUnlocked) ...[
+                const SizedBox(height: 18),
+                const SectionHeader(
+                  title: 'Доступные заказы',
+                  subtitle:
+                      'После принятия заказ появится в общей сводке проектов.',
+                ),
+                const SizedBox(height: 10),
+                ...ContractCatalog.templates.map(
+                  (template) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _ContractOfferCard(
+                      state: state,
+                      template: template,
+                      onAccept: () => controller.dispatch(
+                        AcceptClientContract(template.id),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         );

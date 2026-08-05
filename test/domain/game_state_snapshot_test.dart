@@ -4,121 +4,105 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:founder_os/domain/commands/game_action.dart';
 import 'package:founder_os/domain/entities/game_state.dart';
 import 'package:founder_os/domain/entities/models.dart';
-import 'package:founder_os/domain/entities/operations_models.dart';
 import 'package:founder_os/domain/entities/product_evolution_models.dart';
 import 'package:founder_os/domain/simulation/engine/game_engine.dart';
 
 void main() {
   const engine = GameEngine();
 
-  test('version 6 snapshot round-trips AI, evolution and operations', () {
-    var state = GameState.initial().copyWith(cash: 10000000);
-
-    state = engine.reduce(
-      state,
-      const CreateConfiguredProduct(
-        name: 'Nova',
-        blueprintId: 'ai_assistant',
-        frameworkId: 'fastapi_react',
-        languageIds: <String>['typescript', 'python'],
-        technologyIds: <String>['postgresql', 'vector_db'],
-        featureIds: <String>['chat_history', 'file_analysis'],
-      ),
-    );
-
-    state = engine.reduce(
-      state,
-      const CreateConfiguredProduct(
-        name: 'Orbit',
-        blueprintId: 'cloud_platform',
-        frameworkId: 'go_microservices',
-        languageIds: <String>['go'],
-        technologyIds: <String>['postgresql', 'kubernetes'],
-        featureIds: <String>['autoscaling', 'monitoring'],
-      ),
-    );
-
-    final firstProduct = state.products[0];
-    final secondProduct = state.products[1];
-    final anna = state.candidateById('c_anna')!;
-
-    state = engine.reduce(
-      state,
-      ConnectProducts(
-        firstProductId: firstProduct.id,
-        secondProductId: secondProduct.id,
-      ),
-    );
-
-    state = state.copyWith(
-      candidates: state.candidates
-          .where((candidate) => candidate.id != anna.id)
-          .toList(growable: false),
-      employees: <Employee>[anna.toEmployee()],
-      employeeAssignments: <EmployeeAssignment>[
-        EmployeeAssignment(
-          employeeId: anna.id,
-          productId: firstProduct.id,
-          assignedAtMinutes: state.simulationMinutes,
+  test(
+    'version 8 snapshot round-trips strategy, AI, evolution and operations',
+    () {
+      var state = _fundedInitial().copyWith(cash: 10000000);
+      state = engine.reduce(
+        state,
+        const CreateConfiguredProduct(
+          name: 'Nova',
+          blueprintId: 'ai_assistant',
+          frameworkId: 'fastapi_react',
+          languageIds: <String>['typescript', 'python'],
+          technologyIds: <String>['postgresql', 'vector_db'],
+          featureIds: <String>['chat_history', 'file_analysis'],
         ),
-      ],
-      securityControls: <ProductSecurityControl>[
-        ProductSecurityControl(
-          productId: firstProduct.id,
+      );
+      state = engine.reduce(
+        state,
+        const CreateConfiguredProduct(
+          name: 'Orbit',
+          blueprintId: 'cloud_platform',
+          frameworkId: 'go_microservices',
+          languageIds: <String>['go'],
+          technologyIds: <String>['postgresql', 'kubernetes'],
+          featureIds: <String>['autoscaling', 'monitoring'],
+        ),
+      );
+      state = engine.reduce(state, const HireCandidate('c_anna'));
+      state = engine.reduce(
+        state,
+        ConnectProducts(
+          firstProductId: state.products[0].id,
+          secondProductId: state.products[1].id,
+        ),
+      );
+      state = engine.reduce(
+        state,
+        AssignEmployeeToProduct(
+          employeeId: 'c_anna',
+          productId: state.products[0].id,
+        ),
+      );
+      state = engine.reduce(
+        state,
+        PurchaseSecurityControl(
+          productId: state.products[0].id,
           controlId: 'secure_sdlc',
-          installedAtMinutes: state.simulationMinutes,
         ),
-      ],
-      securityAudits: <SecurityAuditRecord>[
-        SecurityAuditRecord(
-          productId: firstProduct.id,
-          simulationMinutes: state.simulationMinutes,
-          riskPercent: 24,
-          findingsCount: 3,
-        ),
-      ],
-      productImprovements: <ProductImprovementRecord>[
-        ProductImprovementRecord(
-          productId: firstProduct.id,
+      );
+      state = engine.reduce(state, RunSecurityAudit(state.products[0].id));
+      state = state.copyWith(
+        products: <Product>[
+          state.products[0].copyWith(
+            stage: ProductStage.live,
+            developmentProgress: 1,
+          ),
+          state.products[1],
+        ],
+      );
+      state = engine.reduce(
+        state,
+        ApplyProductImprovement(
+          productId: state.products[0].id,
           type: ProductImprovementType.algorithms,
-          level: 1,
-          appliedAtMinutes: state.simulationMinutes,
         ),
-      ],
-      productUpdates: <ProductUpdateRecord>[
-        ProductUpdateRecord(
-          productId: firstProduct.id,
-          updatedAtMinutes: state.simulationMinutes,
-          reason: 'Snapshot fixture',
-        ),
-      ],
-      productAiDeployments: <ProductAiDeployment>[
-        ProductAiDeployment(
-          productId: firstProduct.id,
+      );
+      state = engine.reduce(
+        state,
+        SetAiDeploymentMode(
+          productId: state.products[0].id,
           mode: AiDeploymentMode.corporate,
         ),
-      ],
-      onboardingCompleted: true,
-    );
+      );
+      state = engine.reduce(state, const CompleteOnboarding());
 
-    final restored = GameState.decode(state.encode());
+      final restored = GameState.decode(state.encode());
 
-    expect(restored.encode(), state.encode());
-    expect(restored.products, hasLength(2));
-    expect(restored.employees, hasLength(1));
-    expect(restored.ecosystemLinks, hasLength(1));
-    expect(restored.employeeAssignments, hasLength(1));
-    expect(restored.securityControls, hasLength(1));
-    expect(restored.securityAudits, hasLength(1));
-    expect(restored.productImprovements, hasLength(1));
-    expect(restored.productUpdates, hasLength(1));
-    expect(restored.productAiDeployments, hasLength(1));
-    expect(restored.onboardingCompleted, isTrue);
-    expect(restored.snapshotVersion, currentSnapshotVersion);
-  });
+      expect(restored.encode(), state.encode());
+      expect(restored.products, hasLength(2));
+      expect(restored.employees, hasLength(1));
+      expect(restored.ecosystemLinks, hasLength(1));
+      expect(restored.employeeAssignments, hasLength(1));
+      expect(restored.securityControls, hasLength(1));
+      expect(restored.securityAudits, hasLength(1));
+      expect(restored.productImprovements, hasLength(1));
+      expect(restored.productUpdates, isNotEmpty);
+      expect(restored.productAiDeployments, hasLength(1));
+      expect(restored.onboardingCompleted, isTrue);
+      expect(restored.snapshotVersion, currentSnapshotVersion);
+    },
+  );
 
   test(
-    'legacy snapshot migrates to version 6 with controlled reset of model',
+    'legacy snapshot migrates to version 8 with controlled reset of model',
     () {
       final legacy = jsonEncode(<String, Object?>{
         'snapshotVersion': 2,
@@ -195,7 +179,7 @@ void main() {
           name: 'Legacy Desk',
           blueprintId: 'team_saas',
           frameworkId: 'flutter_firebase',
-          languageIds: <String>['typescript'],
+          languageIds: <String>['dart'],
           technologyIds: <String>['postgresql'],
           featureIds: <String>['team_spaces', 'automation'],
         ),
@@ -228,16 +212,35 @@ void main() {
     );
   });
 
-  test('version 6 snapshot keeps client contracts', () {
-    const engine = GameEngine();
-    final state = engine.reduce(
-      GameState.initial(),
-      const AcceptClientContract('landing_launch'),
+  test('version 8 snapshot keeps client contracts and strategy state', () {
+    var state = GameState.initial().copyWith(cash: 1000000);
+    state = engine.reduce(
+      state,
+      const CreateConfiguredProduct(
+        name: 'Founder Site',
+        blueprintId: 'company_website',
+        frameworkId: 'static_web',
+        languageIds: <String>['html_css'],
+        technologyIds: <String>[],
+        featureIds: <String>['landing_page'],
+        monetization: MonetizationModel.advertising,
+      ),
     );
+    final site = state.products.single;
+    state = state.copyWith(
+      products: <Product>[
+        site.copyWith(stage: ProductStage.live, developmentProgress: 1),
+      ],
+    );
+    state = engine.reduce(state, const AcceptClientContract('landing_launch'));
+    state = engine.reduce(state, const RedeemDebugPromo('FOUNDER-BROKE'));
+
     final decoded = GameState.decode(state.encode());
     expect(decoded.snapshotVersion, currentSnapshotVersion);
     expect(decoded.clientContracts, hasLength(1));
     expect(decoded.clientContracts.single.templateId, 'landing_launch');
+    expect(decoded.products.single.brandTrust, site.brandTrust);
+    expect(decoded.negativeCashSinceMinutes, isNotNull);
   });
 
   test('version 5 snapshot migrates with empty contract state', () {
@@ -252,3 +255,19 @@ void main() {
     expect(migrated.clientContracts, isEmpty);
   });
 }
+
+GameState _fundedInitial() => GameState.initial().copyWith(
+  investorAgreements: List<InvestorAgreement>.generate(
+    5,
+    (index) => InvestorAgreement(
+      id: 'snapshot_agreement_$index',
+      investorId: 'snapshot_investor_$index',
+      productId: 'fixture_product',
+      investedAmount: 0,
+      equityPercent: 0,
+      revenueSharePercent: 0,
+      buybackPrice: 0,
+    ),
+    growable: false,
+  ),
+);

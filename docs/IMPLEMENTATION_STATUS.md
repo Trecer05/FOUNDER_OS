@@ -1,6 +1,6 @@
 # IMPLEMENTATION_STATUS
 
-Дата: 4 августа 2026.
+Дата: 5 августа 2026.
 
 ## База v3 — проверено
 
@@ -82,3 +82,31 @@ V6 нельзя считать проверенной или готовой к m
 - [ ] полный flutter test.
 - [ ] iOS Simulator build.
 - [ ] ручная проверка на физическом iPhone.
+
+
+## V8 — product development economy (реализовано в пакете, ожидает локального gate)
+
+- [x] семишаговый мастер создания проекта;
+- [x] 8 масштабов, включая сайт и city system;
+- [x] 12 языков, 9 frameworks, 24 кандидата и кадровые language skills;
+- [x] stack limits, required languages и investor gates;
+- [x] рабочий календарь и реалистичные часы разработки;
+- [x] фазы, critical/movable staff, under/overstaffing;
+- [x] сайт с монетизацией только рекламой и contract gate;
+- [x] feature work без прямой покупки;
+- [x] стартовый cash 450 000 ₽;
+- [x] liquidity/credit/game-over chain;
+- [x] price/churn/revenue forecast и затухание sentiment;
+- [x] агентства, каналы, CPM/CPC и trust-aware acquisition;
+- [x] промокоды `FOUNDER-RICH` / `FOUNDER-BROKE`;
+- [x] snapshot schema v8 и migration defaults;
+- [x] focused v8 domain tests и обновлённые widget fixtures;
+- [ ] `dart format lib test`;
+- [ ] `flutter analyze`;
+- [ ] точечные v8/domain/snapshot/widget tests;
+- [ ] полный `flutter test`;
+- [ ] `git diff --check`;
+- [ ] iOS Simulator debug build;
+- [ ] ручной smoke на iPhone;
+- [ ] 90+ игровых дней balance-run;
+- [ ] Android debug build.

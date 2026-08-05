@@ -11,8 +11,9 @@ void main() {
   const engine = GameEngine();
 
   test('live monetization can change only once per 30 game days', () {
-    var state = _stateWithProduct(engine);
+    var state = _stateWithSaasProduct(engine);
     final product = state.products.single;
+
     state = state.copyWith(
       products: <Product>[
         product.copyWith(stage: ProductStage.live, developmentProgress: 1),
@@ -23,18 +24,20 @@ void main() {
       state,
       SetProductMonetization(
         productId: product.id,
-        model: MonetizationModel.advertising,
+        model: MonetizationModel.usageBased,
       ),
     );
+
     expect(
       state.productById(product.id)!.monetization,
-      MonetizationModel.advertising,
+      MonetizationModel.usageBased,
     );
     expect(state.monetizationCooldownRemainingDays(product.id), 30);
 
     final tenDaysLater = state.copyWith(
       simulationMinutes: state.simulationMinutes + 10 * 1440,
     );
+
     final blocked = engine.reduce(
       tenDaysLater,
       SetProductMonetization(
@@ -42,14 +45,16 @@ void main() {
         model: MonetizationModel.subscription,
       ),
     );
+
     expect(
       blocked.productById(product.id)!.monetization,
-      MonetizationModel.advertising,
+      MonetizationModel.usageBased,
     );
 
     final afterCooldown = state.copyWith(
       simulationMinutes: state.simulationMinutes + 31 * 1440,
     );
+
     final changed = engine.reduce(
       afterCooldown,
       SetProductMonetization(
@@ -57,6 +62,7 @@ void main() {
         model: MonetizationModel.subscription,
       ),
     );
+
     expect(
       changed.productById(product.id)!.monetization,
       MonetizationModel.subscription,
@@ -64,7 +70,8 @@ void main() {
   });
 
   test('product and contract teams are exclusive and atomic', () {
-    var state = _stateWithProduct(engine);
+    var state = _stateWithWebsite(engine);
+
     state = engine.reduce(state, const HireCandidate('c_anna'));
     state = engine.reduce(state, const HireCandidate('c_daria'));
     state = engine.reduce(state, const AcceptClientContract('landing_launch'));
@@ -74,29 +81,39 @@ void main() {
 
     state = engine.reduce(
       state,
-      SetProductTeam(productId: productId, employeeIds: const ['c_anna']),
+      SetProductTeam(
+        productId: productId,
+        employeeIds: const <String>['c_anna'],
+      ),
     );
-    expect(state.employeesForProduct(productId).map((item) => item.id), [
-      'c_anna',
-    ]);
+
+    expect(
+      state.employeesForProduct(productId).map((item) => item.id),
+      <String>['c_anna'],
+    );
 
     state = engine.reduce(
       state,
       SetContractTeam(
         contractId: contractId,
-        employeeIds: const ['c_anna', 'c_daria'],
+        employeeIds: const <String>['c_anna', 'c_daria'],
       ),
     );
+
     expect(state.employeesForProduct(productId), isEmpty);
     expect(
       state.employeesForContract(contractId).map((item) => item.id).toSet(),
-      {'c_anna', 'c_daria'},
+      <String>{'c_anna', 'c_daria'},
     );
 
     state = engine.reduce(
       state,
-      SetProductTeam(productId: productId, employeeIds: const ['c_anna']),
+      SetProductTeam(
+        productId: productId,
+        employeeIds: const <String>['c_anna'],
+      ),
     );
+
     expect(state.employeesForProduct(productId).single.id, 'c_anna');
     expect(state.employeesForContract(contractId).single.id, 'c_daria');
   });
@@ -115,17 +132,43 @@ void main() {
     );
   });
 
-  test('snapshot v7 keeps contract teams monetization and finance history', () {
-    var state = _stateWithProduct(engine);
-    final product = state.products.single;
+  test('snapshot v8 keeps contract teams monetization and finance history', () {
+    var state = _stateWithWebsite(engine);
+
+    state = engine.reduce(
+      state,
+      const CreateConfiguredProduct(
+        name: 'Founder SaaS',
+        blueprintId: 'team_saas',
+        frameworkId: 'flutter_firebase',
+        languageIds: <String>['dart'],
+        technologyIds: <String>['postgresql'],
+        featureIds: <String>['realtime_collaboration'],
+        monetization: MonetizationModel.subscription,
+      ),
+    );
+
+    final product = state.products.firstWhere(
+      (item) => item.blueprintId == 'team_saas',
+    );
+
     state = state.copyWith(
       paused: false,
-      products: <Product>[
-        product.copyWith(stage: ProductStage.live, developmentProgress: 1),
-      ],
+      products: state.products
+          .map(
+            (item) => item.id == product.id
+                ? item.copyWith(
+                    stage: ProductStage.live,
+                    developmentProgress: 1,
+                  )
+                : item,
+          )
+          .toList(growable: false),
       employees: <Employee>[state.candidateById('c_anna')!.toEmployee()],
     );
+
     state = engine.reduce(state, const AcceptClientContract('landing_launch'));
+
     state = engine.reduce(
       state,
       SetContractTeam(
@@ -133,17 +176,20 @@ void main() {
         employeeIds: const <String>['c_anna'],
       ),
     );
+
     state = engine.reduce(
       state,
       SetProductMonetization(
         productId: product.id,
-        model: MonetizationModel.advertising,
+        model: MonetizationModel.usageBased,
       ),
     );
+
     state = state.copyWith(simulationMinutes: 1439);
     state = engine.reduce(state, const AdvanceTime(1));
 
     final restored = GameState.decode(state.encode());
+
     expect(restored.snapshotVersion, currentSnapshotVersion);
     expect(restored.contractEmployeeAssignments, hasLength(1));
     expect(restored.monetizationChanges, hasLength(1));
@@ -152,13 +198,15 @@ void main() {
   });
 
   test('product improvement survives snapshot round trip', () {
-    var state = _stateWithProduct(engine);
+    var state = _stateWithSaasProduct(engine);
     final product = state.products.single;
+
     state = state.copyWith(
       products: <Product>[
         product.copyWith(stage: ProductStage.live, developmentProgress: 1),
       ],
     );
+
     state = engine.reduce(
       state,
       ApplyProductImprovement(
@@ -168,6 +216,7 @@ void main() {
     );
 
     final restored = GameState.decode(state.encode());
+
     expect(
       restored.improvementLevel(product.id, ProductImprovementType.performance),
       1,
@@ -192,17 +241,43 @@ void main() {
   });
 }
 
-GameState _stateWithProduct(GameEngine engine) => engine.reduce(
-  GameState.initial().copyWith(cash: 10000000, onboardingCompleted: true),
-  const CreateConfiguredProduct(
-    name: 'Nova',
-    blueprintId: 'team_saas',
-    frameworkId: 'flutter_firebase',
-    languageIds: <String>['typescript'],
-    technologyIds: <String>['postgresql'],
-    featureIds: <String>['realtime_collaboration'],
-  ),
-);
+GameState _stateWithWebsite(GameEngine engine) {
+  var state = engine.reduce(
+    GameState.initial().copyWith(cash: 10000000, onboardingCompleted: true),
+    const CreateConfiguredProduct(
+      name: 'Founder Site',
+      blueprintId: 'company_website',
+      frameworkId: 'static_web',
+      languageIds: <String>['html_css'],
+      technologyIds: <String>[],
+      featureIds: <String>['landing_page'],
+      monetization: MonetizationModel.advertising,
+    ),
+  );
+
+  final product = state.products.single;
+
+  return state.copyWith(
+    products: <Product>[
+      product.copyWith(stage: ProductStage.live, developmentProgress: 1),
+    ],
+  );
+}
+
+GameState _stateWithSaasProduct(GameEngine engine) {
+  return engine.reduce(
+    GameState.initial().copyWith(cash: 10000000, onboardingCompleted: true),
+    const CreateConfiguredProduct(
+      name: 'Founder SaaS',
+      blueprintId: 'team_saas',
+      frameworkId: 'flutter_firebase',
+      languageIds: <String>['dart'],
+      technologyIds: <String>['postgresql'],
+      featureIds: <String>['realtime_collaboration'],
+      monetization: MonetizationModel.subscription,
+    ),
+  );
+}
 
 class _DelayedSnapshotStore implements SnapshotStore {
   GameState? saved;

@@ -40,6 +40,7 @@ class CreateConfiguredProduct extends GameAction {
     required this.languageIds,
     required this.technologyIds,
     required this.featureIds,
+    this.monetization,
   });
 
   final String name;
@@ -48,6 +49,7 @@ class CreateConfiguredProduct extends GameAction {
   final List<String> languageIds;
   final List<String> technologyIds;
   final List<String> featureIds;
+  final MonetizationModel? monetization;
 }
 
 class LaunchProduct extends GameAction {
@@ -225,6 +227,30 @@ class DisconnectProducts extends GameAction {
 class AcceptClientContract extends GameAction {
   const AcceptClientContract(this.templateId);
   final String templateId;
+}
+
+class StartAdvertisingCampaign extends GameAction {
+  const StartAdvertisingCampaign({
+    required this.productId,
+    required this.agencyId,
+    required this.channelId,
+    required this.budget,
+  });
+
+  final String productId;
+  final String agencyId;
+  final String channelId;
+  final double budget;
+}
+
+class AcceptEmergencyLoan extends GameAction {
+  const AcceptEmergencyLoan();
+}
+
+class RedeemDebugPromo extends GameAction {
+  const RedeemDebugPromo(this.code);
+
+  final String code;
 }
 
 class RequestInvestorFunding extends GameAction {

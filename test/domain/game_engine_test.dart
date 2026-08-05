@@ -26,7 +26,7 @@ void main() {
     ];
 
     GameState run() {
-      var state = GameState.initial();
+      var state = _fundedInitial();
       for (final action in actions) {
         state = engine.reduce(state, action);
       }
@@ -37,7 +37,7 @@ void main() {
   });
 
   test('candidate hiring respects numeric office capacity', () {
-    var state = GameState.initial();
+    var state = _fundedInitial();
     state = engine.reduce(state, const HireCandidate('c_timur'));
     state = engine.reduce(state, const HireCandidate('c_ilya'));
     state = engine.reduce(state, const HireCandidate('c_maksim'));
@@ -52,7 +52,7 @@ void main() {
   test(
     'ecosystem supports many links, rejects duplicates and keeps products',
     () {
-      var state = GameState.initial().copyWith(cash: 10000000);
+      var state = _fundedInitial().copyWith(cash: 10000000);
       state = engine.reduce(
         state,
         _configuredProduct(
@@ -105,8 +105,8 @@ void main() {
     },
   );
 
-  test('product roadmap adds a real feature and charges exact cost', () {
-    var state = GameState.initial().copyWith(cash: 10000000);
+  test('product roadmap queues work hours without direct feature purchase', () {
+    var state = _fundedInitial().copyWith(cash: 10000000);
     state = engine.reduce(
       state,
       _configuredProduct(
@@ -116,25 +116,35 @@ void main() {
         featureIds: const <String>['chat_history'],
       ),
     );
-    final product = state.products.single;
+    final created = state.products.single;
+    state = state.copyWith(
+      products: <Product>[
+        created.copyWith(stage: ProductStage.live, developmentProgress: 1),
+      ],
+    );
     final cashBefore = state.cash;
-    final coverageBefore = product.featureCoverage;
 
     state = engine.reduce(
       state,
-      AddProductFeature(productId: product.id, featureId: 'file_analysis'),
+      AddProductFeature(productId: created.id, featureId: 'file_analysis'),
     );
 
-    final updated = state.productById(product.id)!;
-    expect(updated.featureIds, contains('file_analysis'));
-    expect(updated.featureCoverage, greaterThan(coverageBefore));
-    expect(state.cash, cashBefore - 78000);
+    expect(
+      state.productById(created.id)!.featureIds,
+      isNot(contains('file_analysis')),
+    );
+    expect(state.activeFeatureDevelopmentFor(created.id), isNotNull);
+    expect(
+      state.activeFeatureDevelopmentFor(created.id)!.requiredHours,
+      greaterThan(0),
+    );
+    expect(state.cash, cashBefore);
   });
 
   test(
     'market rewards product advantage even when weaker rival spends on ads',
     () {
-      var state = GameState.initial().copyWith(cash: 20000000);
+      var state = _fundedInitial().copyWith(cash: 20000000);
       state = engine.reduce(
         state,
         _configuredProduct(
@@ -189,7 +199,8 @@ void main() {
   test(
     'investor counters one million request with available five hundred thousand',
     () {
-      var state = GameState.initial().copyWith(cash: 10000000);
+      var state = _fundedInitial().copyWith(cash: 10000000);
+
       state = engine.reduce(
         state,
         _configuredProduct(
@@ -203,10 +214,13 @@ void main() {
           ],
         ),
       );
+
       final product = state.products.single;
+
       state = state.copyWith(
         products: <Product>[product.copyWith(developmentProgress: 0.5)],
       );
+
       state = engine.reduce(
         state,
         RequestInvestorFunding(
@@ -224,7 +238,8 @@ void main() {
         state,
         AcceptInvestorOffer(state.investorOffers.single.id),
       );
-      expect(state.investorAgreements, hasLength(1));
+
+      expect(state.investorAgreements, hasLength(6));
       expect(state.founderOwnershipPercent, lessThan(100));
       expect(state.founderOwnershipPercent, greaterThan(50));
     },
@@ -243,7 +258,7 @@ void main() {
         revenueSharePercent: 2,
         createdAtMinutes: 0,
       );
-      final state = GameState.initial().copyWith(
+      final state = _fundedInitial().copyWith(
         founderOwnershipPercent: 52,
         investorOffers: <InvestorOffer>[offer],
       );
@@ -262,7 +277,7 @@ void main() {
   test(
     'strict allocation preserves old value when total would exceed 100%',
     () {
-      var state = GameState.initial().copyWith(cash: 10000000);
+      var state = _fundedInitial().copyWith(cash: 10000000);
       state = engine.reduce(
         state,
         _configuredProduct(
@@ -302,7 +317,7 @@ void main() {
   );
 
   test('server hardware is limited by rack power and cooling', () {
-    var state = GameState.initial().copyWith(cash: 10000000);
+    var state = _fundedInitial().copyWith(cash: 10000000);
     final rejected = engine.reduce(state, const InstallServer('cluster_x12'));
     expect(rejected.installedCount('cluster_x12'), 0);
     expect(rejected.installedCount('edge_s1'), state.installedCount('edge_s1'));
@@ -314,7 +329,7 @@ void main() {
   });
 
   test('acquired product migration requires prepared compute capacity', () {
-    var state = GameState.initial().copyWith(cash: 30000000);
+    var state = _fundedInitial().copyWith(cash: 30000000);
     state = engine.reduce(
       state,
       _configuredProduct(
@@ -361,7 +376,7 @@ void main() {
   });
 
   test('crypto wallet breach effectively kills the product', () {
-    var state = GameState.initial().copyWith(cash: 10000000);
+    var state = _fundedInitial().copyWith(cash: 10000000);
     state = engine.reduce(
       state,
       _configuredProduct(
@@ -394,7 +409,7 @@ void main() {
   });
 
   test('hardened crypto wallet survives a breach but takes heavy damage', () {
-    var state = GameState.initial().copyWith(cash: 20000000);
+    var state = _fundedInitial().copyWith(cash: 20000000);
     state = engine.reduce(
       state,
       _configuredProduct(
@@ -437,7 +452,7 @@ void main() {
   });
 
   test('employee assignment makes product capacity explicit and exclusive', () {
-    var state = GameState.initial().copyWith(cash: 10000000);
+    var state = _fundedInitial().copyWith(cash: 10000000);
     state = engine.reduce(
       state,
       _configuredProduct(
@@ -483,7 +498,7 @@ void main() {
   });
 
   test('training and raise change exact employee metrics and payroll', () {
-    var state = GameState.initial().copyWith(cash: 10000000);
+    var state = _fundedInitial().copyWith(cash: 10000000);
     state = engine.reduce(state, const HireCandidate('c_anna'));
     final before = state.employeeById('c_anna')!;
     final cashBefore = state.cash;
@@ -509,7 +524,7 @@ void main() {
   });
 
   test('security controls reduce incident risk and audit is persisted', () {
-    var state = GameState.initial().copyWith(cash: 10000000);
+    var state = _fundedInitial().copyWith(cash: 10000000);
     state = engine.reduce(
       state,
       _configuredProduct(
@@ -545,7 +560,7 @@ void main() {
   });
 
   test('product role requirements expose deterministic coverage', () {
-    var state = GameState.initial().copyWith(cash: 10000000);
+    var state = _fundedInitial().copyWith(cash: 10000000);
     state = engine.reduce(
       state,
       _configuredProduct(
@@ -571,7 +586,8 @@ void main() {
   });
 
   test('corporate AI boosts product and adds compute plus OPEX', () {
-    var state = GameState.initial().copyWith(cash: 20000000);
+    var state = _fundedInitial().copyWith(cash: 20000000);
+
     state = engine.reduce(
       state,
       _configuredProduct(
@@ -581,6 +597,7 @@ void main() {
         featureIds: const <String>['chat_history', 'file_analysis'],
       ),
     );
+
     state = engine.reduce(
       state,
       _configuredProduct(
@@ -590,31 +607,46 @@ void main() {
         featureIds: const <String>['team_spaces', 'automation'],
       ),
     );
+
     final ai = state.products[0];
     final target = state.products[1];
+
     state = state.copyWith(
       products: <Product>[
         ai.copyWith(stage: ProductStage.live, developmentProgress: 1),
         target,
       ],
     );
+
+    final publicMonthlyCost = state.productById(ai.id)!.monthlyCost;
+
     state = engine.reduce(
       state,
       SetProductMarketingBudget(productId: ai.id, monthlyBudget: 300000),
     );
-    final publicMonthlyCost = state.productById(ai.id)!.monthlyCost;
+
+    // В v8 общий рекламный бюджет отключён:
+    // реклама запускается отдельными кампаниями.
+    expect(state.productById(ai.id)!.marketingBudget, 0);
+    expect(
+      state.productById(ai.id)!.monthlyCost,
+      closeTo(publicMonthlyCost, 0.01),
+    );
+
     final capacityBefore = state.productDevelopmentCapacity(target.id);
-    final demandBefore = state.productComputeDemand(state.products[0]);
+    final demandBefore = state.productComputeDemand(state.productById(ai.id)!);
 
     state = engine.reduce(
       state,
       SetAiDeploymentMode(productId: ai.id, mode: AiDeploymentMode.corporate),
     );
+
     expect(state.productById(ai.id)!.marketingBudget, 0);
     expect(
       state.productById(ai.id)!.monthlyCost,
-      closeTo(publicMonthlyCost - 300000, 0.01),
+      closeTo(publicMonthlyCost, 0.01),
     );
+
     state = engine.reduce(
       state,
       ConnectCorporateAi(aiProductId: ai.id, targetProductId: target.id),
@@ -639,12 +671,13 @@ void main() {
         mode: AiDeploymentMode.publicMarket,
       ),
     );
+
     expect(state.corporateAiForTarget(target.id), isNull);
     expect(state.productAiIntegrations, isEmpty);
   });
 
   test('stale product loses freshness and repeatable update restores it', () {
-    var state = GameState.initial().copyWith(cash: 10000000);
+    var state = _fundedInitial().copyWith(cash: 10000000);
     state = engine.reduce(
       state,
       _configuredProduct(
@@ -659,8 +692,6 @@ void main() {
       products: <Product>[
         product.copyWith(stage: ProductStage.live, developmentProgress: 1),
       ],
-    );
-    state = state.copyWith(
       simulationMinutes: state.simulationMinutes + 50 * 1440,
     );
     expect(state.productFreshnessScore(product), lessThan(70));
@@ -690,23 +721,26 @@ void main() {
 
   test('new product starts at zero percent development', () {
     const engine = GameEngine();
+
     final state = engine.reduce(
-      GameState.initial().copyWith(cash: 10000000),
+      _fundedInitial().copyWith(cash: 10000000),
       const CreateConfiguredProduct(
         name: 'Zero Start',
         blueprintId: 'team_saas',
         frameworkId: 'flutter_firebase',
-        languageIds: <String>['typescript'],
+        languageIds: <String>['dart'],
         technologyIds: <String>['postgresql'],
         featureIds: <String>['realtime_collaboration'],
       ),
     );
+
+    expect(state.products, hasLength(1));
     expect(state.products.single.developmentProgress, 0);
   });
 
   test('remote candidate can be hired when office seats are full', () {
     const engine = GameEngine();
-    var state = GameState.initial().copyWith(cash: 10000000);
+    var state = _fundedInitial().copyWith(cash: 10000000);
     final onSiteCandidates = state.candidates
         .where((item) => !item.remote)
         .take(state.office.capacity);
@@ -721,19 +755,24 @@ void main() {
 
   test('continuous improvements are blocked before launch', () {
     const engine = GameEngine();
+
     var state = engine.reduce(
-      GameState.initial().copyWith(cash: 10000000),
+      _fundedInitial().copyWith(cash: 10000000),
       const CreateConfiguredProduct(
         name: 'Prelaunch',
         blueprintId: 'team_saas',
         frameworkId: 'flutter_firebase',
-        languageIds: <String>['typescript'],
+        languageIds: <String>['dart'],
         technologyIds: <String>['postgresql'],
         featureIds: <String>['realtime_collaboration'],
       ),
     );
+
+    expect(state.products, hasLength(1));
+
     final productId = state.products.single.id;
     final cash = state.cash;
+
     state = engine.reduce(
       state,
       ApplyProductImprovement(
@@ -741,6 +780,7 @@ void main() {
         type: ProductImprovementType.performance,
       ),
     );
+
     expect(
       state.improvementLevel(productId, ProductImprovementType.performance),
       0,
@@ -750,20 +790,28 @@ void main() {
 
   test('subscription price is configurable only after launch', () {
     const engine = GameEngine();
+
     var state = engine.reduce(
-      GameState.initial().copyWith(cash: 10000000),
+      _fundedInitial().copyWith(cash: 10000000),
       const CreateConfiguredProduct(
         name: 'Pricing',
         blueprintId: 'team_saas',
         frameworkId: 'flutter_firebase',
-        languageIds: <String>['typescript'],
+        languageIds: <String>['dart'],
         technologyIds: <String>['postgresql'],
         featureIds: <String>['realtime_collaboration'],
       ),
     );
+
+    expect(state.products, hasLength(1));
+
     final id = state.products.single.id;
+    final initialPrice = state.products.single.price;
+
     state = engine.reduce(state, SetProductPrice(productId: id, price: 1500));
-    expect(state.products.single.price, 890);
+
+    expect(state.products.single.price, initialPrice);
+
     state = state.copyWith(
       products: <Product>[
         state.products.single.copyWith(
@@ -772,18 +820,38 @@ void main() {
         ),
       ],
     );
+
     state = engine.reduce(state, SetProductPrice(productId: id, price: 1500));
+
     expect(state.products.single.price, 1500);
   });
 
   test('client contract pays upfront and finishes through simulation', () {
     const engine = GameEngine();
-    var state = GameState.initial().copyWith(cash: 1000000, paused: false);
+
+    var state = _fundedInitial().copyWith(cash: 1000000, paused: false);
+
+    state = _withReleasedWebsite(state, engine);
+
     final template = ContractCatalog.byId('landing_launch');
     final anna = state.candidateById('c_anna')!.toEmployee();
     final daria = state.candidateById('c_daria')!.toEmployee();
+
     state = state.copyWith(employees: <Employee>[anna, daria]);
+
+    final cashBeforeAccept = state.cash;
+
     state = engine.reduce(state, const AcceptClientContract('landing_launch'));
+
+    expect(state.activeContracts, hasLength(1));
+    expect(
+      state.cash,
+      closeTo(
+        cashBeforeAccept + template.reward * template.upfrontPercent,
+        0.01,
+      ),
+    );
+
     state = engine.reduce(
       state,
       SetContractTeam(
@@ -791,24 +859,28 @@ void main() {
         employeeIds: const <String>['c_anna', 'c_daria'],
       ),
     );
-    expect(state.activeContracts, hasLength(1));
-    expect(state.cash, 1000000 + template.reward * template.upfrontPercent);
+
+    final cashAfterUpfront = state.cash;
+
     state = engine.reduce(state, const AdvanceTime(2750));
+
     expect(state.completedContracts, hasLength(1));
     expect(state.activeContracts, isEmpty);
-    expect(state.cash, greaterThan(1000000));
+    expect(state.cash, greaterThan(cashAfterUpfront));
   });
 
   test('parallel contracts share the available reserve capacity', () {
     const engine = GameEngine();
-    var single = GameState.initial().copyWith(paused: false);
+    var single = _fundedInitial().copyWith(cash: 1000000, paused: false);
+    single = _withReleasedWebsite(single, engine);
     single = engine.reduce(
       single,
       const AcceptClientContract('landing_launch'),
     );
     single = engine.reduce(single, const AdvanceTime(1000));
 
-    var parallel = GameState.initial().copyWith(paused: false);
+    var parallel = _fundedInitial().copyWith(cash: 1000000, paused: false);
+    parallel = _withReleasedWebsite(parallel, engine);
     parallel = engine.reduce(
       parallel,
       const AcceptClientContract('landing_launch'),
@@ -831,7 +903,8 @@ void main() {
 
   test('contract can fail when deadline passes without enough capacity', () {
     const engine = GameEngine();
-    var state = GameState.initial().copyWith(cash: 1000000, paused: false);
+    var state = _fundedInitial().copyWith(cash: 1000000, paused: false);
+    state = _withReleasedWebsite(state, engine);
     state = engine.reduce(
       state,
       const AcceptClientContract('internal_dashboard'),
@@ -845,18 +918,74 @@ void main() {
   });
 }
 
+GameState _fundedInitial() => GameState.initial().copyWith(
+  investorAgreements: List<InvestorAgreement>.generate(
+    5,
+    (index) => InvestorAgreement(
+      id: 'fixture_agreement_$index',
+      investorId: 'fixture_investor_$index',
+      productId: 'fixture_product',
+      investedAmount: 0,
+      equityPercent: 0,
+      revenueSharePercent: 0,
+      buybackPrice: 0,
+    ),
+    growable: false,
+  ),
+);
+
 CreateConfiguredProduct _configuredProduct({
   required String name,
   required String blueprintId,
   required String frameworkId,
   required List<String> featureIds,
 }) {
+  final languages = switch (frameworkId) {
+    'static_web' => const <String>['html_css'],
+    'laravel_web' => const <String>['php'],
+    'flutter_firebase' => const <String>['dart'],
+    'next_nest' => const <String>['typescript'],
+    'fastapi_react' => const <String>['python', 'typescript'],
+    'go_microservices' => const <String>['go'],
+    'java_enterprise' => const <String>['java'],
+    'rust_core' => const <String>['rust'],
+    'chromium_fork' => const <String>['cpp', 'typescript'],
+    _ => const <String>['typescript'],
+  };
   return CreateConfiguredProduct(
     name: name,
     blueprintId: blueprintId,
     frameworkId: frameworkId,
-    languageIds: const <String>['typescript'],
+    languageIds: languages,
     technologyIds: const <String>['postgresql', 'observability_stack'],
     featureIds: featureIds,
+  );
+}
+
+GameState _withReleasedWebsite(GameState state, GameEngine engine) {
+  state = engine.reduce(
+    state,
+    const CreateConfiguredProduct(
+      name: 'Founder Site',
+      blueprintId: 'company_website',
+      frameworkId: 'static_web',
+      languageIds: <String>['html_css'],
+      technologyIds: <String>[],
+      featureIds: <String>['landing_page'],
+      monetization: MonetizationModel.advertising,
+    ),
+  );
+  final website = state.products.last;
+  return state.copyWith(
+    products: state.products
+        .map(
+          (product) => product.id == website.id
+              ? product.copyWith(
+                  stage: ProductStage.live,
+                  developmentProgress: 1,
+                )
+              : product,
+        )
+        .toList(growable: false),
   );
 }

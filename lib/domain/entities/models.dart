@@ -32,7 +32,13 @@ enum MonetizationModel {
   transactionFee,
 }
 
-enum CriticalEventType { none, serverOverload, securityBreach, lostControl }
+enum CriticalEventType {
+  none,
+  serverOverload,
+  securityBreach,
+  lostControl,
+  insolvency,
+}
 
 enum NewsKind {
   competitor,
@@ -42,6 +48,7 @@ enum NewsKind {
   market,
   product,
   infrastructure,
+  finance,
 }
 
 enum AcquisitionMode { maintainSeparate, migrateUsers }
@@ -60,6 +67,7 @@ class Candidate {
     required this.salary,
     required this.loyalty,
     required this.remote,
+    this.languageIds = const <String>[],
   });
 
   final String id;
@@ -74,6 +82,7 @@ class Candidate {
   final double salary;
   final int loyalty;
   final bool remote;
+  final List<String> languageIds;
 
   Employee toEmployee() => Employee(
     id: id,
@@ -90,6 +99,7 @@ class Candidate {
     morale: 78,
     workload: 35,
     remote: remote,
+    languageIds: languageIds,
   );
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -105,6 +115,7 @@ class Candidate {
     'salary': salary,
     'loyalty': loyalty,
     'remote': remote,
+    'languageIds': languageIds,
   };
 
   factory Candidate.fromJson(Map<String, Object?> json) => Candidate(
@@ -120,6 +131,8 @@ class Candidate {
     salary: (json['salary']! as num).toDouble(),
     loyalty: (json['loyalty']! as num).toInt(),
     remote: json['remote']! as bool,
+    languageIds:
+        (json['languageIds'] as List?)?.cast<String>() ?? const <String>[],
   );
 }
 
@@ -139,6 +152,7 @@ class Employee {
     required this.morale,
     required this.workload,
     required this.remote,
+    this.languageIds = const <String>[],
   });
 
   final String id;
@@ -155,6 +169,7 @@ class Employee {
   final int morale;
   final int workload;
   final bool remote;
+  final List<String> languageIds;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
@@ -171,6 +186,7 @@ class Employee {
     'morale': morale,
     'workload': workload,
     'remote': remote,
+    'languageIds': languageIds,
   };
 
   factory Employee.fromJson(Map<String, Object?> json) => Employee(
@@ -188,6 +204,8 @@ class Employee {
     morale: (json['morale']! as num).toInt(),
     workload: (json['workload']! as num).toInt(),
     remote: json['remote']! as bool,
+    languageIds:
+        (json['languageIds'] as List?)?.cast<String>() ?? const <String>[],
   );
 }
 
@@ -350,6 +368,9 @@ class Product {
     required this.computeMultiplier,
     required this.createdAtMinutes,
     required this.acquired,
+    this.brandAwareness = 0,
+    this.brandTrust = 0.08,
+    this.priceSentiment = 0,
   });
 
   final String id;
@@ -385,6 +406,9 @@ class Product {
   final double computeMultiplier;
   final int createdAtMinutes;
   final bool acquired;
+  final double brandAwareness;
+  final double brandTrust;
+  final double priceSentiment;
 
   Product copyWith({
     ProductStage? stage,
@@ -412,6 +436,9 @@ class Product {
     double? allocatedCapacityPercent,
     double? computeMultiplier,
     bool? acquired,
+    double? brandAwareness,
+    double? brandTrust,
+    double? priceSentiment,
   }) {
     return Product(
       id: id,
@@ -448,6 +475,9 @@ class Product {
       computeMultiplier: computeMultiplier ?? this.computeMultiplier,
       createdAtMinutes: createdAtMinutes,
       acquired: acquired ?? this.acquired,
+      brandAwareness: brandAwareness ?? this.brandAwareness,
+      brandTrust: brandTrust ?? this.brandTrust,
+      priceSentiment: priceSentiment ?? this.priceSentiment,
     );
   }
 
@@ -485,6 +515,9 @@ class Product {
     'computeMultiplier': computeMultiplier,
     'createdAtMinutes': createdAtMinutes,
     'acquired': acquired,
+    'brandAwareness': brandAwareness,
+    'brandTrust': brandTrust,
+    'priceSentiment': priceSentiment,
   };
 
   factory Product.fromJson(Map<String, Object?> json) => Product(
@@ -524,6 +557,9 @@ class Product {
     computeMultiplier: (json['computeMultiplier']! as num).toDouble(),
     createdAtMinutes: (json['createdAtMinutes']! as num).toInt(),
     acquired: json['acquired']! as bool,
+    brandAwareness: (json['brandAwareness'] as num?)?.toDouble() ?? 0,
+    brandTrust: (json['brandTrust'] as num?)?.toDouble() ?? 0.08,
+    priceSentiment: (json['priceSentiment'] as num?)?.toDouble() ?? 0,
   );
 }
 

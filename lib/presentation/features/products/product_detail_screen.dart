@@ -6,16 +6,19 @@ import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
 import '../../../domain/catalog/game_catalog.dart';
 import '../../../domain/catalog/product_evolution_catalog.dart';
+import '../../../domain/catalog/product_strategy_catalog.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/game_state.dart';
 import '../../../domain/entities/models.dart';
 import '../../../domain/entities/product_evolution_models.dart';
+import '../../../domain/simulation/product_estimator.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/metric_card.dart';
 import '../../shared/widgets/section_header.dart';
 import '../security/security_center_screen.dart';
 import '../operations/operations_screen.dart';
+import '../contracts/contracts_screen.dart';
 
 class ProductDetailScreen extends StatelessWidget {
   const ProductDetailScreen({
@@ -40,6 +43,18 @@ class ProductDetailScreen extends StatelessWidget {
         final competitor = GameCatalog.competitorFor(product.category);
         final framework = GameCatalog.frameworkById(product.frameworkId);
         final load = state.productServerLoad(product);
+        final strategy = ProductStrategyCatalog.strategyFor(
+          product.blueprintId,
+        );
+        final phase = state.developmentPhaseFor(product);
+        final staffing = state.developmentStaffingFor(product.id);
+        final projection = ProductEstimator.estimate(
+          blueprintId: product.blueprintId,
+          frameworkId: product.frameworkId,
+          languageIds: product.languageIds,
+          technologyIds: product.technologyIds,
+          featureIds: product.featureIds,
+        );
         final monetizationCooldownDays = state
             .monetizationCooldownRemainingDays(product.id);
         final revenueForecast = state.revenueForecastFor(product);
@@ -47,9 +62,14 @@ class ProductDetailScreen extends StatelessWidget {
             .where(
               (feature) =>
                   feature.supportedCategories.contains(product.category) &&
-                  !product.featureIds.contains(feature.id),
+                  !product.featureIds.contains(feature.id) &&
+                  (product.blueprintId != 'company_website' ||
+                      GameCatalog.blueprintById(
+                        product.blueprintId,
+                      ).expectedFeatureIds.contains(feature.id)),
             )
             .toList(growable: false);
+        final activeFeatureWork = state.activeFeatureDevelopmentFor(product.id);
 
         return Scaffold(
           appBar: AppBar(title: Text(product.name)),
@@ -78,11 +98,54 @@ class ProductDetailScreen extends StatelessWidget {
                       LinearProgressIndicator(
                         value: product.developmentProgress,
                       ),
+                      const SizedBox(height: 12),
+                      Text(
+                        phase.name,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(phase.description),
                       const SizedBox(height: 10),
                       Text(
-                        'Назначенная проектная команда и выбранный стек определяют скорость. Сотрудники в резерве не дают скрытый бонус.',
+                        staffing.status,
+                        style: TextStyle(
+                          color: staffing.efficiency >= 0.80
+                              ? AppColors.green
+                              : AppColors.red,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _LabelValue(
+                        'Рабочий объём',
+                        '${projection.developmentHours.round()} ч.',
+                      ),
+                      _LabelValue(
+                        'Оптимальная команда',
+                        '${staffing.optimalTeamSize} человек',
+                      ),
+                      _LabelValue(
+                        'Языки покрыты',
+                        percent(staffing.languageCoverage),
+                      ),
+                      _LabelValue(
+                        'Роли покрыты',
+                        percent(staffing.roleCoverage),
+                      ),
+                      _LabelValue(
+                        'Эффективность состава',
+                        percent(staffing.efficiency),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Сейчас критичны: ${phase.criticalRoles.map(roleName).join(', ')}.',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
+                      if (staffing.movableEmployeeIds.isNotEmpty)
+                        Text(
+                          'Можно временно выдернуть: ${staffing.movableEmployeeIds.map((id) => state.employeeById(id)?.name ?? id).join(', ')}.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       const SizedBox(height: 10),
                       _LabelValue(
                         'Назначено сотрудников',
@@ -90,9 +153,7 @@ class ProductDetailScreen extends StatelessWidget {
                       ),
                       _LabelValue(
                         'Development capacity',
-                        state
-                            .productDevelopmentCapacity(product.id)
-                            .toStringAsFixed(0),
+                        '${state.productDevelopmentCapacity(product.id).toStringAsFixed(2)} FTE',
                         last: true,
                       ),
                       const SizedBox(height: 10),
@@ -350,11 +411,43 @@ class ProductDetailScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
+              if (activeFeatureWork != null) ...[
+                AppCard(
+                  hintTitle: 'Активное обновление',
+                  hintBody:
+                      'Функция не покупается мгновенно. Назначенная команда выполняет рабочие часы, а компания оплачивает зарплаты и инфраструктуру.',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        GameCatalog.featureById(
+                          activeFeatureWork.featureId,
+                        ).name,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: activeFeatureWork.progress,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${(activeFeatureWork.progress * 100).toStringAsFixed(1)}% • осталось ${state.featureDevelopmentRemainingHours(product.id).round()} командо-часов',
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Скорость зависит от той же проектной команды: ${state.productDevelopmentCapacity(product.id).toStringAsFixed(2)} FTE.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
               SectionHeader(
                 title: 'Roadmap продукта',
                 subtitle: availableFeatures.isEmpty
                     ? 'Все крупные функции реализованы. Продукт продолжает развиваться через постоянные технические улучшения выше.'
-                    : 'Добавляйте ожидаемые рынком функции. После релиза внедрение стоит на 25% дороже.',
+                    : 'Добавляйте функции в очередь разработки. Они требуют рабочих часов, но не отдельной покупки.',
               ),
               const SizedBox(height: 10),
               if (availableFeatures.isEmpty)
@@ -369,8 +462,9 @@ class ProductDetailScreen extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 10),
                     child: _FeatureUpgradeCard(
                       feature: feature,
-                      liveProduct: product.stage == ProductStage.live,
-                      cash: state.cash,
+                      enabled:
+                          product.stage == ProductStage.live &&
+                          activeFeatureWork == null,
                       onAdd: () => controller.dispatch(
                         AddProductFeature(
                           productId: product.id,
@@ -408,7 +502,7 @@ class ProductDetailScreen extends StatelessWidget {
                             ? 'Следующая смена через $monetizationCooldownDays дн.'
                             : 'После релиза модель можно менять раз в 30 игровых дней.',
                       ),
-                      items: MonetizationModel.values
+                      items: strategy.allowedMonetizationModels
                           .map(
                             (model) => DropdownMenuItem(
                               value: model,
@@ -481,6 +575,7 @@ class ProductDetailScreen extends StatelessWidget {
                             MonetizationModel.subscription) ...[
                       const SizedBox(height: 14),
                       _SubscriptionPriceControl(
+                        state: state,
                         product: product,
                         onChanged: (price) => controller.dispatch(
                           SetProductPrice(productId: product.id, price: price),
@@ -488,32 +583,39 @@ class ProductDetailScreen extends StatelessWidget {
                       ),
                     ],
                     const SizedBox(height: 14),
-                    Text(
-                      'Рекламный бюджет / мес.',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: <double>[0, 100000, 300000, 800000]
-                          .map(
-                            (budget) => ChoiceChip(
-                              label: Text(money(budget)),
-                              selected: product.marketingBudget == budget,
-                              onSelected: (_) => controller.dispatch(
-                                SetProductMarketingBudget(
-                                  productId: product.id,
-                                  monthlyBudget: budget,
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(growable: false),
+                    _AdvertisingCampaignCard(
+                      state: state,
+                      product: product,
+                      controller: controller,
                     ),
                   ],
                 ),
               ),
+              if (product.blueprintId == 'company_website' &&
+                  product.stage == ProductStage.live) ...[
+                const SizedBox(height: 18),
+                SectionHeader(
+                  title: 'Клиентские контракты',
+                  subtitle:
+                      '${state.activeContracts.length} активных • открыты после релиза сайта',
+                ),
+                const SizedBox(height: 10),
+                AppCard(
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => Navigator.of(context).push<void>(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              ContractsScreen(controller: controller),
+                        ),
+                      ),
+                      icon: const Icon(Icons.handshake_outlined),
+                      label: const Text('Открыть контракты сайта'),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 18),
               const SectionHeader(
                 title: 'Инфраструктура и экосистема',
@@ -869,10 +971,12 @@ class _AiUsageCard extends StatelessWidget {
 
 class _SubscriptionPriceControl extends StatefulWidget {
   const _SubscriptionPriceControl({
+    required this.state,
     required this.product,
     required this.onChanged,
   });
 
+  final GameState state;
   final Product product;
   final ValueChanged<double> onChanged;
 
@@ -900,6 +1004,9 @@ class _SubscriptionPriceControlState extends State<_SubscriptionPriceControl> {
     final value = (_draftPrice ?? widget.product.price)
         .clamp(minimum, maximum)
         .toDouble();
+    final forecast = widget.state.priceImpactForecast(widget.product, value);
+    final revenueDelta =
+        forecast.expectedRevenueAfter - forecast.expectedRevenueBefore;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -922,7 +1029,7 @@ class _SubscriptionPriceControlState extends State<_SubscriptionPriceControl> {
           value: value,
           min: minimum,
           max: maximum,
-          divisions: 15,
+          divisions: 30,
           label: '${value.round()} ₽',
           onChanged: (next) => setState(() => _draftPrice = next),
           onChangeEnd: (next) {
@@ -930,9 +1037,287 @@ class _SubscriptionPriceControlState extends State<_SubscriptionPriceControl> {
             setState(() => _draftPrice = null);
           },
         ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceMuted,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Вероятный эффект изменения',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 7),
+              Wrap(
+                spacing: 7,
+                runSpacing: 7,
+                children: [
+                  Chip(
+                    label: Text(
+                      'MAU ${directPercent(forecast.expectedUserChangePercent * 100, fractionDigits: 1)}',
+                    ),
+                  ),
+                  Chip(
+                    label: Text(
+                      'Churn ${forecast.expectedChurnDelta >= 0 ? '+' : ''}${directPercent(forecast.expectedChurnDelta * 100, fractionDigits: 1)}',
+                    ),
+                  ),
+                  Chip(
+                    label: Text(
+                      'MRR ${revenueDelta >= 0 ? '+' : ''}${money(revenueDelta)}',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Ценовой шок ${(forecast.sentimentShock * 100).toStringAsFixed(1)}%. ${forecast.note}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
         Text(
-          'Базовая цена категории: ${blueprint.basePrice.round()} ₽. Более высокая цена увеличивает доход с платящего пользователя, но ухудшает ценовую конкурентоспособность.',
+          'Текущее отношение аудитории к последнему изменению цены: ${(widget.state.currentPriceSentiment(widget.product) * 100).toStringAsFixed(1)}%.',
           style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+}
+
+class _AdvertisingCampaignCard extends StatefulWidget {
+  const _AdvertisingCampaignCard({
+    required this.state,
+    required this.product,
+    required this.controller,
+  });
+
+  final GameState state;
+  final Product product;
+  final GameController controller;
+
+  @override
+  State<_AdvertisingCampaignCard> createState() =>
+      _AdvertisingCampaignCardState();
+}
+
+class _AdvertisingCampaignCardState extends State<_AdvertisingCampaignCard> {
+  String _agencyId = ProductStrategyCatalog.agencies.first.id;
+  String _channelId = ProductStrategyCatalog.channels.first.id;
+  double _budget = ProductStrategyCatalog.agencies.first.minimumBudget;
+
+  @override
+  Widget build(BuildContext context) {
+    final agency = ProductStrategyCatalog.agencyById(_agencyId);
+    final channel = ProductStrategyCatalog.channelById(_channelId);
+    final normalizedBudget = math.max(_budget, agency.minimumBudget).toDouble();
+    final forecast = widget.state.advertisingForecast(
+      product: widget.product,
+      agencyId: agency.id,
+      channelId: channel.id,
+      budget: normalizedBudget,
+    );
+    final active = widget.state.activeCampaignsFor(widget.product.id);
+    final canStart =
+        widget.product.stage == ProductStage.live &&
+        widget.state.cash >= normalizedBudget &&
+        active.length < 2;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Рекламные кампании',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Вы выбираете агентство, канал и закупаемый объём. Результат ограничен качеством продукта, доверием и узнаваемостью.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        if (active.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          ...active.map((campaign) {
+            final remainingDays = math.max(
+              0,
+              (campaign.endsAtMinutes - widget.state.simulationMinutes) / 1440,
+            );
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${ProductStrategyCatalog.channelById(campaign.channelId).name} • ${money(campaign.budget)} • ${remainingDays.toStringAsFixed(1)} дн. • прогноз ${campaign.projectedUsersLow}–${campaign.projectedUsersHigh} users',
+                ),
+              ),
+            );
+          }),
+        ],
+        const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          key: ValueKey('advertising-agency-$_agencyId'),
+          initialValue: _agencyId,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Рекламное агентство'),
+          items: ProductStrategyCatalog.agencies
+              .map(
+                (item) =>
+                    DropdownMenuItem(value: item.id, child: Text(item.name)),
+              )
+              .toList(growable: false),
+          onChanged: (value) {
+            if (value == null) return;
+            setState(() {
+              _agencyId = value;
+              _budget = math
+                  .max(
+                    _budget,
+                    ProductStrategyCatalog.agencyById(value).minimumBudget,
+                  )
+                  .toDouble();
+            });
+          },
+        ),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          key: ValueKey('advertising-channel-$_channelId'),
+          initialValue: _channelId,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Канал закупки'),
+          items: ProductStrategyCatalog.channels
+              .map(
+                (item) =>
+                    DropdownMenuItem(value: item.id, child: Text(item.name)),
+              )
+              .toList(growable: false),
+          onChanged: (value) {
+            if (value != null) setState(() => _channelId = value);
+          },
+        ),
+        const SizedBox(height: 8),
+        Text('${agency.description} ${channel.description}'),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 7,
+          runSpacing: 7,
+          children: [
+            Chip(
+              label: Text(
+                'Качество агентства ${(agency.quality * 100).round()}%',
+              ),
+            ),
+            Chip(
+              label: Text(
+                'Точность прогноза ${(agency.forecastAccuracy * 100).round()}%',
+              ),
+            ),
+            Chip(label: Text('Комиссия ${(agency.feePercent * 100).round()}%')),
+            if (channel.baseCpm > 0)
+              Chip(label: Text('CPM ${money(channel.baseCpm)}')),
+            if (channel.baseCpc > 0)
+              Chip(label: Text('CPC ${money(channel.baseCpc)}')),
+            Chip(
+              label: Text(
+                channel.bestForCategories.contains(widget.product.category)
+                    ? 'Канал подходит продукту'
+                    : 'Слабое попадание в аудиторию',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            const Expanded(child: Text('Бюджет на 7 дней')),
+            Text(
+              money(normalizedBudget),
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ],
+        ),
+        Slider(
+          key: const Key('advertising-budget-slider'),
+          min: agency.minimumBudget,
+          max: math.max(agency.minimumBudget, 1500000).toDouble(),
+          divisions: 24,
+          value: normalizedBudget
+              .clamp(agency.minimumBudget, 1500000)
+              .toDouble(),
+          onChanged: (value) => setState(() => _budget = value),
+        ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceMuted,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Что будет закуплено',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 7),
+              Wrap(
+                spacing: 7,
+                runSpacing: 7,
+                children: [
+                  Chip(
+                    label: Text(
+                      '${compactNumber(forecast.impressions)} показов',
+                    ),
+                  ),
+                  Chip(
+                    label: Text('${compactNumber(forecast.clicks)} переходов'),
+                  ),
+                  Chip(
+                    label: Text(
+                      '${forecast.usersLow}–${forecast.usersHigh} пользователей',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(forecast.note, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            key: const Key('start-advertising-campaign'),
+            onPressed: canStart
+                ? () => widget.controller.dispatch(
+                    StartAdvertisingCampaign(
+                      productId: widget.product.id,
+                      agencyId: agency.id,
+                      channelId: channel.id,
+                      budget: normalizedBudget,
+                    ),
+                  )
+                : null,
+            icon: const Icon(Icons.campaign_outlined),
+            label: Text(
+              active.length >= 2
+                  ? 'Уже две активные кампании'
+                  : widget.state.cash < normalizedBudget
+                  ? 'Недостаточно денег'
+                  : 'Запустить кампанию',
+            ),
+          ),
         ),
       ],
     );
@@ -1022,20 +1407,17 @@ class _ContinuousImprovementCard extends StatelessWidget {
 class _FeatureUpgradeCard extends StatelessWidget {
   const _FeatureUpgradeCard({
     required this.feature,
-    required this.liveProduct,
-    required this.cash,
+    required this.enabled,
     required this.onAdd,
   });
 
   final FeatureOption feature;
-  final bool liveProduct;
-  final double cash;
+  final bool enabled;
   final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
-    final cost = feature.developmentCost * (liveProduct ? 1.25 : 1.0);
-    final canAfford = cash >= cost;
+    final hours = math.max(24, feature.developmentCost / 450 * 1.25).round();
     final effects = <String>[
       if (feature.designDelta != 0) 'Design ${_signed(feature.designDelta)}',
       if (feature.performanceDelta != 0)
@@ -1071,7 +1453,7 @@ class _FeatureUpgradeCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Text(money(cost), style: Theme.of(context).textTheme.titleMedium),
+              Text('$hours ч.', style: Theme.of(context).textTheme.titleMedium),
             ],
           ),
           const SizedBox(height: 10),
@@ -1087,15 +1469,22 @@ class _FeatureUpgradeCard extends StatelessWidget {
                 )
                 .toList(growable: false),
           ),
+          const SizedBox(height: 8),
+          Text(
+            'Прямой цены нет. Пока команда выполняет $hours рабочих часов, продолжают списываться зарплаты и инфраструктура.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             child: FilledButton.tonalIcon(
               key: Key('add-feature-${feature.id}'),
-              onPressed: canAfford ? onAdd : null,
+              onPressed: enabled ? onAdd : null,
               icon: const Icon(Icons.add_task_outlined),
               label: Text(
-                canAfford ? 'Добавить в продукт' : 'Недостаточно денег',
+                enabled
+                    ? 'Начать разработку функции'
+                    : 'Сначала завершите текущее обновление',
               ),
             ),
           ),

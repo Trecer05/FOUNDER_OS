@@ -36,7 +36,9 @@ Future<GameController> _pumpApp(WidgetTester tester) async {
   addTearDown(controller.dispose);
 
   await controller.initialize();
-  await tester.pumpWidget(FounderOsApp(controller: controller));
+  await tester.pumpWidget(
+    FounderOsApp(controller: controller, showGlobalTimeControls: false),
+  );
   await tester.pumpAndSettle();
 
   final tutorialSkip = find.byKey(const Key('tutorial-skip'));
@@ -104,22 +106,44 @@ void main() {
 
     expect(find.byType(TeamScreen), findsOneWidget);
     expect(find.text('Средние показатели'), findsOneWidget);
-    expect(find.text('Все роли'), findsOneWidget);
-    expect(find.text('Сортировка'), findsOneWidget);
 
+    final teamList = find.byKey(const Key('team-screen-list'));
     final searchField = find.byKey(const Key('team-candidate-search'));
+
+    for (
+      var attempt = 0;
+      attempt < 12 && searchField.evaluate().isEmpty;
+      attempt++
+    ) {
+      await tester.drag(teamList, const Offset(0, -240));
+      await tester.pumpAndSettle();
+    }
+
     expect(searchField, findsOneWidget);
+    expect(find.text('Все роли'), findsOneWidget);
+
     await tester.enterText(searchField, 'Анна');
     await tester.pumpAndSettle();
 
-    final teamList = find.byKey(const Key('team-screen-list'));
+    final sortingLabel = find.text('Сортировка');
+    for (
+      var attempt = 0;
+      attempt < 8 && sortingLabel.evaluate().isEmpty;
+      attempt++
+    ) {
+      await tester.drag(teamList, const Offset(0, -180));
+      await tester.pumpAndSettle();
+    }
+
+    expect(sortingLabel, findsOneWidget);
+
     final candidateName = find.text('Анна Миронова');
     for (
       var attempt = 0;
       attempt < 12 && candidateName.evaluate().isEmpty;
       attempt++
     ) {
-      await tester.drag(teamList, const Offset(0, -260));
+      await tester.drag(teamList, const Offset(0, -240));
       await tester.pumpAndSettle();
     }
 
@@ -202,7 +226,9 @@ void main() {
 
     await tester.binding.setSurfaceSize(const Size(430, 932));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(FounderOsApp(controller: controller));
+    await tester.pumpWidget(
+      FounderOsApp(controller: controller, showGlobalTimeControls: false),
+    );
     await tester.pumpAndSettle();
 
     final projectCard = find.byKey(

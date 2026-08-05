@@ -13,6 +13,7 @@ class MetricCard extends StatelessWidget {
     this.positive,
     this.accent,
     this.hint,
+    this.showHint = true,
     super.key,
   });
 
@@ -23,6 +24,7 @@ class MetricCard extends StatelessWidget {
   final bool? positive;
   final Color? accent;
   final String? hint;
+  final bool showHint;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +35,7 @@ class MetricCard extends StatelessWidget {
             : positive!
             ? AppColors.green
             : AppColors.red);
-    final resolvedHint = hint ?? _metricHint(label);
+    final resolvedHint = showHint ? (hint ?? _metricHint(label)) : null;
     return AppCard(
       showHint: false,
       child: Column(

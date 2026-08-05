@@ -43,9 +43,9 @@ class MoreScreen extends StatelessWidget {
         const SizedBox(height: 10),
         _MenuCard(
           icon: Icons.account_tree_outlined,
-          title: 'Операции и проектные команды',
+          title: 'Центр проектов',
           subtitle:
-              '${state.employees.length - state.unassignedEmployees.length} назначено • ${state.unassignedEmployees.length} в резерве',
+              '${state.products.length} продуктов • ${state.activeContracts.length} контрактов • ${state.unassignedEmployees.length} свободно',
           onTap: () => _open(context, OperationsScreen(controller: controller)),
         ),
         const SizedBox(height: 10),
@@ -75,7 +75,7 @@ class MoreScreen extends StatelessWidget {
           icon: Icons.handshake_outlined,
           title: 'Клиентские контракты',
           subtitle:
-              '${state.activeContracts.length} активных • ${state.unassignedEmployees.length} сотрудников в резерве',
+              '${state.activeContracts.length} активных • ${state.contractEmployeeAssignments.length} назначений',
           warning: state.activeContracts.any(
             (contract) =>
                 contract.deadlineAtMinutes - state.simulationMinutes < 2 * 1440,

@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
-import '../../../domain/commands/game_action.dart';
+import '../../../domain/entities/business_models.dart';
 import '../../../domain/entities/game_state.dart';
 import '../../../domain/entities/models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/metric_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../contracts/contract_detail_screen.dart';
 import '../products/product_detail_screen.dart';
 
 class OverviewScreen extends StatelessWidget {
@@ -28,8 +29,7 @@ class OverviewScreen extends StatelessWidget {
               'Только сводные показатели. Метрики каждого продукта находятся в его карточке.',
         ),
         const SizedBox(height: 12),
-        _TimeControls(controller: controller),
-        const SizedBox(height: 14),
+
         GridView.count(
           crossAxisCount: 2,
           shrinkWrap: true,
@@ -111,7 +111,7 @@ class OverviewScreen extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         SectionHeader(
-          title: 'Проекты',
+          title: 'Активная работа',
           subtitle: state.products.isEmpty
               ? 'Собственных продуктов пока нет.'
               : 'Короткая сводка по разработке, команде, деньгам и состоянию каждого продукта.',
@@ -145,6 +145,26 @@ class OverviewScreen extends StatelessWidget {
               ),
             ),
           ),
+        if (state.activeContracts.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          ...state.activeContracts.map(
+            (contract) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _ContractSummaryCard(
+                state: state,
+                contract: contract,
+                onTap: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) => ContractDetailScreen(
+                      controller: controller,
+                      contractId: contract.id,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 18),
         SectionHeader(
           title: 'Важные новости',
@@ -315,15 +335,31 @@ class _ProjectSummaryCard extends StatelessWidget {
   }
 }
 
-class _TimeControls extends StatelessWidget {
-  const _TimeControls({required this.controller});
+class _ContractSummaryCard extends StatelessWidget {
+  const _ContractSummaryCard({
+    required this.state,
+    required this.contract,
+    required this.onTap,
+  });
 
-  final GameController controller;
+  final GameState state;
+  final ClientContract contract;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final state = controller.state;
+    final template = state.contractTemplate(contract.templateId);
+    final team = state.employeesForContract(contract.id);
+    final daysLeft =
+        ((contract.deadlineAtMinutes - state.simulationMinutes) / 1440)
+            .clamp(0, 999)
+            .toDouble();
     return AppCard(
+      key: Key('overview-contract-${contract.id}'),
+      onTap: onTap,
+      hintTitle: 'Контракт ${template.name}',
+      hintBody:
+          'Откройте карточку, чтобы назначить команду и увидеть подробный ETA.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -334,46 +370,29 @@ class _TimeControls extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'День ${state.day} • ${state.formattedTime}',
+                      template.name,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text(
-                      state.paused ? 'Симуляция на паузе' : 'Компания работает',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    Text(template.client),
                   ],
                 ),
               ),
-              IconButton.filledTonal(
-                onPressed: state.criticalEvent == CriticalEventType.none
-                    ? () => controller.dispatch(const TogglePause())
-                    : null,
-                icon: Icon(state.paused ? Icons.play_arrow : Icons.pause),
-              ),
+              const Icon(Icons.chevron_right, color: AppColors.textMuted),
             ],
-          ),
-          const SizedBox(height: 12),
-          SegmentedButton<GameSpeed>(
-            segments: const [
-              ButtonSegment(value: GameSpeed.x1, label: Text('1x')),
-              ButtonSegment(value: GameSpeed.x2, label: Text('2x')),
-              ButtonSegment(value: GameSpeed.x4, label: Text('4x')),
-            ],
-            selected: <GameSpeed>{state.speed},
-            onSelectionChanged: (value) {
-              controller.dispatch(SetGameSpeed(value.first));
-            },
           ),
           const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: state.criticalEvent == CriticalEventType.none
-                  ? () => controller.dispatch(const SkipNight())
-                  : null,
-              icon: const Icon(Icons.nightlight_outlined),
-              label: const Text('Пропустить до 08:00'),
-            ),
+          LinearProgressIndicator(value: contract.progress),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Chip(
+                label: Text('${(contract.progress * 100).toStringAsFixed(1)}%'),
+              ),
+              Chip(label: Text('Команда ${team.length}')),
+              Chip(label: Text('${daysLeft.toStringAsFixed(1)} дн.')),
+            ],
           ),
         ],
       ),
@@ -400,8 +419,23 @@ class _SummaryRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             children: [
-              Expanded(child: Text(label)),
-              Text(value, style: Theme.of(context).textTheme.titleMedium),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
             ],
           ),
         ),

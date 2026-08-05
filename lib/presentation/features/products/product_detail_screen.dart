@@ -40,6 +40,9 @@ class ProductDetailScreen extends StatelessWidget {
         final competitor = GameCatalog.competitorFor(product.category);
         final framework = GameCatalog.frameworkById(product.frameworkId);
         final load = state.productServerLoad(product);
+        final monetizationCooldownDays = state
+            .monetizationCooldownRemainingDays(product.id);
+        final revenueForecast = state.revenueForecastFor(product);
         final availableFeatures = GameCatalog.features
             .where(
               (feature) =>
@@ -395,9 +398,15 @@ class ProductDetailScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     DropdownButtonFormField<MonetizationModel>(
+                      key: ValueKey(product.monetization),
                       initialValue: product.monetization,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Модель монетизации',
+                        helperText:
+                            product.stage == ProductStage.live &&
+                                monetizationCooldownDays > 0
+                            ? 'Следующая смена через $monetizationCooldownDays дн.'
+                            : 'После релиза модель можно менять раз в 30 игровых дней.',
                       ),
                       items: MonetizationModel.values
                           .map(
@@ -407,16 +416,65 @@ class ProductDetailScreen extends StatelessWidget {
                             ),
                           )
                           .toList(growable: false),
-                      onChanged: (model) {
-                        if (model != null) {
-                          controller.dispatch(
-                            SetProductMonetization(
-                              productId: product.id,
-                              model: model,
-                            ),
-                          );
-                        }
-                      },
+                      onChanged:
+                          product.stage == ProductStage.live &&
+                              monetizationCooldownDays > 0
+                          ? null
+                          : (model) {
+                              if (model != null) {
+                                controller.dispatch(
+                                  SetProductMonetization(
+                                    productId: product.id,
+                                    model: model,
+                                  ),
+                                );
+                              }
+                            },
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceMuted,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Прогноз дохода / мес.',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 7),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              Chip(
+                                label: Text(
+                                  'Low ${money(revenueForecast.low)}',
+                                ),
+                              ),
+                              Chip(
+                                label: Text(
+                                  'Base ${money(revenueForecast.expected)}',
+                                ),
+                              ),
+                              Chip(
+                                label: Text(
+                                  'High ${money(revenueForecast.high)}',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '${revenueForecast.note} Фактический MRR сейчас: ${money(product.monthlyRevenue)}.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
                     ),
                     if (product.stage == ProductStage.live &&
                         product.monetization ==

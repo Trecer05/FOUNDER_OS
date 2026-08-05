@@ -7,8 +7,9 @@ class GameSnapshotStore implements SnapshotStore {
   GameSnapshotStore({SharedPreferencesAsync? preferences})
     : _preferences = preferences ?? SharedPreferencesAsync();
 
-  static const _snapshotKey = 'founder_os.snapshot.v3';
+  static const _snapshotKey = 'founder_os.snapshot.v7';
   static const _legacySnapshotKeys = <String>[
+    'founder_os.snapshot.v3',
     'founder_os.snapshot.v2',
     'founder_os.snapshot.v1',
   ];

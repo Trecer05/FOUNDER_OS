@@ -780,7 +780,17 @@ void main() {
     const engine = GameEngine();
     var state = GameState.initial().copyWith(cash: 1000000, paused: false);
     final template = ContractCatalog.byId('landing_launch');
+    final anna = state.candidateById('c_anna')!.toEmployee();
+    final daria = state.candidateById('c_daria')!.toEmployee();
+    state = state.copyWith(employees: <Employee>[anna, daria]);
     state = engine.reduce(state, const AcceptClientContract('landing_launch'));
+    state = engine.reduce(
+      state,
+      SetContractTeam(
+        contractId: state.activeContracts.single.id,
+        employeeIds: const <String>['c_anna', 'c_daria'],
+      ),
+    );
     expect(state.activeContracts, hasLength(1));
     expect(state.cash, 1000000 + template.reward * template.upfrontPercent);
     state = engine.reduce(state, const AdvanceTime(2750));

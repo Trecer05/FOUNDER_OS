@@ -134,6 +134,20 @@ class AssignEmployeeToProduct extends GameAction {
   final String? productId;
 }
 
+class SetProductTeam extends GameAction {
+  const SetProductTeam({required this.productId, required this.employeeIds});
+
+  final String productId;
+  final List<String> employeeIds;
+}
+
+class SetContractTeam extends GameAction {
+  const SetContractTeam({required this.contractId, required this.employeeIds});
+
+  final String contractId;
+  final List<String> employeeIds;
+}
+
 class FireEmployee extends GameAction {
   const FireEmployee(this.employeeId);
   final String employeeId;

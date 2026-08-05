@@ -56,6 +56,33 @@ String roleName(EmployeeRole role) => switch (role) {
   EmployeeRole.support => 'Support',
 };
 
+String rolePurpose(EmployeeRole role) => switch (role) {
+  EmployeeRole.productManager =>
+    'Определяет приоритеты, удерживает scope и ускоряет согласование продуктовых решений.',
+  EmployeeRole.frontend =>
+    'Отвечает за клиентский интерфейс, скорость UI и качество веб-взаимодействий.',
+  EmployeeRole.backend =>
+    'Строит серверную логику, API, данные и масштабирование продукта.',
+  EmployeeRole.mobile =>
+    'Разрабатывает мобильный клиент, интеграции устройства и качество релизов.',
+  EmployeeRole.aiMl =>
+    'Обучает и внедряет модели, улучшает алгоритмы и качество AI-функций.',
+  EmployeeRole.designer =>
+    'Повышает удобство, визуальное качество, activation и восприятие продукта.',
+  EmployeeRole.qa =>
+    'Снижает количество дефектов, защищает релизы и повышает reliability.',
+  EmployeeRole.devOps =>
+    'Автоматизирует delivery, инфраструктуру, observability и устойчивость.',
+  EmployeeRole.security =>
+    'Снижает вероятность атак, утечек и репутационных потерь.',
+  EmployeeRole.growth =>
+    'Работает с воронками, acquisition, retention и экспериментами роста.',
+  EmployeeRole.sales =>
+    'Привлекает B2B-клиентов, помогает контрактам и коммерческим сделкам.',
+  EmployeeRole.support =>
+    'Снижает отток, обрабатывает проблемы пользователей и поддерживает рейтинг.',
+};
+
 String stageName(ProductStage stage) => switch (stage) {
   ProductStage.development => 'Разработка',
   ProductStage.beta => 'Beta',

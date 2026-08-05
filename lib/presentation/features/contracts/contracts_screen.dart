@@ -10,6 +10,7 @@ import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/metric_card.dart';
 import '../../shared/widgets/section_header.dart';
+import 'contract_detail_screen.dart';
 
 class ContractsScreen extends StatelessWidget {
   const ContractsScreen({required this.controller, super.key});
@@ -18,131 +19,172 @@ class ContractsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = controller.state;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Клиентские контракты')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-        children: [
-          const SectionHeader(
-            title: 'Контракты',
-            subtitle:
-                'Разовые заказы дают денежную подушку, пока собственные продукты убыточны.',
-            hintTitle: 'Как работают контракты',
-            hintBody:
-                'Контракт выполняют сотрудники в резерве. Назначенные на продукты люди не ускоряют заказ. Клиент платит аванс сразу, остаток — после выполнения. Срыв срока приводит к штрафу.',
-            hintBullets: [
-              'Одновременно можно вести до трёх контрактов.',
-              'Покрытие требуемых ролей заметно ускоряет работу.',
-              'Контрактная выручка разовая и не входит в MRR.',
-            ],
-          ),
-          const SizedBox(height: 12),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.45,
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final state = controller.state;
+        return Scaffold(
+          appBar: AppBar(title: const Text('Клиентские контракты')),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
-              MetricCard(
-                label: 'Активные контракты',
-                value: '${state.activeContracts.length} / 3',
-                hint:
-                    'Количество заказов, которые прямо сейчас используют свободную контрактную мощность.',
+              const SectionHeader(
+                title: 'Контракты',
+                subtitle:
+                    'Каждый заказ теперь ведётся как отдельный проект со своей командой, сроком и карточкой.',
+                hintTitle: 'Как работают контракты',
+                hintBody:
+                    'После принятия откройте карточку заказа и назначьте сотрудников. Один человек работает только над одним продуктом или контрактом.',
+                hintBullets: [
+                  'Одновременно можно вести до трёх контрактов.',
+                  'Аванс приходит сразу, остаток — после сдачи.',
+                  'Срыв срока приводит к штрафу 10%.',
+                ],
               ),
-              MetricCard(
-                label: 'Резерв команды',
-                value: '${state.unassignedEmployees.length}',
-                hint:
-                    'Только сотрудники без назначения на продукт работают над контрактами.',
+              const SizedBox(height: 12),
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                mainAxisExtent: 128,
+                children: [
+                  MetricCard(
+                    label: 'Активные',
+                    value: '${state.activeContracts.length} / 3',
+                  ),
+                  MetricCard(
+                    label: 'Свободные люди',
+                    value: '${state.unassignedEmployees.length}',
+                  ),
+                  MetricCard(
+                    label: 'Завершено',
+                    value: '${state.completedContracts.length}',
+                  ),
+                  MetricCard(
+                    label: 'Сорвано',
+                    value: '${state.failedContracts.length}',
+                    positive: state.failedContracts.isEmpty,
+                  ),
+                ],
               ),
-              MetricCard(
-                label: 'Contract capacity',
-                value: state.contractDevelopmentCapacity.toStringAsFixed(0),
-                hint:
-                    'Скорость контрактной разработки из навыков сотрудников в резерве и базовой мощности основателя.',
+              if (state.activeContracts.isNotEmpty) ...[
+                const SizedBox(height: 18),
+                const SectionHeader(
+                  title: 'В работе',
+                  subtitle:
+                      'Нажмите на карточку, чтобы назначить команду и увидеть ETA.',
+                ),
+                const SizedBox(height: 10),
+                ...state.activeContracts.map(
+                  (contract) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _ActiveContractCard(
+                      state: state,
+                      contract: contract,
+                      onTap: () => Navigator.of(context).push<void>(
+                        MaterialPageRoute(
+                          builder: (_) => ContractDetailScreen(
+                            controller: controller,
+                            contractId: contract.id,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 18),
+              const SectionHeader(
+                title: 'Доступные заказы',
+                subtitle:
+                    'После принятия заказ появится в общей сводке проектов.',
               ),
-              MetricCard(
-                label: 'Завершено',
-                value: '${state.completedContracts.length}',
-                hint: 'Количество успешно закрытых клиентских заказов.',
+              const SizedBox(height: 10),
+              ...ContractCatalog.templates.map(
+                (template) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _ContractOfferCard(
+                    state: state,
+                    template: template,
+                    onAccept: () =>
+                        controller.dispatch(AcceptClientContract(template.id)),
+                  ),
+                ),
               ),
             ],
           ),
-          if (state.activeContracts.isNotEmpty) ...[
-            const SizedBox(height: 18),
-            const SectionHeader(
-              title: 'В работе',
-              subtitle: 'Следите за прогрессом, сроком и покрытием ролей.',
-            ),
-            const SizedBox(height: 10),
-            ...state.activeContracts.map(
-              (contract) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _ActiveContractCard(state: state, contract: contract),
-              ),
-            ),
-          ],
-          const SizedBox(height: 18),
-          const SectionHeader(
-            title: 'Доступные заказы',
-            subtitle: 'Новые контракты можно брать повторно после завершения.',
-          ),
-          const SizedBox(height: 10),
-          ...ContractCatalog.templates.map(
-            (template) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _ContractOfferCard(
-                state: state,
-                template: template,
-                onAccept: () =>
-                    controller.dispatch(AcceptClientContract(template.id)),
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
 class _ActiveContractCard extends StatelessWidget {
-  const _ActiveContractCard({required this.state, required this.contract});
+  const _ActiveContractCard({
+    required this.state,
+    required this.contract,
+    required this.onTap,
+  });
 
   final GameState state;
   final ClientContract contract;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final template = state.contractTemplate(contract.templateId);
-    final minutesLeft = contract.deadlineAtMinutes - state.simulationMinutes;
-    final daysLeft = minutesLeft / 1440;
+    final daysLeft =
+        ((contract.deadlineAtMinutes - state.simulationMinutes) / 1440)
+            .clamp(0, 999)
+            .toDouble();
+    final team = state.employeesForContract(contract.id);
+    final coverage = state.contractRoleCoverageFor(contract.id);
     return AppCard(
+      key: Key('active-contract-${contract.id}'),
+      onTap: onTap,
       hintTitle: 'Активный контракт',
       hintBody:
-          'Прогресс растёт вместе с игровым временем. Если роли не покрыты, контракт всё равно движется, но значительно медленнее.',
+          'Откройте карточку, назначьте команду и следите за ETA. Без назначенных людей работает только минимальная мощность основателя.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(template.name, style: Theme.of(context).textTheme.titleMedium),
-          Text(template.client, style: Theme.of(context).textTheme.bodySmall),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      template.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text(
+                      template.client,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.textMuted),
+            ],
+          ),
           const SizedBox(height: 10),
           LinearProgressIndicator(value: contract.progress),
           const SizedBox(height: 8),
           Text(
-            '${(contract.progress * 100).toStringAsFixed(1)}% • ${daysLeft.clamp(0, 999).toStringAsFixed(1)} дн. до срока',
+            '${(contract.progress * 100).toStringAsFixed(1)}% • ${daysLeft.toStringAsFixed(1)} дн.',
           ),
           const SizedBox(height: 8),
-          Text(
-            'Покрытие ролей ${(state.contractRoleCoverage(template) * 100).toStringAsFixed(0)}%',
-            style: TextStyle(
-              color: state.contractRoleCoverage(template) >= 1
-                  ? AppColors.green
-                  : AppColors.red,
-              fontWeight: FontWeight.w800,
-            ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Chip(label: Text('Команда ${team.length}')),
+              Chip(label: Text('Роли ${(coverage * 100).round()}%')),
+              Chip(label: Text(money(contract.reward))),
+            ],
           ),
         ],
       ),
@@ -165,11 +207,11 @@ class _ContractOfferCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final active = state.hasActiveContractTemplate(template.id);
     final limitReached = state.activeContracts.length >= 3;
-    final coverage = state.contractRoleCoverage(template);
+    final availableCoverage = state.contractOfferRoleCoverage(template);
     return AppCard(
       hintTitle: template.name,
       hintBody:
-          'Награда выплачивается частями: ${(template.upfrontPercent * 100).round()}% авансом, остальное после сдачи. При просрочке штраф 10% полной суммы.',
+          'До принятия покрытие ролей показывает доступных свободных сотрудников. После принятия назначение выполняется в карточке контракта.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -184,10 +226,7 @@ class _ContractOfferCard extends StatelessWidget {
                       template.name,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text(
-                      template.client,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    Text(template.client),
                   ],
                 ),
               ),
@@ -206,7 +245,11 @@ class _ContractOfferCard extends StatelessWidget {
             children: [
               Chip(label: Text('${template.deadlineDays} дней')),
               Chip(label: Text('${template.developmentHours.round()} ч.')),
-              Chip(label: Text('Роли ${(coverage * 100).round()}%')),
+              Chip(
+                label: Text(
+                  'Доступные роли ${(availableCoverage * 100).round()}%',
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),

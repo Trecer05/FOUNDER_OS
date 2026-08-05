@@ -7,6 +7,7 @@ import '../../catalog/product_evolution_catalog.dart';
 import '../../commands/game_action.dart';
 import '../../entities/business_models.dart';
 import '../../entities/game_state.dart';
+import '../../entities/management_models.dart';
 import '../../entities/models.dart';
 import '../../entities/operations_models.dart';
 import '../../entities/product_evolution_models.dart';
@@ -23,7 +24,7 @@ class GameEngine {
       return state;
     }
 
-    return switch (action) {
+    final next = switch (action) {
       CompleteOnboarding() => state.copyWith(onboardingCompleted: true),
       RestartOnboarding() => state.copyWith(onboardingCompleted: false),
       AdvanceTime() => _advanceTime(state, action.realSeconds),
@@ -82,6 +83,16 @@ class GameEngine {
         action.employeeId,
         action.productId,
       ),
+      SetProductTeam() => _setProductTeam(
+        state,
+        action.productId,
+        action.employeeIds,
+      ),
+      SetContractTeam() => _setContractTeam(
+        state,
+        action.contractId,
+        action.employeeIds,
+      ),
       FireEmployee() => _fireEmployee(state, action.employeeId),
       GiveEmployeeRaise() => _giveRaise(
         state,
@@ -131,6 +142,7 @@ class GameEngine {
       ),
       ResetGame() => GameState.initial(),
     };
+    return _recordActionTransaction(state, next, action);
   }
 
   GameState _advanceTime(GameState state, int realSeconds) {
@@ -379,6 +391,26 @@ class GameEngine {
     final cashDelta = next.monthlyProfit * monthFraction;
     next = next.copyWith(cash: next.cash + cashDelta);
     next = _advanceClientContracts(next, deltaMinutes);
+    final previousDay = state.simulationMinutes ~/ 1440;
+    final currentDay = next.simulationMinutes ~/ 1440;
+    if (currentDay > previousDay) {
+      next = next.copyWith(
+        financeHistory:
+            <FinanceHistoryPoint>[
+                  ...next.financeHistory,
+                  FinanceHistoryPoint(
+                    simulationMinutes: next.simulationMinutes,
+                    cash: next.cash,
+                    incomeRunRate:
+                        next.monthlyProductRevenue + next.portfolioIncome,
+                    expenseRunRate: next.monthlyCosts,
+                    profitRunRate: next.monthlyProfit,
+                  ),
+                ]
+                .skip(math.max(0, next.financeHistory.length + 1 - 120))
+                .toList(growable: false),
+      );
+    }
 
     if (next.products.any(
           (product) =>
@@ -455,18 +487,17 @@ class GameEngine {
     }
     var cashDelta = 0.0;
     final messages = <String>[];
+    final transactions = <FinanceTransaction>[];
     final updated = state.clientContracts
         .map((contract) {
           if (contract.status != ContractStatus.active) {
             return contract;
           }
           final template = ContractCatalog.byId(contract.templateId);
-          final roleCoverage = state.contractRoleCoverage(template);
-          final parallelLoad = math.max(1, state.activeContracts.length);
+          final roleCoverage = state.contractRoleCoverageFor(contract.id);
           final effectiveCapacity =
-              state.contractDevelopmentCapacity *
-              (0.45 + roleCoverage * 0.55) /
-              parallelLoad;
+              state.contractDevelopmentCapacityFor(contract.id) *
+              (0.45 + roleCoverage * 0.55);
           final previousMinutes = state.simulationMinutes - deltaMinutes;
           final minutesBeforeDeadline = math.max(
             0,
@@ -488,6 +519,15 @@ class GameEngine {
             messages.add(
               '${template.client}: контракт «${template.name}» завершён. Получено ${remainingReward.round()} ₽.',
             );
+            transactions.add(
+              FinanceTransaction(
+                id: 'contract_complete_${contract.id}_${state.simulationMinutes}',
+                simulationMinutes: state.simulationMinutes,
+                amount: remainingReward,
+                category: FinanceTransactionCategory.contract,
+                description: 'Сдан контракт «${template.name}»',
+              ),
+            );
             return contract.copyWith(
               status: ContractStatus.completed,
               progress: 1,
@@ -499,15 +539,35 @@ class GameEngine {
             messages.add(
               '${template.client}: срок «${template.name}» сорван. Штраф ${penalty.round()} ₽.',
             );
+            transactions.add(
+              FinanceTransaction(
+                id: 'contract_failed_${contract.id}_${state.simulationMinutes}',
+                simulationMinutes: state.simulationMinutes,
+                amount: -penalty,
+                category: FinanceTransactionCategory.contract,
+                description: 'Штраф за «${template.name}»',
+              ),
+            );
             return contract.copyWith(status: ContractStatus.failed);
           }
           return contract.copyWith(progress: nextProgress);
         })
         .toList(growable: false);
 
+    final activeIds = updated
+        .where((item) => item.status == ContractStatus.active)
+        .map((item) => item.id)
+        .toSet();
     var next = state.copyWith(
       cash: state.cash + cashDelta,
       clientContracts: updated,
+      contractEmployeeAssignments: state.contractEmployeeAssignments
+          .where((item) => activeIds.contains(item.contractId))
+          .toList(growable: false),
+      financeTransactions: <FinanceTransaction>[
+        ...transactions.reversed,
+        ...state.financeTransactions,
+      ].take(120).toList(growable: false),
     );
     for (final message in messages) {
       next = _withFeed(next, message);
@@ -1122,8 +1182,26 @@ class GameEngine {
     if (product == null || product.monetization == model) {
       return state;
     }
+    final remainingDays = state.monetizationCooldownRemainingDays(productId);
+    if (product.stage == ProductStage.live && remainingDays > 0) {
+      return _withFeed(
+        state,
+        '${product.name}: модель монетизации можно сменить через $remainingDays дн.',
+      );
+    }
+    final changes = product.stage == ProductStage.live
+        ? <ProductMonetizationChange>[
+            ...state.monetizationChanges,
+            ProductMonetizationChange(
+              productId: productId,
+              model: model,
+              changedAtMinutes: state.simulationMinutes,
+            ),
+          ]
+        : state.monetizationChanges;
     return _withFeed(
       state.copyWith(
+        monetizationChanges: changes,
         products: state.products
             .map(
               (item) => item.id == productId
@@ -1257,6 +1335,120 @@ class GameEngine {
     );
   }
 
+  GameState _setProductTeam(
+    GameState state,
+    String productId,
+    List<String> employeeIds,
+  ) {
+    if (state.productById(productId) == null) {
+      return state;
+    }
+    final selected = employeeIds.toSet();
+    if (selected.any((id) => state.employeeById(id) == null)) {
+      return state;
+    }
+    final productAssignments = state.employeeAssignments
+        .where(
+          (item) =>
+              item.productId != productId &&
+              !selected.contains(item.employeeId),
+        )
+        .toList(growable: true);
+    for (final employeeId in selected) {
+      productAssignments.add(
+        EmployeeAssignment(
+          employeeId: employeeId,
+          productId: productId,
+          assignedAtMinutes: state.simulationMinutes,
+        ),
+      );
+    }
+    return _withFeed(
+      state.copyWith(
+        employeeAssignments: productAssignments,
+        contractEmployeeAssignments: state.contractEmployeeAssignments
+            .where((item) => !selected.contains(item.employeeId))
+            .toList(growable: false),
+        employees: state.employees
+            .map(
+              (item) => item.managedCopyWith(
+                workload: selected.contains(item.id)
+                    ? 78
+                    : productAssignments.any(
+                        (assignment) => assignment.employeeId == item.id,
+                      )
+                    ? item.workload
+                    : state.contractEmployeeAssignments.any(
+                        (assignment) => assignment.employeeId == item.id,
+                      )
+                    ? item.workload
+                    : 20,
+              ),
+            )
+            .toList(growable: false),
+      ),
+      '${state.productById(productId)!.name}: команда сохранена, сотрудников ${selected.length}.',
+    );
+  }
+
+  GameState _setContractTeam(
+    GameState state,
+    String contractId,
+    List<String> employeeIds,
+  ) {
+    final contract = state.contractById(contractId);
+    if (contract == null || contract.status != ContractStatus.active) {
+      return state;
+    }
+    final selected = employeeIds.toSet();
+    if (selected.any((id) => state.employeeById(id) == null)) {
+      return state;
+    }
+    final contractAssignments = state.contractEmployeeAssignments
+        .where(
+          (item) =>
+              item.contractId != contractId &&
+              !selected.contains(item.employeeId),
+        )
+        .toList(growable: true);
+    for (final employeeId in selected) {
+      contractAssignments.add(
+        ContractEmployeeAssignment(
+          contractId: contractId,
+          employeeId: employeeId,
+          assignedAtMinutes: state.simulationMinutes,
+        ),
+      );
+    }
+    final template = state.contractTemplate(contract.templateId);
+    return _withFeed(
+      state.copyWith(
+        employeeAssignments: state.employeeAssignments
+            .where((item) => !selected.contains(item.employeeId))
+            .toList(growable: false),
+        contractEmployeeAssignments: contractAssignments,
+        employees: state.employees
+            .map(
+              (item) => item.managedCopyWith(
+                workload: selected.contains(item.id)
+                    ? 72
+                    : contractAssignments.any(
+                        (assignment) => assignment.employeeId == item.id,
+                      )
+                    ? item.workload
+                    : state.employeeAssignments.any(
+                        (assignment) => assignment.employeeId == item.id,
+                      )
+                    ? item.workload
+                    : 20,
+              ),
+            )
+            .toList(growable: false),
+      ),
+      '${template.name}: команда сохранена, сотрудников ${selected.length}.',
+    );
+  }
+
   GameState _assignEmployee(
     GameState state,
     String employeeId,
@@ -1273,6 +1465,9 @@ class GameEngine {
     final assignments = state.employeeAssignments
         .where((item) => item.employeeId != employeeId)
         .toList(growable: true);
+    final contractAssignments = state.contractEmployeeAssignments
+        .where((item) => item.employeeId != employeeId)
+        .toList(growable: false);
     if (productId != null) {
       assignments.add(
         EmployeeAssignment(
@@ -1302,6 +1497,7 @@ class GameEngine {
       state.copyWith(
         employees: updatedEmployees,
         employeeAssignments: assignments,
+        contractEmployeeAssignments: contractAssignments,
       ),
       '${employee.name}: назначение изменено — $targetName.',
     );
@@ -1326,6 +1522,9 @@ class GameEngine {
             .where((item) => item.id != employeeId)
             .toList(growable: false),
         employeeAssignments: state.employeeAssignments
+            .where((item) => item.employeeId != employeeId)
+            .toList(growable: false),
+        contractEmployeeAssignments: state.contractEmployeeAssignments
             .where((item) => item.employeeId != employeeId)
             .toList(growable: false),
       ),
@@ -2328,6 +2527,81 @@ class GameEngine {
     var value = seed ^ (counter * 1103515245);
     value = (1664525 * value + 1013904223) & 0x7fffffff;
     return value / 0x7fffffff;
+  }
+
+  GameState _recordActionTransaction(
+    GameState before,
+    GameState after,
+    GameAction action,
+  ) {
+    if (identical(before, after) ||
+        action is AdvanceTime ||
+        action is SkipNight ||
+        action is ResetGame) {
+      return after;
+    }
+    final delta = after.cash - before.cash;
+    if (delta.abs() < 0.01) {
+      return after;
+    }
+    final category = switch (action) {
+      AcceptClientContract() => FinanceTransactionCategory.contract,
+      RequestInvestorFunding() ||
+      AcceptInvestorOffer() => FinanceTransactionCategory.financing,
+      InvestInMarketCompany() ||
+      AcquireMarketProduct() ||
+      AcquireMarketCompany() ||
+      BuyBackInvestor() => FinanceTransactionCategory.investment,
+      HireCandidate() ||
+      FireEmployee() ||
+      GiveEmployeeRaise() ||
+      TrainEmployee() => FinanceTransactionCategory.payroll,
+      RentOffice() ||
+      RentServerRoom() ||
+      InstallServer() ||
+      RemoveServer() => FinanceTransactionCategory.infrastructure,
+      PurchaseSecurityControl() ||
+      RunSecurityAudit() => FinanceTransactionCategory.security,
+      SetProductMarketingBudget() => FinanceTransactionCategory.marketing,
+      CreateConfiguredProduct() ||
+      AddProductFeature() ||
+      ApplyProductImprovement() => FinanceTransactionCategory.product,
+      _ => FinanceTransactionCategory.other,
+    };
+    final description = switch (action) {
+      AcceptClientContract() => 'Аванс по клиентскому контракту',
+      AcceptInvestorOffer() => 'Получена инвестиция',
+      RequestInvestorFunding() => 'Изменение после запроса инвестору',
+      HireCandidate() => 'Signing bonus сотруднику',
+      FireEmployee() => 'Компенсация при увольнении',
+      TrainEmployee() => 'Обучение сотрудника',
+      CreateConfiguredProduct() => 'Запуск разработки продукта',
+      AddProductFeature() => 'Новая функция продукта',
+      ApplyProductImprovement() => 'Техническое улучшение продукта',
+      RentOffice() => 'Депозит за офис',
+      RentServerRoom() => 'Депозит за серверную',
+      InstallServer() => 'Покупка сервера',
+      PurchaseSecurityControl() => 'Внедрение security control',
+      RunSecurityAudit() => 'Security-аудит',
+      InvestInMarketCompany() => 'Покупка внешней доли',
+      AcquireMarketProduct() => 'Покупка продукта',
+      AcquireMarketCompany() => 'Покупка компании',
+      BuyBackInvestor() => 'Обратный выкуп доли',
+      _ => 'Изменение денежных средств',
+    };
+    final transaction = FinanceTransaction(
+      id: 'action_${after.simulationMinutes}_${after.rngCounter}_${action.runtimeType}',
+      simulationMinutes: after.simulationMinutes,
+      amount: delta,
+      category: category,
+      description: description,
+    );
+    return after.copyWith(
+      financeTransactions: <FinanceTransaction>[
+        transaction,
+        ...after.financeTransactions,
+      ].take(120).toList(growable: false),
+    );
   }
 
   GameState _withFeed(GameState state, String message) {

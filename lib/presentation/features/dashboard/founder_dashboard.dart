@@ -34,9 +34,20 @@ class _FounderDashboardState extends State<FounderDashboard> {
   }
 
   Future<void> _maybeShowTutorial() async {
-    if (!mounted ||
-        _tutorialShowing ||
-        widget.controller.state.onboardingCompleted) {
+    if (!mounted || _tutorialShowing) {
+      return;
+    }
+    final state = widget.controller.state;
+    if (state.onboardingCompleted) {
+      return;
+    }
+    final genuinelyNewGame =
+        state.day == 1 &&
+        state.products.isEmpty &&
+        state.employees.isEmpty &&
+        state.clientContracts.isEmpty;
+    if (!genuinelyNewGame) {
+      widget.controller.dispatch(const CompleteOnboarding(), playSound: false);
       return;
     }
     _tutorialShowing = true;

@@ -6,11 +6,12 @@ import '../catalog/game_catalog.dart';
 import '../catalog/operations_catalog.dart';
 import '../catalog/product_evolution_catalog.dart';
 import 'business_models.dart';
+import 'management_models.dart';
 import 'models.dart';
 import 'operations_models.dart';
 import 'product_evolution_models.dart';
 
-const int currentSnapshotVersion = 6;
+const int currentSnapshotVersion = 7;
 
 enum GameSpeed {
   x1(1),
@@ -39,6 +40,10 @@ class GameState {
     required this.productImprovements,
     required this.productUpdates,
     required this.clientContracts,
+    required this.contractEmployeeAssignments,
+    required this.monetizationChanges,
+    required this.financeHistory,
+    required this.financeTransactions,
     required this.ecosystemLinks,
     required this.selectedOfficeId,
     required this.selectedServerRoomId,
@@ -76,6 +81,10 @@ class GameState {
     productImprovements: const <ProductImprovementRecord>[],
     productUpdates: const <ProductUpdateRecord>[],
     clientContracts: const <ClientContract>[],
+    contractEmployeeAssignments: const <ContractEmployeeAssignment>[],
+    monetizationChanges: const <ProductMonetizationChange>[],
+    financeHistory: const <FinanceHistoryPoint>[],
+    financeTransactions: const <FinanceTransaction>[],
     ecosystemLinks: const <EcosystemLink>[],
     selectedOfficeId: 'garage',
     selectedServerRoomId: 'closet',
@@ -135,6 +144,10 @@ class GameState {
   final List<ProductImprovementRecord> productImprovements;
   final List<ProductUpdateRecord> productUpdates;
   final List<ClientContract> clientContracts;
+  final List<ContractEmployeeAssignment> contractEmployeeAssignments;
+  final List<ProductMonetizationChange> monetizationChanges;
+  final List<FinanceHistoryPoint> financeHistory;
+  final List<FinanceTransaction> financeTransactions;
   final List<EcosystemLink> ecosystemLinks;
   final String selectedOfficeId;
   final String selectedServerRoomId;
@@ -208,7 +221,11 @@ class GameState {
       .toList(growable: false);
 
   List<Employee> get unassignedEmployees => employees
-      .where((employee) => assignmentForEmployee(employee.id) == null)
+      .where(
+        (employee) =>
+            assignmentForEmployee(employee.id) == null &&
+            contractAssignmentForEmployee(employee.id) == null,
+      )
       .toList(growable: false);
 
   int get onSiteEmployeeCount =>
@@ -228,32 +245,85 @@ class GameState {
       .where((contract) => contract.status == ContractStatus.completed)
       .toList(growable: false);
 
+  List<ClientContract> get failedContracts => clientContracts
+      .where((contract) => contract.status == ContractStatus.failed)
+      .toList(growable: false);
+
+  ClientContract? contractById(String id) {
+    for (final contract in clientContracts) {
+      if (contract.id == id) {
+        return contract;
+      }
+    }
+    return null;
+  }
+
+  ContractEmployeeAssignment? contractAssignmentForEmployee(String employeeId) {
+    for (final assignment in contractEmployeeAssignments) {
+      if (assignment.employeeId == employeeId &&
+          contractById(assignment.contractId)?.status ==
+              ContractStatus.active) {
+        return assignment;
+      }
+    }
+    return null;
+  }
+
+  List<Employee> employeesForContract(String contractId) =>
+      contractEmployeeAssignments
+          .where((item) => item.contractId == contractId)
+          .map((item) => employeeById(item.employeeId))
+          .whereType<Employee>()
+          .toList(growable: false);
+
   ContractTemplate contractTemplate(String templateId) =>
       ContractCatalog.byId(templateId);
 
   bool hasActiveContractTemplate(String templateId) =>
       activeContracts.any((contract) => contract.templateId == templateId);
 
-  double contractRoleCoverage(ContractTemplate template) {
+  double contractOfferRoleCoverage(ContractTemplate template) {
     if (template.requiredRoles.isEmpty) {
       return 1;
     }
-    final reserveRoles = unassignedEmployees
+    final availableRoles = unassignedEmployees
         .map((employee) => employee.role)
         .toList(growable: false);
     final covered = template.requiredRoles
-        .where((role) => reserveRoles.contains(role))
+        .where((role) => availableRoles.contains(role))
         .length;
     return covered / template.requiredRoles.length;
   }
 
-  double get contractDevelopmentCapacity {
-    final reserve = unassignedEmployees;
-    if (reserve.isEmpty) {
-      return 18;
+  double contractRoleCoverage(ContractTemplate template) =>
+      contractOfferRoleCoverage(template);
+
+  double contractRoleCoverageFor(String contractId) {
+    final contract = contractById(contractId);
+    if (contract == null) {
+      return 0;
     }
-    return 18 +
-        reserve.fold<double>(
+    final template = contractTemplate(contract.templateId);
+    if (template.requiredRoles.isEmpty) {
+      return 1;
+    }
+    final roles = employeesForContract(
+      contractId,
+    ).map((employee) => employee.role).toList(growable: false);
+    final covered = template.requiredRoles
+        .where((role) => roles.contains(role))
+        .length;
+    return covered / template.requiredRoles.length;
+  }
+
+  double contractDevelopmentCapacityFor(String contractId) {
+    final team = employeesForContract(contractId);
+    final founderBase = 8 / math.max(1, activeContracts.length);
+    if (team.isEmpty) {
+      return founderBase;
+    }
+    return founderBase +
+        team.fold<double>(
           0,
           (sum, employee) =>
               sum +
@@ -262,6 +332,17 @@ class GameState {
               employee.quality * 0.14,
         );
   }
+
+  double get contractDevelopmentCapacity =>
+      8 +
+      unassignedEmployees.fold<double>(
+        0,
+        (sum, employee) =>
+            sum +
+            employee.skill * 0.28 +
+            employee.speed * 0.24 +
+            employee.quality * 0.14,
+      );
 
   List<String> securityControlIdsFor(String productId) => securityControls
       .where((item) => item.productId == productId)
@@ -760,6 +841,62 @@ class GameState {
 
   double get founderPortfolioValue => valuation * founderOwnershipPercent / 100;
 
+  ProductMonetizationChange? latestMonetizationChange(String productId) {
+    ProductMonetizationChange? latest;
+    for (final change in monetizationChanges) {
+      if (change.productId == productId &&
+          (latest == null ||
+              change.changedAtMinutes > latest.changedAtMinutes)) {
+        latest = change;
+      }
+    }
+    return latest;
+  }
+
+  int monetizationCooldownRemainingDays(String productId) {
+    final product = productById(productId);
+    if (product == null || product.stage != ProductStage.live) {
+      return 0;
+    }
+    final latest = latestMonetizationChange(productId);
+    if (latest == null) {
+      return 0;
+    }
+    final elapsed = simulationMinutes - latest.changedAtMinutes;
+    final remaining = 30 * 1440 - elapsed;
+    return remaining <= 0 ? 0 : (remaining / 1440).ceil();
+  }
+
+  bool canChangeMonetization(String productId) =>
+      monetizationCooldownRemainingDays(productId) == 0;
+
+  RevenueForecast revenueForecastFor(
+    Product product, {
+    MonetizationModel? model,
+  }) {
+    final selectedModel = model ?? product.monetization;
+    final assumedMau = product.stage == ProductStage.live
+        ? math.max(1, product.mau)
+        : 2500;
+    final base = switch (selectedModel) {
+      MonetizationModel.free => 0.0,
+      MonetizationModel.subscription => assumedMau * product.price * 0.092,
+      MonetizationModel.usageBased => assumedMau * product.price * 0.061,
+      MonetizationModel.advertising => assumedMau * 34.0,
+      MonetizationModel.transactionFee => assumedMau * product.price * 0.18,
+    };
+    final expected =
+        base * product.reliability * (1 + ecosystemBoostFor(product.id) * 0.55);
+    return RevenueForecast(
+      low: expected * 0.68,
+      expected: expected,
+      high: expected * 1.32,
+      assumedMau: assumedMau,
+      note:
+          'Диапазон использует текущие MAU, цену, reliability и экосистему. Реальный доход меняется из-за churn, рынка, свежести и рекламы.',
+    );
+  }
+
   int get successfulProducts => products
       .where(
         (item) =>
@@ -804,6 +941,10 @@ class GameState {
     List<ProductImprovementRecord>? productImprovements,
     List<ProductUpdateRecord>? productUpdates,
     List<ClientContract>? clientContracts,
+    List<ContractEmployeeAssignment>? contractEmployeeAssignments,
+    List<ProductMonetizationChange>? monetizationChanges,
+    List<FinanceHistoryPoint>? financeHistory,
+    List<FinanceTransaction>? financeTransactions,
     List<EcosystemLink>? ecosystemLinks,
     String? selectedOfficeId,
     String? selectedServerRoomId,
@@ -856,6 +997,19 @@ class GameState {
       ),
       clientContracts: List<ClientContract>.unmodifiable(
         clientContracts ?? this.clientContracts,
+      ),
+      contractEmployeeAssignments:
+          List<ContractEmployeeAssignment>.unmodifiable(
+            contractEmployeeAssignments ?? this.contractEmployeeAssignments,
+          ),
+      monetizationChanges: List<ProductMonetizationChange>.unmodifiable(
+        monetizationChanges ?? this.monetizationChanges,
+      ),
+      financeHistory: List<FinanceHistoryPoint>.unmodifiable(
+        financeHistory ?? this.financeHistory,
+      ),
+      financeTransactions: List<FinanceTransaction>.unmodifiable(
+        financeTransactions ?? this.financeTransactions,
       ),
       ecosystemLinks: List<EcosystemLink>.unmodifiable(
         ecosystemLinks ?? this.ecosystemLinks,
@@ -918,6 +1072,16 @@ class GameState {
         .toList(),
     'productUpdates': productUpdates.map((item) => item.toJson()).toList(),
     'clientContracts': clientContracts.map((item) => item.toJson()).toList(),
+    'contractEmployeeAssignments': contractEmployeeAssignments
+        .map((item) => item.toJson())
+        .toList(),
+    'monetizationChanges': monetizationChanges
+        .map((item) => item.toJson())
+        .toList(),
+    'financeHistory': financeHistory.map((item) => item.toJson()).toList(),
+    'financeTransactions': financeTransactions
+        .map((item) => item.toJson())
+        .toList(),
     'ecosystemLinks': ecosystemLinks.map((item) => item.toJson()).toList(),
     'selectedOfficeId': selectedOfficeId,
     'selectedServerRoomId': selectedServerRoomId,
@@ -998,6 +1162,22 @@ class GameState {
       clientContracts: _decodeList(
         json['clientContracts'],
         ClientContract.fromJson,
+      ),
+      contractEmployeeAssignments: _decodeList(
+        json['contractEmployeeAssignments'],
+        ContractEmployeeAssignment.fromJson,
+      ),
+      monetizationChanges: _decodeList(
+        json['monetizationChanges'],
+        ProductMonetizationChange.fromJson,
+      ),
+      financeHistory: _decodeList(
+        json['financeHistory'],
+        FinanceHistoryPoint.fromJson,
+      ),
+      financeTransactions: _decodeList(
+        json['financeTransactions'],
+        FinanceTransaction.fromJson,
       ),
       ecosystemLinks: _decodeList(
         json['ecosystemLinks'],

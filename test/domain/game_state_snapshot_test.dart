@@ -235,7 +235,7 @@ void main() {
       const AcceptClientContract('landing_launch'),
     );
     final decoded = GameState.decode(state.encode());
-    expect(decoded.snapshotVersion, 6);
+    expect(decoded.snapshotVersion, currentSnapshotVersion);
     expect(decoded.clientContracts, hasLength(1));
     expect(decoded.clientContracts.single.templateId, 'landing_launch');
   });
@@ -248,7 +248,7 @@ void main() {
 
     final migrated = GameState.decode(jsonEncode(json));
 
-    expect(migrated.snapshotVersion, 6);
+    expect(migrated.snapshotVersion, currentSnapshotVersion);
     expect(migrated.clientContracts, isEmpty);
   });
 }

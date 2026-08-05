@@ -84,34 +84,40 @@ class _TeamScreenState extends State<TeamScreen> {
               ),
               const SizedBox(height: 10),
               GridView.count(
-                crossAxisCount: 3,
+                crossAxisCount: 2,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 8,
                 crossAxisSpacing: 8,
-                childAspectRatio: 1.25,
+                mainAxisExtent: 126,
                 children: [
                   MetricCard(
+                    showHint: false,
                     label: 'Skill',
                     value: state.averageEmployeeSkill.toStringAsFixed(0),
                   ),
                   MetricCard(
+                    showHint: false,
                     label: 'Speed',
                     value: state.averageEmployeeSpeed.toStringAsFixed(0),
                   ),
                   MetricCard(
+                    showHint: false,
                     label: 'Quality',
                     value: state.averageEmployeeQuality.toStringAsFixed(0),
                   ),
                   MetricCard(
+                    showHint: false,
                     label: 'Reliability',
                     value: state.averageEmployeeReliability.toStringAsFixed(0),
                   ),
                   MetricCard(
+                    showHint: false,
                     label: 'Morale',
                     value: state.averageEmployeeMorale.toStringAsFixed(0),
                   ),
                   MetricCard(
+                    showHint: false,
                     label: 'Loyalty',
                     value: state.averageEmployeeLoyalty.toStringAsFixed(0),
                   ),
@@ -327,7 +333,7 @@ class _CandidateCard extends StatelessWidget {
     return AppCard(
       hintTitle: 'Кандидат ${candidate.name}',
       hintBody:
-          'Сравнивайте роль, зарплату, signing bonus и шесть точных рабочих характеристик. ${candidate.remote ? 'Remote-кандидат не занимает офисное место.' : 'Office-кандидату требуется свободное место.'}',
+          '${roleName(candidate.role)}: ${rolePurpose(candidate.role)} ${candidate.remote ? 'Remote-кандидат не занимает офисное место.' : 'Office-кандидату требуется свободное место.'} Сравните зарплату и рабочие характеристики перед наймом.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -409,7 +415,7 @@ class _EmployeeCard extends StatelessWidget {
     return AppCard(
       hintTitle: 'Сотрудник ${employee.name}',
       hintBody:
-          'Зарплата списывается каждый месяц. Реальный вклад в разработку появляется после назначения на продукт. Сотрудники в резерве могут выполнять клиентские контракты.',
+          '${roleName(employee.role)}: ${rolePurpose(employee.role)} Зарплата списывается каждый месяц. Реальный вклад появляется только после назначения на продукт или контракт.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

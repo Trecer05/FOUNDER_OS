@@ -11,11 +11,13 @@ import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/game_state.dart';
 import '../../../domain/entities/models.dart';
 import '../../../domain/entities/product_evolution_models.dart';
+import '../../../domain/explainability/staffing_deficit_resolver.dart';
 import '../../../domain/simulation/product_estimator.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/metric_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../shared/widgets/specialist_deficit_card.dart';
 import '../security/security_center_screen.dart';
 import '../operations/operations_screen.dart';
 import '../contracts/contracts_screen.dart';
@@ -121,6 +123,14 @@ class ProductDetailScreen extends StatelessWidget {
                         '${projection.developmentHours.round()} ч.',
                       ),
                       _LabelValue(
+                        'Осталось',
+                        '${(projection.developmentHours * (1 - product.developmentProgress)).round()} ч.',
+                      ),
+                      _LabelValue(
+                        'Штраф состава',
+                        '${((1 - staffing.efficiency) * 100).round()}%',
+                      ),
+                      _LabelValue(
                         'Оптимальная команда',
                         '${staffing.optimalTeamSize} человек',
                       ),
@@ -209,6 +219,10 @@ class ProductDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               _ProductTeamRequirementsCard(state: state, product: product),
+              const SizedBox(height: 10),
+              SpecialistDeficitCard(
+                deficits: StaffingDeficitResolver.forProduct(state, product),
+              ),
               const SizedBox(height: 18),
               GridView.count(
                 crossAxisCount: 2,

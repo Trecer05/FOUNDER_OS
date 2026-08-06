@@ -70,3 +70,9 @@ flutter run --profile -d <DEVICE_ID>
 - `docs/IMPLEMENTATION_STATUS.md`
 - `docs/NEXT_STEP_V8.md`
 - `docs/TEST_PLAN.md`
+<!-- FOUNDER_OS_V9 -->
+## FOUNDER.OS v9 — UI, Infrastructure, Explainability & Content Expansion
+
+Version 9 moves global time controls into a safe-area-aware floating glass overlay, introduces rented hosting and v8→v9 snapshots, dynamic technology limits, deterministic staffing deficits, staged contract payments, payroll ledger entries, a permanent glossary, compact team metrics, redesigned ecosystem integrations and a validated **8.53×** data catalog.
+
+Verification: `bash tools/verify_ui_content_v9.sh`.

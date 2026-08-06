@@ -43,3 +43,9 @@
 - Диалог прокручивается и закрывается явной кнопкой «Понятно».
 - Tutorial использует пять коротких шагов, progress indicator и кнопки «Пропустить / Назад / Далее / Начать».
 - Минимальная цель проверки: iPhone viewport 430×932, default text scale, отсутствие RenderFlex overflow.
+<!-- FOUNDER_OS_V9 -->
+## v9 responsive additions
+- Global time controls: 48–58 pt floating glass surface, safe-area aware, max width 430, no Tooltip dependency.
+- Narrow iPhone: controls use fixed compact targets and a fitted day/time label.
+- Team averages: compact 3×2 metric grid capped at 148 pt.
+- Ecosystem and hosting: stacked cards, wrapping chips and explicit blocker text; no fixed wide rows.

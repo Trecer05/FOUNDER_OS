@@ -194,6 +194,15 @@ class RentServerRoom extends GameAction {
   final String serverRoomId;
 }
 
+class RentHostingPlan extends GameAction {
+  const RentHostingPlan(this.hostingPlanId);
+  final String hostingPlanId;
+}
+
+class MigrateToOwnedInfrastructure extends GameAction {
+  const MigrateToOwnedInfrastructure();
+}
+
 class InstallServer extends GameAction {
   const InstallServer(this.hardwareId);
   final String hardwareId;

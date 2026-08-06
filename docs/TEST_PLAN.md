@@ -183,3 +183,12 @@ flutter build apk --debug
 10. Открыть все видимые `i`: ни одна не должна содержать общий placeholder.
 11. Force quit и проверить восстановление contracts/price/team.
 12. Запустить profile mode на 10–15 минут и проверить scroll, heat и cold start.
+<!-- FOUNDER_OS_V9 -->
+## v9 gates
+- Floating controls: narrow viewport, SafeArea, keyboard and nested route.
+- Dynamic technology limit, explanation, mandatory/incompatible technology.
+- Deterministic specialist deficits.
+- Signing bonus, partial payroll period, advance/milestone/final contract payouts.
+- Rental hosting, compute limits, owned migration blockers and snapshot persistence.
+- Glossary, compact averages height, ecosystem uniqueness/delay.
+- v8→v9 migration, RNG persistence, duplicate IDs, references and >7× content growth.

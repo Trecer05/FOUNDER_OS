@@ -276,3 +276,10 @@ Overview показывает по каждому продукту:
 
 - `FOUNDER-RICH` — добавить 5 000 000 ₽;
 - `FOUNDER-BROKE` — установить cash −500 000 ₽ и начать кризисный сценарий.
+<!-- FOUNDER_OS_V9 -->
+## v9 product rules
+- The player starts on rented hosting; owned servers require an explicit migration.
+- Technology capacity is dynamic and explainable; excessive stack complexity is blocked and penalized.
+- Every disabled core action exposes a concrete deterministic reason and a next step.
+- Payroll is accrued by elapsed game time. Contract cash flow is advance → 50% milestone → final.
+- Glossary and contextual help remain available after onboarding.

@@ -21,13 +21,36 @@ class FounderOsApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'FOUNDER.OS',
       theme: AppTheme.light(),
-      builder: (context, child) => Column(
-        children: [
-          Expanded(child: child ?? const SizedBox.shrink()),
-          if (showGlobalTimeControls)
-            GlobalTimeControlBar(controller: controller),
-        ],
-      ),
+      builder: (context, child) {
+        final media = MediaQuery.of(context);
+        final controlsVisible =
+            showGlobalTimeControls && media.viewInsets.bottom == 0;
+        const controlsHeight = 58.0;
+        final content = MediaQuery(
+          data: media.copyWith(
+            padding: media.padding.copyWith(
+              top: media.padding.top + (controlsVisible ? controlsHeight : 0),
+            ),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            content,
+            if (controlsVisible)
+              Positioned(
+                top: media.padding.top + 5,
+                left: 8,
+                right: 8,
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: GlobalTimeControlBar(controller: controller),
+                ),
+              ),
+          ],
+        );
+      },
       home: FounderDashboard(controller: controller),
     );
   }

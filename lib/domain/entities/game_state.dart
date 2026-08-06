@@ -6,14 +6,16 @@ import '../catalog/game_catalog.dart';
 import '../catalog/operations_catalog.dart';
 import '../catalog/product_evolution_catalog.dart';
 import '../catalog/product_strategy_catalog.dart';
+import '../catalog/v9_content_catalog.dart';
 import 'business_models.dart';
 import 'management_models.dart';
 import 'models.dart';
 import 'operations_models.dart';
 import 'product_evolution_models.dart';
 import 'product_strategy_models.dart';
+import 'v9_models.dart';
 
-const int currentSnapshotVersion = 8;
+const int currentSnapshotVersion = 9;
 
 enum GameSpeed {
   x1(1),
@@ -56,6 +58,7 @@ class GameState {
     required this.ecosystemLinks,
     required this.selectedOfficeId,
     required this.selectedServerRoomId,
+    required this.selectedHostingPlanId,
     required this.installedServers,
     required this.investorOffers,
     required this.investorAgreements,
@@ -104,9 +107,8 @@ class GameState {
     ecosystemLinks: const <EcosystemLink>[],
     selectedOfficeId: 'garage',
     selectedServerRoomId: 'closet',
-    installedServers: const <InstalledServer>[
-      InstalledServer(hardwareId: 'edge_s1', count: 2),
-    ],
+    selectedHostingPlanId: 'shared_launch',
+    installedServers: const <InstalledServer>[],
     investorOffers: const <InvestorOffer>[],
     investorAgreements: const <InvestorAgreement>[],
     founderOwnershipPercent: 100,
@@ -174,6 +176,7 @@ class GameState {
   final List<EcosystemLink> ecosystemLinks;
   final String selectedOfficeId;
   final String selectedServerRoomId;
+  final String selectedHostingPlanId;
   final List<InstalledServer> installedServers;
   final List<InvestorOffer> investorOffers;
   final List<InvestorAgreement> investorAgreements;
@@ -200,6 +203,9 @@ class GameState {
   OfficeOption get office => GameCatalog.officeById(selectedOfficeId);
   ServerRoomOption get serverRoom =>
       GameCatalog.serverRoomById(selectedServerRoomId);
+  HostingPlan get hostingPlan =>
+      V9ContentCatalog.hostingById(selectedHostingPlanId);
+  bool get usingOwnedInfrastructure => hostingPlan.kind == HostingKind.owned;
 
   Product? productById(String id) {
     for (final product in products) {
@@ -835,22 +841,32 @@ class GameState {
     return sum + hardware.powerKw * item.count;
   });
 
-  double get totalComputeUnits => installedServers.fold<double>(0, (sum, item) {
-    final hardware = GameCatalog.serverHardwareById(item.hardwareId);
-    return sum + hardware.computeUnits * item.count;
-  });
-
-  double get totalNetworkGbps => math
-      .min(
-        serverRoom.networkGbps,
-        installedServers.fold<double>(0, (sum, item) {
+  double get totalComputeUnits => usingOwnedInfrastructure
+      ? installedServers.fold<double>(0, (sum, item) {
           final hardware = GameCatalog.serverHardwareById(item.hardwareId);
-          return sum + hardware.networkGbps * item.count;
-        }),
-      )
-      .toDouble();
+          return sum + hardware.computeUnits * item.count;
+        })
+      : hostingPlan.computeUnits;
+
+  double get totalNetworkGbps {
+    if (!usingOwnedInfrastructure) {
+      return math.max(0.1, hostingPlan.bandwidthTb * 0.60).toDouble();
+    }
+    return math
+        .min(
+          serverRoom.networkGbps,
+          installedServers.fold<double>(0, (sum, item) {
+            final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+            return sum + hardware.networkGbps * item.count;
+          }),
+        )
+        .toDouble();
+  }
 
   double get hardwareReliability {
+    if (!usingOwnedInfrastructure) {
+      return hostingPlan.reliability;
+    }
     if (installedServers.isEmpty) {
       return 0;
     }
@@ -865,9 +881,10 @@ class GameState {
   }
 
   bool get infrastructureFitsRoom =>
-      usedRackUnits <= serverRoom.rackUnits &&
-      usedCoolingKw <= serverRoom.coolingKw &&
-      usedPowerKw <= serverRoom.powerKw;
+      !usingOwnedInfrastructure ||
+      (usedRackUnits <= serverRoom.rackUnits &&
+          usedCoolingKw <= serverRoom.coolingKw &&
+          usedPowerKw <= serverRoom.powerKw);
 
   double get totalAllocatedPercent => products.fold<double>(
     0,
@@ -1062,11 +1079,15 @@ class GameState {
   double get monthlyPayroll =>
       employees.fold<double>(0, (sum, item) => sum + item.salary);
 
-  double get monthlyHardwareCost =>
-      installedServers.fold<double>(0, (sum, item) {
-        final hardware = GameCatalog.serverHardwareById(item.hardwareId);
-        return sum + hardware.monthlyCost * item.count;
-      });
+  double get monthlyHardwareCost => usingOwnedInfrastructure
+      ? installedServers.fold<double>(0, (sum, item) {
+          final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+          return sum + hardware.monthlyCost * item.count;
+        })
+      : hostingPlan.monthlyCost;
+
+  double get monthlyServerRoomCost =>
+      usingOwnedInfrastructure ? serverRoom.monthlyRent : 0;
 
   double get monthlyProductRevenue =>
       products.fold<double>(0, (sum, item) => sum + item.monthlyRevenue);
@@ -1093,7 +1114,7 @@ class GameState {
   double get monthlyCosts =>
       monthlyPayroll +
       office.monthlyRent +
-      serverRoom.monthlyRent +
+      monthlyServerRoomCost +
       monthlyHardwareCost +
       monthlySecurityCost +
       monthlyCorporateAiCost +
@@ -1216,8 +1237,22 @@ class GameState {
       .toList(growable: false);
 
   double ecosystemBoostFor(String productId) {
-    final connectionCount = connectedProductIds(productId).length;
-    return math.min(0.15, connectionCount * 0.025).toDouble();
+    final source = productById(productId);
+    if (source == null) return 0;
+    var boost = 0.0;
+    for (final link in ecosystemLinks) {
+      if (!link.contains(productId) ||
+          simulationMinutes < link.activeAtMinutes) {
+        continue;
+      }
+      final other = productById(link.other(productId));
+      if (other == null) continue;
+      boost += V9ContentCatalog.integrationFor(
+        source.category.name,
+        other.category.name,
+      ).growthBoost;
+    }
+    return math.min(0.24, boost).toDouble();
   }
 
   GameState copyWith({
@@ -1253,6 +1288,7 @@ class GameState {
     List<EcosystemLink>? ecosystemLinks,
     String? selectedOfficeId,
     String? selectedServerRoomId,
+    String? selectedHostingPlanId,
     List<InstalledServer>? installedServers,
     List<InvestorOffer>? investorOffers,
     List<InvestorAgreement>? investorAgreements,
@@ -1336,6 +1372,8 @@ class GameState {
       ),
       selectedOfficeId: selectedOfficeId ?? this.selectedOfficeId,
       selectedServerRoomId: selectedServerRoomId ?? this.selectedServerRoomId,
+      selectedHostingPlanId:
+          selectedHostingPlanId ?? this.selectedHostingPlanId,
       installedServers: List<InstalledServer>.unmodifiable(
         installedServers ?? this.installedServers,
       ),
@@ -1416,6 +1454,7 @@ class GameState {
     'ecosystemLinks': ecosystemLinks.map((item) => item.toJson()).toList(),
     'selectedOfficeId': selectedOfficeId,
     'selectedServerRoomId': selectedServerRoomId,
+    'selectedHostingPlanId': selectedHostingPlanId,
     'installedServers': installedServers.map((item) => item.toJson()).toList(),
     'investorOffers': investorOffers.map((item) => item.toJson()).toList(),
     'investorAgreements': investorAgreements
@@ -1537,6 +1576,8 @@ class GameState {
       ),
       selectedOfficeId: json['selectedOfficeId']! as String,
       selectedServerRoomId: json['selectedServerRoomId']! as String,
+      selectedHostingPlanId:
+          json['selectedHostingPlanId'] as String? ?? 'shared_launch',
       installedServers: _decodeList(
         json['installedServers'],
         InstalledServer.fromJson,

@@ -9,10 +9,13 @@ import '../../../domain/catalog/product_strategy_catalog.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/models.dart';
 import '../../../domain/entities/product_strategy_models.dart';
+import '../../../domain/entities/v9_models.dart';
+import '../../../domain/explainability/product_configuration_resolver.dart';
 import '../../../domain/simulation/product_estimator.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../shared/widgets/technology_selector_panel.dart';
 
 class CreateProductScreen extends StatefulWidget {
   const CreateProductScreen({required this.controller, super.key});
@@ -46,6 +49,15 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
   ProductBlueprint get _blueprint => GameCatalog.blueprintById(_blueprintId);
   ProductStrategyProfile get _strategy =>
       ProductStrategyCatalog.strategyFor(_blueprintId);
+
+  TechnologyLimitExplanation get _technologyLimit =>
+      ProductConfigurationResolver.technologyLimit(
+        state: widget.controller.state,
+        blueprintId: _blueprintId,
+        frameworkId: _frameworkId,
+        featureIds: _featureIds,
+        selectedTechnologyIds: _technologyIds,
+      );
 
   List<FrameworkOption> get _frameworks => GameCatalog.frameworks
       .where((item) => _strategy.allowedFrameworkIds.contains(item.id))
@@ -104,6 +116,11 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
       _technologyIds
         ..clear()
         ..addAll(_defaultTechnologies(id));
+      final mandatoryTechnology =
+          ProductConfigurationResolver.mandatoryTechnologyId(_frameworkId);
+      if (mandatoryTechnology != null) {
+        _technologyIds.add(mandatoryTechnology);
+      }
       _featureIds
         ..clear()
         ..addAll(
@@ -127,6 +144,21 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
       _frameworkId = id;
       final profile = ProductStrategyCatalog.frameworkProfile(id);
       _languageIds.addAll(profile.requiredLanguageIds);
+      final mandatoryTechnology =
+          ProductConfigurationResolver.mandatoryTechnologyId(id);
+      if (mandatoryTechnology != null) {
+        _technologyIds.add(mandatoryTechnology);
+      }
+      _technologyIds.removeWhere((technologyId) {
+        final technology = GameCatalog.technologyById(technologyId);
+        final availability = ProductConfigurationResolver.availability(
+          frameworkId: id,
+          languageIds: _languageIds,
+          selectedTechnologyIds: _technologyIds,
+          technology: technology,
+        );
+        return !availability.enabled && !availability.mandatory;
+      });
       while (_languageIds.length > _strategy.maximumLanguageCount) {
         final removable = _languageIds.firstWhere(
           (language) => !profile.requiredLanguageIds.contains(language),
@@ -145,7 +177,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         _strategy.allowedFrameworkIds.contains(_frameworkId) &&
         _languageIds.isNotEmpty &&
         _languageIds.length <= _strategy.maximumLanguageCount &&
-        _technologyIds.length <= _strategy.maximumTechnologyCount &&
+        _technologyIds.length <= _technologyLimit.allowed &&
         frameworkProfile.requiredLanguageIds.every(_languageIds.contains) &&
         _featureIds.isNotEmpty &&
         widget.controller.state.investorAgreements.length >=
@@ -176,8 +208,8 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
             ? 'Добавьте обязательные языки выбранного framework.'
             : null,
       3 =>
-        _technologyIds.length > _strategy.maximumTechnologyCount
-            ? 'Уберите лишние технологии.'
+        _technologyIds.length > _technologyLimit.allowed
+            ? 'Выбрано ${_technologyIds.length} технологий из допустимых ${_technologyLimit.allowed}. Уберите лишние технологии.'
             : null,
       4 =>
         _featureIds.isEmpty
@@ -532,49 +564,22 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
   }
 
   Widget _technologiesStep(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
-      children: [
-        SectionHeader(
-          title: 'Технологии и инфраструктура',
-          subtitle:
-              'Выбрано ${_technologyIds.length}/${_strategy.maximumTechnologyCount}. Они дают эффекты, но увеличивают часы, compute и burn.',
-        ),
-        const SizedBox(height: 10),
-        ...GameCatalog.technologies.map((technology) {
-          final selected = _technologyIds.contains(technology.id);
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Material(
-              color: AppColors.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-                side: const BorderSide(color: AppColors.border),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: CheckboxListTile(
-                value: selected,
-                title: Text(technology.name),
-                subtitle: Text(
-                  '${technology.description}\nSetup ≈ ${money(technology.developmentCost * 0.18)} • OPEX ${money(technology.monthlyCost)}/мес. • compute ×${technology.computeMultiplier.toStringAsFixed(2)}',
-                ),
-                onChanged: (value) {
-                  setState(() {
-                    if (value ?? false) {
-                      if (_technologyIds.length <
-                          _strategy.maximumTechnologyCount) {
-                        _technologyIds.add(technology.id);
-                      }
-                    } else {
-                      _technologyIds.remove(technology.id);
-                    }
-                  });
-                },
-              ),
-            ),
-          );
-        }),
-      ],
+    return TechnologySelectorPanel(
+      state: widget.controller.state,
+      blueprintId: _blueprintId,
+      frameworkId: _frameworkId,
+      languageIds: _languageIds,
+      featureIds: _featureIds,
+      selectedTechnologyIds: _technologyIds,
+      onChanged: (technologyId, selected) {
+        setState(() {
+          if (selected) {
+            _technologyIds.add(technologyId);
+          } else {
+            _technologyIds.remove(technologyId);
+          }
+        });
+      },
     );
   }
 
@@ -716,6 +721,10 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
               _SummaryRow(
                 'Стек',
                 '${(projection.stackCoherence * 100).round()}% coherence',
+              ),
+              _SummaryRow(
+                'Технологии',
+                '${_technologyIds.length}/${_technologyLimit.allowed} • динамический лимит',
               ),
               _SummaryRow(
                 'Команда',

@@ -125,3 +125,10 @@ Checkbox в assignment sheet меняет только локальный выб
 ## 2026-08-05 — реклама покупается через канал и агентство
 
 Абстрактный monthly marketing budget отключён. Кампания задаёт продукт, агентство, канал и бюджет. Прогноз раскрывает CPM/CPC-логику, показы, клики, диапазон пользователей, комиссию агентства, brand awareness и trust. Новый неизвестный продукт не может купить массовое доверие одним большим бюджетом.
+<!-- FOUNDER_OS_V9 -->
+## v9 decisions
+1. No new dependencies: glass uses Flutter `BackdropFilter`.
+2. Rental hosting is the default v9 infrastructure; prepared physical servers are inactive until migration.
+3. Dynamic technology limit is resolved from scope, framework, roadmap, team capacity and maintenance penalty.
+4. Blocker ordering is explicitly sorted.
+5. Contract milestone is 35% at 50% progress; upfront remains template-driven; final pays the balance.

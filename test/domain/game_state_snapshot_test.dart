@@ -11,7 +11,7 @@ void main() {
   const engine = GameEngine();
 
   test(
-    'version 8 snapshot round-trips strategy, AI, evolution and operations',
+    'version 9 snapshot round-trips strategy, AI, evolution and operations',
     () {
       var state = _fundedInitial().copyWith(cash: 10000000);
       state = engine.reduce(
@@ -32,11 +32,16 @@ void main() {
           blueprintId: 'cloud_platform',
           frameworkId: 'go_microservices',
           languageIds: <String>['go'],
-          technologyIds: <String>['postgresql', 'kubernetes'],
+          technologyIds: <String>[
+            'postgresql',
+            'kubernetes',
+            'observability_stack',
+          ],
           featureIds: <String>['autoscaling', 'monitoring'],
         ),
       );
       state = engine.reduce(state, const HireCandidate('c_anna'));
+      state = engine.reduce(state, const HireCandidate('c_timur'));
       state = engine.reduce(
         state,
         ConnectProducts(
@@ -88,7 +93,7 @@ void main() {
 
       expect(restored.encode(), state.encode());
       expect(restored.products, hasLength(2));
-      expect(restored.employees, hasLength(1));
+      expect(restored.employees, hasLength(2));
       expect(restored.ecosystemLinks, hasLength(1));
       expect(restored.employeeAssignments, hasLength(1));
       expect(restored.securityControls, hasLength(1));
@@ -102,7 +107,7 @@ void main() {
   );
 
   test(
-    'legacy snapshot migrates to version 8 with controlled reset of model',
+    'legacy snapshot migrates to version 9 with controlled reset of model',
     () {
       final legacy = jsonEncode(<String, Object?>{
         'snapshotVersion': 2,

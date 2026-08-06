@@ -35,6 +35,7 @@ class ClientContract {
     required this.acceptedAtMinutes,
     required this.deadlineAtMinutes,
     required this.reward,
+    this.milestonePaid = false,
   });
 
   final String id;
@@ -44,17 +45,22 @@ class ClientContract {
   final int acceptedAtMinutes;
   final int deadlineAtMinutes;
   final double reward;
+  final bool milestonePaid;
 
-  ClientContract copyWith({ContractStatus? status, double? progress}) =>
-      ClientContract(
-        id: id,
-        templateId: templateId,
-        status: status ?? this.status,
-        progress: progress ?? this.progress,
-        acceptedAtMinutes: acceptedAtMinutes,
-        deadlineAtMinutes: deadlineAtMinutes,
-        reward: reward,
-      );
+  ClientContract copyWith({
+    ContractStatus? status,
+    double? progress,
+    bool? milestonePaid,
+  }) => ClientContract(
+    id: id,
+    templateId: templateId,
+    status: status ?? this.status,
+    progress: progress ?? this.progress,
+    acceptedAtMinutes: acceptedAtMinutes,
+    deadlineAtMinutes: deadlineAtMinutes,
+    reward: reward,
+    milestonePaid: milestonePaid ?? this.milestonePaid,
+  );
 
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
@@ -64,6 +70,7 @@ class ClientContract {
     'acceptedAtMinutes': acceptedAtMinutes,
     'deadlineAtMinutes': deadlineAtMinutes,
     'reward': reward,
+    'milestonePaid': milestonePaid,
   };
 
   factory ClientContract.fromJson(Map<String, Object?> json) => ClientContract(
@@ -74,5 +81,6 @@ class ClientContract {
     acceptedAtMinutes: (json['acceptedAtMinutes']! as num).toInt(),
     deadlineAtMinutes: (json['deadlineAtMinutes']! as num).toInt(),
     reward: (json['reward']! as num).toDouble(),
+    milestonePaid: json['milestonePaid'] as bool? ?? false,
   );
 }

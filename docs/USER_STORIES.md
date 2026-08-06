@@ -233,3 +233,10 @@
 ### US-GUIDE-02 — Получать только полезные подсказки
 
 Как игрок, я хочу видеть `i` только с конкретным объяснением, чтобы интерфейс не повторял одинаковую заглушку.
+<!-- FOUNDER_OS_V9 -->
+## v9 user stories
+- As a founder, I can see and control game time without losing bottom-screen space.
+- As a product owner, I understand why my stack limit is Y and what each technology costs me.
+- As a manager, I see exactly which specialist, skill and stack are missing now.
+- As a bootstrapped company, I can launch on rented hosting and migrate to owned hardware later.
+- As a learner, I can open the terminology catalog at any time.

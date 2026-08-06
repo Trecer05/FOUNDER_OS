@@ -110,3 +110,6 @@ V6 нельзя считать проверенной или готовой к m
 - [ ] ручной smoke на iPhone;
 - [ ] 90+ игровых дней balance-run;
 - [ ] Android debug build.
+<!-- FOUNDER_OS_V9 -->
+## v9 status
+Implemented in the v9 overlay package: floating time UI, dynamic stack resolver, staffing deficits, rental hosting and owned migration, payroll ledger, staged contracts, ecosystem rework, glossary, compact team metrics, snapshot migration, content catalog/validator, tests and verification gate. Local Flutter/Xcode results are recorded only after running `tools/verify_ui_content_v9.sh` on the target Mac.

@@ -203,3 +203,6 @@ UI and engine read the same `ProductStrategyCatalog`. The reducer revalidates fr
 ### Persistence
 
 `currentSnapshotVersion = 8`. New lists and nullable fields decode with controlled defaults when reading v3–v7 snapshots. Snapshot tests cover campaigns, price changes, feature work, loan/liquidity state and existing v7 entities.
+<!-- FOUNDER_OS_V9 -->
+## v9 architecture
+`View → GameAction → GameEngine.reduce → GameState → View` remains unchanged. `ProductConfigurationResolver` and `StaffingDeficitResolver` are pure deterministic explainability services. Snapshot version is 9; missing `selectedHostingPlanId` migrates to `shared_launch`. Expanded data lives in `assets/data/content_catalog_v9.json` and is validated by the verifier.

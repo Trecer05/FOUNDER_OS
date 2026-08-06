@@ -160,6 +160,7 @@ extension ManagedEmployee on Employee {
       workload: workload ?? this.workload,
       remote: remote,
       languageIds: languageIds,
+      hiredAtMinutes: hiredAtMinutes,
     );
   }
 }

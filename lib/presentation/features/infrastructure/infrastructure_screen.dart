@@ -6,9 +6,10 @@ import '../../../domain/catalog/game_catalog.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
+import '../../shared/widgets/hosting_plans_panel.dart';
 import '../../shared/widgets/section_header.dart';
 
-enum _InfraTab { offices, rooms, hardware, allocation }
+enum _InfraTab { hosting, offices, rooms, hardware, allocation }
 
 class InfrastructureScreen extends StatefulWidget {
   const InfrastructureScreen({required this.controller, super.key});
@@ -20,7 +21,7 @@ class InfrastructureScreen extends StatefulWidget {
 }
 
 class _InfrastructureScreenState extends State<InfrastructureScreen> {
-  _InfraTab _tab = _InfraTab.offices;
+  _InfraTab _tab = _InfraTab.hosting;
   final Map<String, double> _allocationDrafts = <String, double>{};
 
   @override
@@ -39,6 +40,11 @@ class _InfrastructureScreenState extends State<InfrastructureScreen> {
           scrollDirection: Axis.horizontal,
           child: SegmentedButton<_InfraTab>(
             segments: const [
+              ButtonSegment(
+                value: _InfraTab.hosting,
+                label: Text('Hosting'),
+                icon: Icon(Icons.cloud_outlined),
+              ),
               ButtonSegment(
                 value: _InfraTab.offices,
                 label: Text('Офисы'),
@@ -66,6 +72,7 @@ class _InfrastructureScreenState extends State<InfrastructureScreen> {
         ),
         const SizedBox(height: 14),
         switch (_tab) {
+          _InfraTab.hosting => HostingPlansPanel(controller: widget.controller),
           _InfraTab.offices => _OfficesList(controller: widget.controller),
           _InfraTab.rooms => _ServerRoomsList(controller: widget.controller),
           _InfraTab.hardware => _HardwareList(controller: widget.controller),
@@ -92,7 +99,13 @@ class _InfrastructureScreenState extends State<InfrastructureScreen> {
                   'Сотрудники',
                   '${state.employees.length} / ${state.office.capacity}',
                 ),
-                _InfoRow('Серверная', state.serverRoom.name),
+                _InfoRow('Hosting', state.hostingPlan.name),
+                _InfoRow(
+                  'Серверная',
+                  state.usingOwnedInfrastructure
+                      ? state.serverRoom.name
+                      : '${state.serverRoom.name} • подготовка к миграции',
+                ),
                 _InfoRow(
                   'Rack',
                   '${state.usedRackUnits.toStringAsFixed(0)} / ${state.serverRoom.rackUnits} U',

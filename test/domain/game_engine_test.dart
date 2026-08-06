@@ -81,6 +81,8 @@ void main() {
         ),
       );
 
+      state = engine.reduce(state, const HireCandidate('c_timur'));
+
       final ai = state.products[0];
       final cloud = state.products[1];
       final saas = state.products[2];
@@ -96,11 +98,15 @@ void main() {
         state,
         ConnectProducts(firstProductId: cloud.id, secondProductId: ai.id),
       );
+      final activationAt = state.ecosystemLinks
+          .map((link) => link.activeAtMinutes)
+          .reduce((left, right) => left > right ? left : right);
+      final activated = state.copyWith(simulationMinutes: activationAt);
 
       expect(state.ecosystemLinks, hasLength(2));
       expect(duplicate.ecosystemLinks, hasLength(2));
       expect(state.connectedProductIds(ai.id), hasLength(2));
-      expect(state.ecosystemBoostFor(ai.id), closeTo(0.05, 0.0001));
+      expect(activated.ecosystemBoostFor(ai.id), closeTo(0.07, 0.0001));
       expect(state.products.map((item) => item.id).toSet(), hasLength(3));
     },
   );
@@ -363,6 +369,10 @@ void main() {
 
     state = engine.reduce(state, const RentServerRoom('regional_dc'));
     state = engine.reduce(state, const InstallServer('cluster_x12'));
+    state = engine.reduce(state, const HireCandidate('c_ilya'));
+    state = engine.reduce(state, const HireCandidate('c_nikita'));
+    state = engine.reduce(state, const MigrateToOwnedInfrastructure());
+    expect(state.usingOwnedInfrastructure, isTrue);
     state = engine.reduce(
       state,
       AcquireMarketProduct(

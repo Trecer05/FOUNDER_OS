@@ -128,3 +128,6 @@ Prepared but not yet compiled in the archive-generation environment. Local Flutt
 ### Verification
 
 Пакет требует локального `flutter analyze`, полного `flutter test`, iOS Simulator build и ручного сценария. Среда сборки архива не содержит Flutter SDK.
+<!-- FOUNDER_OS_V9 -->
+## v9 — UI, Infrastructure, Explainability & Content Expansion
+Added floating time controls, hosting plans, owned migration, dynamic stack selection, concrete staffing deficits, staged contract payments, detailed payroll transactions, glossary, compact team metrics, ecosystem integration timing/risks, snapshot v9 migration, >7× content asset, validator and tests.

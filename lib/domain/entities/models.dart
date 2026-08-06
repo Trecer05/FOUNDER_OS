@@ -84,7 +84,7 @@ class Candidate {
   final bool remote;
   final List<String> languageIds;
 
-  Employee toEmployee() => Employee(
+  Employee toEmployee({int hiredAtMinutes = 0}) => Employee(
     id: id,
     name: name,
     role: role,
@@ -100,6 +100,7 @@ class Candidate {
     workload: 35,
     remote: remote,
     languageIds: languageIds,
+    hiredAtMinutes: hiredAtMinutes,
   );
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -153,6 +154,7 @@ class Employee {
     required this.workload,
     required this.remote,
     this.languageIds = const <String>[],
+    this.hiredAtMinutes = 0,
   });
 
   final String id;
@@ -170,6 +172,7 @@ class Employee {
   final int workload;
   final bool remote;
   final List<String> languageIds;
+  final int hiredAtMinutes;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
@@ -187,6 +190,7 @@ class Employee {
     'workload': workload,
     'remote': remote,
     'languageIds': languageIds,
+    'hiredAtMinutes': hiredAtMinutes,
   };
 
   factory Employee.fromJson(Map<String, Object?> json) => Employee(
@@ -206,6 +210,7 @@ class Employee {
     remote: json['remote']! as bool,
     languageIds:
         (json['languageIds'] as List?)?.cast<String>() ?? const <String>[],
+    hiredAtMinutes: (json['hiredAtMinutes'] as num?)?.toInt() ?? 0,
   );
 }
 
@@ -567,9 +572,16 @@ class EcosystemLink {
   const EcosystemLink._({
     required this.leftProductId,
     required this.rightProductId,
+    required this.connectedAtMinutes,
+    required this.activeAtMinutes,
   });
 
-  factory EcosystemLink(String firstProductId, String secondProductId) {
+  factory EcosystemLink(
+    String firstProductId,
+    String secondProductId, {
+    int connectedAtMinutes = 0,
+    int activeAtMinutes = 0,
+  }) {
     if (firstProductId == secondProductId) {
       throw ArgumentError('A product cannot be linked to itself.');
     }
@@ -577,11 +589,15 @@ class EcosystemLink {
     return EcosystemLink._(
       leftProductId: ordered.first,
       rightProductId: ordered.last,
+      connectedAtMinutes: connectedAtMinutes,
+      activeAtMinutes: activeAtMinutes,
     );
   }
 
   final String leftProductId;
   final String rightProductId;
+  final int connectedAtMinutes;
+  final int activeAtMinutes;
 
   String get key => '$leftProductId::$rightProductId';
 
@@ -601,11 +617,15 @@ class EcosystemLink {
   Map<String, Object?> toJson() => <String, Object?>{
     'leftProductId': leftProductId,
     'rightProductId': rightProductId,
+    'connectedAtMinutes': connectedAtMinutes,
+    'activeAtMinutes': activeAtMinutes,
   };
 
   factory EcosystemLink.fromJson(Map<String, Object?> json) => EcosystemLink(
     json['leftProductId']! as String,
     json['rightProductId']! as String,
+    connectedAtMinutes: (json['connectedAtMinutes'] as num?)?.toInt() ?? 0,
+    activeAtMinutes: (json['activeAtMinutes'] as num?)?.toInt() ?? 0,
   );
 }
 

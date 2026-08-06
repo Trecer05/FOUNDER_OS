@@ -6,8 +6,8 @@ import '../../../domain/catalog/game_catalog.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/models.dart';
 import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/compact_team_averages.dart';
 import '../../shared/widgets/formatters.dart';
-import '../../shared/widgets/metric_card.dart';
 import '../../shared/widgets/section_header.dart';
 
 enum _TeamView { candidates, employees }
@@ -90,46 +90,7 @@ class _TeamScreenState extends State<TeamScreen> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 10),
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                mainAxisExtent: 126,
-                children: [
-                  MetricCard(
-                    showHint: false,
-                    label: 'Skill',
-                    value: state.averageEmployeeSkill.toStringAsFixed(0),
-                  ),
-                  MetricCard(
-                    showHint: false,
-                    label: 'Speed',
-                    value: state.averageEmployeeSpeed.toStringAsFixed(0),
-                  ),
-                  MetricCard(
-                    showHint: false,
-                    label: 'Quality',
-                    value: state.averageEmployeeQuality.toStringAsFixed(0),
-                  ),
-                  MetricCard(
-                    showHint: false,
-                    label: 'Reliability',
-                    value: state.averageEmployeeReliability.toStringAsFixed(0),
-                  ),
-                  MetricCard(
-                    showHint: false,
-                    label: 'Morale',
-                    value: state.averageEmployeeMorale.toStringAsFixed(0),
-                  ),
-                  MetricCard(
-                    showHint: false,
-                    label: 'Loyalty',
-                    value: state.averageEmployeeLoyalty.toStringAsFixed(0),
-                  ),
-                ],
-              ),
+              CompactTeamAverages(state: state),
               const SizedBox(height: 10),
               Text(
                 '${state.employees.length - state.unassignedEmployees.length} назначено • ${state.unassignedEmployees.length} в резерве',
@@ -259,7 +220,7 @@ class _TeamScreenState extends State<TeamScreen> {
                   canHire:
                       (candidate.remote ||
                           state.onSiteEmployeeCount < state.office.capacity) &&
-                      state.cash >= candidate.salary * 0.35,
+                      state.cash >= candidate.salary * 0.15,
                   onHire: () =>
                       widget.controller.dispatch(HireCandidate(candidate.id)),
                 ),
@@ -415,7 +376,7 @@ class _CandidateCard extends StatelessWidget {
               onPressed: canHire ? onHire : null,
               child: Text(
                 canHire
-                    ? 'Нанять • signing ${money(candidate.salary * 0.35)}'
+                    ? 'Нанять • signing bonus ${money(candidate.salary * 0.15)}'
                     : candidate.remote
                     ? 'Недостаточно денег'
                     : 'Нет офисного места или денег',

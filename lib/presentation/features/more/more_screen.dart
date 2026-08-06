@@ -13,6 +13,7 @@ import '../tutorial/founder_tutorial_dialog.dart';
 import '../operations/operations_screen.dart';
 import '../intelligence/competitor_intelligence_screen.dart';
 import '../finance/finance_screen.dart';
+import '../help/glossary_screen.dart';
 import '../investors/investors_screen.dart';
 import '../market/market_screen.dart';
 import '../news/news_screen.dart';
@@ -39,6 +40,13 @@ class MoreScreen extends StatelessWidget {
           title: 'Обучение и подсказки',
           subtitle: 'Коротко пройти основной цикл и механику продукта',
           onTap: () => showFounderTutorial(context, controller),
+        ),
+        const SizedBox(height: 10),
+        _MenuCard(
+          icon: Icons.menu_book_outlined,
+          title: 'Метрики и терминология',
+          subtitle: 'MRR, runway, CAC, LTV, hosting, equity и другие термины',
+          onTap: () => _open(context, const GlossaryScreen()),
         ),
         const SizedBox(height: 10),
         _MenuCard(

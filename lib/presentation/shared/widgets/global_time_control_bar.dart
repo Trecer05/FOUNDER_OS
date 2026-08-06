@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
+import '../../../application/settings/display_preferences.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/game_state.dart';
 import '../../../domain/entities/models.dart';
+import 'formatters.dart';
 
 class GlobalTimeControlBar extends StatelessWidget {
   const GlobalTimeControlBar({required this.controller, super.key});
@@ -16,7 +18,7 @@ class GlobalTimeControlBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: controller,
+      listenable: Listenable.merge([controller, DisplayPreferences.instance]),
       builder: (context, _) {
         final state = controller.state;
         final blocked =
@@ -24,16 +26,16 @@ class GlobalTimeControlBar extends StatelessWidget {
         return Semantics(
           key: const Key('global-time-floating'),
           container: true,
-          label: 'Глобальное управление игровым временем',
+          label: 'Глобальное управление временем и деньгами',
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 430, minHeight: 48),
+            constraints: const BoxConstraints(maxWidth: 520, minHeight: 48),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(22),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: AppColors.surface.withAlpha(220),
+                    color: AppColors.surface.withAlpha(226),
                     borderRadius: BorderRadius.circular(22),
                     border: Border.all(color: Colors.white.withAlpha(170)),
                     boxShadow: [
@@ -95,32 +97,21 @@ class GlobalTimeControlBar extends StatelessWidget {
                         ),
                         const SizedBox(width: 5),
                         Flexible(
-                          child: Semantics(
-                            label:
+                          child: _StatusPill(
+                            key: const Key('global-current-time'),
+                            semanticLabel:
                                 'День ${state.day}, время ${state.formattedTime}',
-                            child: Container(
-                              key: const Key('global-current-time'),
-                              constraints: const BoxConstraints(minWidth: 62),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withAlpha(115),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  'Д${state.day}  ${state.formattedTime}',
-                                  maxLines: 1,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                            ),
+                            text: 'Д${state.day} ${state.formattedTime}',
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: _StatusPill(
+                            key: const Key('global-current-cash'),
+                            semanticLabel:
+                                'Деньги компании ${money(state.cash)}',
+                            text: money(state.cash),
+                            warning: state.cash < 0,
                           ),
                         ),
                         const SizedBox(width: 4),
@@ -142,6 +133,50 @@ class GlobalTimeControlBar extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({
+    required super.key,
+    required this.semanticLabel,
+    required this.text,
+    this.warning = false,
+  });
+
+  final String semanticLabel;
+  final String text;
+  final bool warning;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: semanticLabel,
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 58, maxWidth: 105),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: warning
+              ? AppColors.red.withAlpha(20)
+              : Colors.white.withAlpha(115),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            text,
+            maxLines: 1,
+            style: TextStyle(
+              color: warning ? AppColors.red : AppColors.text,
+              decoration: TextDecoration.none,
+              decorationColor: Colors.transparent,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -170,7 +205,7 @@ class _GlassIconButton extends StatelessWidget {
       selected: selected,
       label: semanticLabel,
       child: IconButton(
-        constraints: const BoxConstraints.tightFor(width: 38, height: 38),
+        constraints: const BoxConstraints.tightFor(width: 36, height: 38),
         padding: EdgeInsets.zero,
         style: IconButton.styleFrom(
           backgroundColor: selected
@@ -181,7 +216,7 @@ class _GlassIconButton extends StatelessWidget {
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         onPressed: enabled ? onPressed : null,
-        icon: Icon(icon, size: 21),
+        icon: Icon(icon, size: 20),
       ),
     );
   }
@@ -217,7 +252,7 @@ class _SpeedButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(13),
           onTap: enabled ? onTap : null,
           child: SizedBox(
-            width: 34,
+            width: 32,
             height: 38,
             child: Center(
               child: Text(
@@ -228,6 +263,7 @@ class _SpeedButton extends StatelessWidget {
                       : selected
                       ? AppColors.primary
                       : AppColors.textMuted,
+                  decoration: TextDecoration.none,
                   fontWeight: FontWeight.w900,
                   fontSize: 12,
                 ),

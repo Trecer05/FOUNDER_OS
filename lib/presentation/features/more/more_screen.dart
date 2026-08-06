@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
+import '../../../application/settings/display_preferences.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
@@ -136,6 +137,71 @@ class MoreScreen extends StatelessWidget {
               '${state.news.length} важных событий • атаки, конкуренты, сделки и релизы',
           warning: state.news.any((item) => item.critical),
           onTap: () => _open(context, NewsScreen(controller: controller)),
+        ),
+        const SizedBox(height: 18),
+        const SectionHeader(
+          title: 'Язык и валюта',
+          subtitle: 'Меняет отображение денег и ключевых новых экранов.',
+        ),
+        const SizedBox(height: 10),
+        AppCard(
+          child: AnimatedBuilder(
+            animation: DisplayPreferences.instance,
+            builder: (context, _) {
+              final preferences = DisplayPreferences.instance;
+              return Column(
+                children: [
+                  DropdownButtonFormField<AppLanguage>(
+                    initialValue: preferences.language,
+                    decoration: const InputDecoration(
+                      labelText: 'Language / Язык',
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: AppLanguage.ru,
+                        child: Text('Русский'),
+                      ),
+                      DropdownMenuItem(
+                        value: AppLanguage.en,
+                        child: Text('English'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        preferences.setLanguage(value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<DisplayCurrency>(
+                    initialValue: preferences.currency,
+                    decoration: const InputDecoration(
+                      labelText: 'Валюта отображения',
+                    ),
+                    items: DisplayCurrency.values
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(switch (value) {
+                              DisplayCurrency.rub => 'RUB · ₽',
+                              DisplayCurrency.usd => 'USD · \$',
+                              DisplayCurrency.eur => 'EUR · €',
+                            }),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      if (value != null) {
+                        preferences.setCurrency(value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(preferences.rateNote),
+                ],
+              );
+            },
+          ),
         ),
         const SizedBox(height: 18),
         const SectionHeader(

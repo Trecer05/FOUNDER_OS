@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
@@ -78,7 +80,7 @@ class InvestorsScreen extends StatelessWidget {
               const SectionHeader(
                 title: 'Предложения',
                 subtitle:
-                    'Контроффер учитывает доступный капитал, фокус и готовность продукта.',
+                    'После запроса начинается переговорный процесс. Явный ответ приходит за 1–14 игровых дней.',
               ),
               const SizedBox(height: 10),
               if (state.investorOffers.isEmpty)
@@ -293,46 +295,69 @@ class _OfferCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final investor = GameCatalog.investorById(offer.investorId);
-    final product = controller.state.productById(offer.productId)!;
+    final product = controller.state.productById(offer.productId);
+    final pending = offer.offeredAmount < 0;
+    final decisionDays = int.tryParse(offer.id.split('_').last) ?? 7;
+    final decisionAt = offer.createdAtMinutes + decisionDays * 1440;
+    final progress =
+        ((controller.state.simulationMinutes - offer.createdAtMinutes) /
+                math.max(1, decisionAt - offer.createdAtMinutes))
+            .clamp(0, 1)
+            .toDouble();
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(investor.name, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 4),
-          Text('На продукт ${product.name}'),
+          Text('На продукт ${product?.name ?? 'закрытый продукт'}'),
           const SizedBox(height: 10),
           _InfoRow('Запрошено', money(offer.requestedAmount)),
-          _InfoRow('Предложено', money(offer.offeredAmount)),
-          _InfoRow(
-            'Доля компании',
-            directPercent(offer.equityPercent, fractionDigits: 1),
-          ),
-          _InfoRow(
-            'Revenue share продукта',
-            directPercent(offer.revenueSharePercent, fractionDigits: 1),
-            last: true,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () =>
-                      controller.dispatch(RejectInvestorOffer(offer.id)),
-                  child: const Text('Отказать'),
+          if (pending) ...[
+            _InfoRow(
+              'Статус',
+              'Переговоры • ответ до Д${decisionAt ~/ 1440 + 1}',
+              last: true,
+            ),
+            const SizedBox(height: 10),
+            LinearProgressIndicator(value: progress),
+            const SizedBox(height: 6),
+            Text(
+              'Инвестор проверяет команду, готовность, риск и рынок. Максимальный срок — 14 дней.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ] else ...[
+            _InfoRow('Предложено', money(offer.offeredAmount)),
+            _InfoRow(
+              'Доля компании',
+              directPercent(offer.equityPercent, fractionDigits: 1),
+            ),
+            _InfoRow(
+              'Revenue share продукта',
+              directPercent(offer.revenueSharePercent, fractionDigits: 1),
+              last: true,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () =>
+                        controller.dispatch(RejectInvestorOffer(offer.id)),
+                    child: const Text('Отказать'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton(
-                  onPressed: () =>
-                      controller.dispatch(AcceptInvestorOffer(offer.id)),
-                  child: const Text('Принять'),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () =>
+                        controller.dispatch(AcceptInvestorOffer(offer.id)),
+                    child: const Text('Принять'),
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );

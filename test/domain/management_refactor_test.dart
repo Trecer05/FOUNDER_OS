@@ -69,7 +69,7 @@ void main() {
     );
   });
 
-  test('product and contract teams are exclusive and atomic', () {
+  test('product and contract teams allow parallel work and remain atomic', () {
     var state = _stateWithWebsite(engine);
 
     state = engine.reduce(state, const HireCandidate('c_anna'));
@@ -100,10 +100,17 @@ void main() {
       ),
     );
 
-    expect(state.employeesForProduct(productId), isEmpty);
+    expect(
+      state.employeesForProduct(productId).map((item) => item.id),
+      <String>['c_anna'],
+    );
     expect(
       state.employeesForContract(contractId).map((item) => item.id).toSet(),
       <String>{'c_anna', 'c_daria'},
+    );
+    expect(
+      state.employeeById('c_anna')!.workload,
+      greaterThan(state.employeeById('c_daria')!.workload),
     );
 
     state = engine.reduce(
@@ -115,7 +122,22 @@ void main() {
     );
 
     expect(state.employeesForProduct(productId).single.id, 'c_anna');
-    expect(state.employeesForContract(contractId).single.id, 'c_daria');
+    expect(
+      state.employeesForContract(contractId).map((item) => item.id).toSet(),
+      <String>{'c_anna', 'c_daria'},
+    );
+    expect(
+      state.employeeAssignments
+          .where((item) => item.employeeId == 'c_anna')
+          .length,
+      1,
+    );
+    expect(
+      state.contractEmployeeAssignments
+          .where((item) => item.employeeId == 'c_anna')
+          .length,
+      1,
+    );
   });
 
   test('finance history is sampled after crossing a game day', () {
@@ -197,7 +219,7 @@ void main() {
     expect(restored.financeTransactions, isNotEmpty);
   });
 
-  test('product improvement survives snapshot round trip', () {
+  test('queued product improvement survives snapshot round trip', () {
     var state = _stateWithSaasProduct(engine);
     final product = state.products.single;
 
@@ -207,6 +229,9 @@ void main() {
       ],
     );
 
+    final cashBefore = state.cash;
+    final updatesBefore = state.productUpdates.length;
+
     state = engine.reduce(
       state,
       ApplyProductImprovement(
@@ -215,13 +240,34 @@ void main() {
       ),
     );
 
-    final restored = GameState.decode(state.encode());
+    final pending = state.activeFeatureDevelopmentFor(product.id);
 
+    expect(state.cash, cashBefore);
+    expect(
+      state.improvementLevel(product.id, ProductImprovementType.performance),
+      0,
+    );
+    expect(pending, isNotNull);
+    expect(pending!.featureId, '__improvement_performance_1');
+    expect(pending.requiredHours, greaterThan(0));
+    expect(state.productUpdates.length, updatesBefore);
+
+    final restored = GameState.decode(state.encode());
+    final restoredPending = restored.activeFeatureDevelopmentFor(product.id);
+
+    expect(restored.snapshotVersion, currentSnapshotVersion);
     expect(
       restored.improvementLevel(product.id, ProductImprovementType.performance),
-      1,
+      0,
     );
-    expect(restored.latestProductUpdate(product), isNotNull);
+    expect(restoredPending, isNotNull);
+    expect(restoredPending!.featureId, '__improvement_performance_1');
+    expect(
+      restoredPending.requiredHours,
+      closeTo(pending.requiredHours, 0.001),
+    );
+    expect(restoredPending.progress, pending.progress);
+    expect(restored.cash, state.cash);
   });
 
   test('serialized controller saves keep the newest state', () async {

@@ -8,7 +8,7 @@ import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
 import 'create_product_screen.dart';
-import 'product_detail_screen.dart';
+import 'product_workspace_screen.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({required this.controller, super.key});
@@ -38,7 +38,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
           final matchesQuery =
               query.isEmpty ||
               product.name.toLowerCase().contains(query) ||
-              categoryName(product.category).toLowerCase().contains(query);
+              categoryName(product.category).toLowerCase().contains(query) ||
+              GameCatalog.blueprintById(
+                product.blueprintId,
+              ).name.toLowerCase().contains(query);
           final matchesCategory =
               _category == null || product.category == _category;
           return matchesQuery && matchesCategory;
@@ -164,7 +167,7 @@ class _ProductCard extends StatelessWidget {
       onTap: () {
         Navigator.of(context).push<void>(
           MaterialPageRoute(
-            builder: (_) => ProductDetailScreen(
+            builder: (_) => ProductWorkspaceScreen(
               controller: controller,
               productId: product.id,
             ),
@@ -177,7 +180,7 @@ class _ProductCard extends StatelessWidget {
           Row(
             children: [
               CircleAvatar(
-                backgroundColor: _categoryColor(product.category).withAlpha(24),
+                backgroundColor: _categoryColor(product.category).withAlpha(42),
                 foregroundColor: _categoryColor(product.category),
                 child: Icon(_categoryIcon(product.category)),
               ),
@@ -191,7 +194,7 @@ class _ProductCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     Text(
-                      '${categoryName(product.category)} • ${stageName(product.stage)}',
+                      '${GameCatalog.blueprintById(product.blueprintId).name} • ${stageName(product.stage)}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -278,5 +281,5 @@ Color _categoryColor(ProductCategory category) => switch (category) {
   ProductCategory.saas => AppColors.primary,
   ProductCategory.browser => AppColors.green,
   ProductCategory.cryptoWallet => AppColors.yellow,
-  ProductCategory.developerTool => AppColors.textMuted,
+  ProductCategory.developerTool => const Color(0xFF49556E),
 };

@@ -283,3 +283,8 @@ Overview показывает по каждому продукту:
 - Every disabled core action exposes a concrete deterministic reason and a next step.
 - Payroll is accrued by elapsed game time. Contract cash flow is advance → 50% milestone → final.
 - Glossary and contextual help remain available after onboarding.
+
+<!-- V10_UAT_REWORK -->
+## Explainable project operations
+
+The player must see why a language/technology limit exists, what stack coherence and development capacity mean, which people are missing, and how active compute differs from prepared hardware. Project actions are grouped into six sections. HR can automatically staff a project at a 25% premium. Investor and credit processes expose their states. Contract deadlines include a short grace period and partial late payout.

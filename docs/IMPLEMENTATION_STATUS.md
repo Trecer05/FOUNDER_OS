@@ -113,3 +113,10 @@ V6 нельзя считать проверенной или готовой к m
 <!-- FOUNDER_OS_V9 -->
 ## v9 status
 Implemented in the v9 overlay package: floating time UI, dynamic stack resolver, staffing deficits, rental hosting and owned migration, payroll ledger, staged contracts, ecosystem rework, glossary, compact team metrics, snapshot migration, content catalog/validator, tests and verification gate. Local Flutter/Xcode results are recorded only after running `tools/verify_ui_content_v9.sh` on the target Mac.
+
+<!-- V10_UAT_REWORK -->
+## v10 UAT rework
+
+Status: **implemented, verification pending**.
+
+Automated verification command: `bash tools/verify_ux_economy_v10.sh`. Physical-iPhone UAT remains required before marking the iteration verified. Full historic RU/EN localization and a complete regional price audit remain partial.

@@ -33,7 +33,7 @@ class _InfrastructureScreenState extends State<InfrastructureScreen> {
         SectionHeader(
           title: 'Инфраструктура',
           subtitle:
-              'Офис, серверная, железо и распределение мощностей — четыре независимых списка.',
+              'Активно ${state.totalComputeUnits.toStringAsFixed(0)} compute • подготовлено ${state.preparedComputeUnits.toStringAsFixed(0)} • офис ${money(state.monthlyOfficeCost)}/мес.',
         ),
         const SizedBox(height: 12),
         SingleChildScrollView(
@@ -122,7 +122,14 @@ class _InfrastructureScreenState extends State<InfrastructureScreen> {
                   'Network',
                   '${state.totalNetworkGbps.toStringAsFixed(1)} Gbps',
                 ),
-                _InfoRow('Compute', '${state.totalComputeUnits.round()} units'),
+                _InfoRow(
+                  'Активный compute',
+                  '${state.totalComputeUnits.round()} units',
+                ),
+                _InfoRow(
+                  'Серверы в резерве',
+                  '${state.preparedComputeUnits.round()} units • ${state.usingOwnedInfrastructure ? 'активны' : 'не учитываются до миграции'}',
+                ),
                 _InfoRow(
                   'Общая загрузка',
                   percent(state.serverLoad, fractionDigits: 1),
@@ -147,10 +154,11 @@ class _OfficesList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
+        SectionHeader(
           title: 'Аренда офиса',
-          subtitle:
-              'Комфорт влияет на мораль, вместимость — на предел команды.',
+          subtitle: state.onSiteEmployeeCount == 0
+              ? 'Вся команда remote: офис сейчас не списывает деньги.'
+              : 'Комфорт влияет на мораль, вместимость — на предел команды.',
         ),
         const SizedBox(height: 10),
         ...GameCatalog.offices.map((office) {
@@ -175,7 +183,7 @@ class _OfficesList extends StatelessWidget {
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             Text(
-                              '${office.group} • ${money(office.monthlyRent)}/мес.',
+                              '${office.group} • ${money(state.onSiteEmployeeCount == 0 ? 0 : office.monthlyRent)}/мес. фактически',
                             ),
                           ],
                         ),

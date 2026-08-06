@@ -15,7 +15,10 @@ import '../../entities/operations_models.dart';
 import '../../entities/product_evolution_models.dart';
 import '../../entities/product_strategy_models.dart';
 import '../../entities/v9_models.dart';
+import '../../entities/v10_models.dart';
+import '../../explainability/language_limit_resolver.dart';
 import '../../explainability/product_configuration_resolver.dart';
+import '../../explainability/staffing_deficit_resolver.dart';
 import '../product_estimator.dart';
 
 class GameEngine {
@@ -83,6 +86,12 @@ class GameEngine {
         action.percent,
       ),
       HireCandidate() => _hireCandidate(state, action.candidateId),
+      HireCandidateForProduct() => _hireCandidateForProduct(
+        state,
+        action.candidateId,
+        action.productId,
+      ),
+      AutoHireProjectTeam() => _autoHireProjectTeam(state, action.productId),
       AssignEmployeeToProduct() => _assignEmployee(
         state,
         action.employeeId,
@@ -98,6 +107,11 @@ class GameEngine {
         action.contractId,
         action.employeeIds,
       ),
+      SendEmployeeOnVacation() => _sendEmployeeOnVacation(
+        state,
+        action.employeeId,
+      ),
+      GiveWellbeingBonus() => _giveWellbeingBonus(state, action.employeeId),
       FireEmployee() => _fireEmployee(state, action.employeeId),
       GiveEmployeeRaise() => _giveRaise(
         state,
@@ -133,6 +147,7 @@ class GameEngine {
       ),
       AcceptClientContract() => _acceptClientContract(state, action.templateId),
       StartAdvertisingCampaign() => _startAdvertisingCampaign(state, action),
+      RequestBusinessLoan() => _requestBusinessLoan(state),
       AcceptEmergencyLoan() => _acceptEmergencyLoan(state),
       RedeemDebugPromo() => _redeemDebugPromo(state, action.code),
       RequestInvestorFunding() => _requestFunding(state, action),
@@ -422,6 +437,8 @@ class GameEngine {
       rngCounter: nextCounter,
     );
     next = _advanceProductFeatureDevelopments(state, next, deltaMinutes);
+    next = _advanceEmployeeWellbeing(next, deltaMinutes);
+    next = _advanceInvestorNegotiations(next);
     final cashDelta = next.monthlyProfit * monthFraction;
     next = next.copyWith(cash: next.cash + cashDelta);
     next = _appendPayrollTransactions(state, next, deltaMinutes);
@@ -448,6 +465,8 @@ class GameEngine {
                 .toList(growable: false),
       );
     }
+
+    next = _appendProductMetricHistory(state, next);
 
     if (next.products.any(
           (product) =>
@@ -515,6 +534,190 @@ class GameEngine {
       );
     }
 
+    return next;
+  }
+
+  GameState _appendProductMetricHistory(GameState previous, GameState state) {
+    final previousDay = previous.simulationMinutes ~/ 1440;
+    final currentDay = state.simulationMinutes ~/ 1440;
+    if (currentDay <= previousDay || state.products.isEmpty) {
+      return state;
+    }
+    final points = state.products
+        .map(
+          (product) => ProductMetricPoint(
+            productId: product.id,
+            simulationMinutes: state.simulationMinutes,
+            users: product.users,
+            dau: product.dau,
+            mau: product.mau,
+            revenue: product.monthlyRevenue,
+            requiredCompute: state.productComputeDemand(product),
+            rating: product.rating,
+            retention30d: product.retention30d,
+            churnRate: product.churnRate,
+          ),
+        )
+        .toList(growable: false);
+    final history = <ProductMetricPoint>[
+      ...state.productMetricHistory,
+      ...points,
+    ];
+    final trimmed = history.length <= 720
+        ? history
+        : history.skip(history.length - 720).toList(growable: false);
+    return state.copyWith(productMetricHistory: trimmed);
+  }
+
+  GameState _advanceEmployeeWellbeing(GameState state, int deltaMinutes) {
+    if (state.employees.isEmpty || deltaMinutes <= 0) return state;
+    final days = deltaMinutes / 1440;
+    final employees = state.employees
+        .map((employee) {
+          final projects = state.assignmentsForEmployee(employee.id).length;
+          final contracts = state.contractEmployeeAssignments
+              .where(
+                (item) =>
+                    item.employeeId == employee.id &&
+                    state.contractById(item.contractId)?.status ==
+                        ContractStatus.active,
+              )
+              .length;
+          final parallelWork = projects + contracts;
+          final targetWorkload = math.min(100, 18 + parallelWork * 31).toInt();
+          final current = employee.workload;
+          final step = math.max(1, (days * 12).round());
+          final workload = current < targetWorkload
+              ? math.min(targetWorkload, current + step).toInt()
+              : math.max(targetWorkload, current - step).toInt();
+          final moraleDelta = workload >= 82
+              ? -math.max(1, (days * 3).round())
+              : workload <= 48
+              ? math.max(0, (days * 1.5).round())
+              : 0;
+          return employee.managedCopyWith(
+            workload: workload,
+            morale: (employee.morale + moraleDelta).clamp(5, 100).toInt(),
+          );
+        })
+        .toList(growable: false);
+    return state.copyWith(employees: employees);
+  }
+
+  int _investorDecisionDays(InvestorOffer offer) {
+    final value = int.tryParse(offer.id.split('_').last);
+    return (value ?? 7).clamp(1, 14);
+  }
+
+  GameState _advanceInvestorNegotiations(GameState state) {
+    if (!state.investorOffers.any((offer) => offer.offeredAmount < 0)) {
+      return state;
+    }
+    final remaining = <InvestorOffer>[];
+    final messages = <String>[];
+    final news = <NewsItem>[...state.news];
+    for (final offer in state.investorOffers) {
+      if (offer.offeredAmount >= 0) {
+        remaining.add(offer);
+        continue;
+      }
+      final decisionAt =
+          offer.createdAtMinutes + _investorDecisionDays(offer) * 1440;
+      if (state.simulationMinutes < decisionAt) {
+        remaining.add(offer);
+        continue;
+      }
+      final investor = GameCatalog.investorById(offer.investorId);
+      final product = state.productById(offer.productId);
+      if (product == null) {
+        messages.add(
+          '${investor.name}: переговоры прекращены — продукт закрыт.',
+        );
+        continue;
+      }
+      final readiness = product.stage == ProductStage.development
+          ? product.developmentProgress
+          : (product.qualityScore / 100 * 0.55 +
+                    math.min(1, product.users / 50000) * 0.45)
+                .clamp(0, 1)
+                .toDouble();
+      final productRisk =
+          (state.productSecurityRisk(product) * 0.70 +
+                  (1 - product.featureCoverage) * 0.25 +
+                  (product.stage == ProductStage.live ? 0 : 0.18))
+              .clamp(0, 1)
+              .toDouble();
+      final categoryFits = investor.preferredCategories.contains(
+        product.category,
+      );
+      final approved =
+          categoryFits &&
+          readiness + state.successfulProducts * 0.04 >=
+              investor.minimumReadiness &&
+          productRisk <= investor.riskTolerance + 0.18;
+      if (!approved) {
+        final reason = !categoryFits
+            ? 'категория не входит в фокус фонда'
+            : readiness < investor.minimumReadiness
+            ? 'готовность ${(readiness * 100).round()}% ниже требуемой'
+            : 'риск ${(productRisk * 100).round()}% выше профиля фонда';
+        messages.add('${investor.name} отказал: $reason.');
+        news.insert(
+          0,
+          NewsItem(
+            id: 'funding_rejected_${offer.id}',
+            kind: NewsKind.funding,
+            title: 'Инвестор отказал',
+            body: '${investor.name}: $reason.',
+            simulationMinutes: state.simulationMinutes,
+            critical: false,
+          ),
+        );
+        continue;
+      }
+      final offered = math
+          .min(offer.requestedAmount, investor.availableCapital)
+          .toDouble();
+      final riskPremium = 1 + productRisk * (1.3 - investor.riskTolerance);
+      final equity = (offered / state.valuation * 100 * riskPremium)
+          .clamp(2.5, investor.maximumEquityPercent)
+          .toDouble();
+      final revenueShare = (1.5 + productRisk * 6.5).clamp(1.5, 8).toDouble();
+      remaining.add(
+        InvestorOffer(
+          id: offer.id,
+          investorId: offer.investorId,
+          productId: offer.productId,
+          requestedAmount: offer.requestedAmount,
+          offeredAmount: offered,
+          equityPercent: equity,
+          revenueSharePercent: revenueShare,
+          createdAtMinutes: offer.createdAtMinutes,
+        ),
+      );
+      messages.add(
+        '${investor.name} прислал оффер: ${offered.round()} ₽ за ${equity.toStringAsFixed(1)}% компании.',
+      );
+      news.insert(
+        0,
+        NewsItem(
+          id: 'funding_offer_${offer.id}',
+          kind: NewsKind.funding,
+          title: 'Инвестиционное предложение',
+          body:
+              '${investor.name} предлагает ${offered.round()} ₽ за ${equity.toStringAsFixed(1)}% компании.',
+          simulationMinutes: state.simulationMinutes,
+          critical: false,
+        ),
+      );
+    }
+    var next = state.copyWith(
+      investorOffers: remaining,
+      news: news.take(40).toList(growable: false),
+    );
+    for (final message in messages) {
+      next = _withFeed(next, message);
+    }
     return next;
   }
 
@@ -621,6 +824,9 @@ class GameEngine {
 
     var products = List<Product>.of(state.products);
     final updates = <ProductUpdateRecord>[...state.productUpdates];
+    final improvements = <ProductImprovementRecord>[
+      ...state.productImprovements,
+    ];
     final messages = <String>[];
     final news = <NewsItem>[...state.news];
     for (final work in completed) {
@@ -631,6 +837,61 @@ class GameEngine {
         continue;
       }
       final product = products[productIndex];
+      if (work.featureId.startsWith('__improvement_')) {
+        final payload = work.featureId.substring('__improvement_'.length);
+        final separator = payload.lastIndexOf('_');
+        if (separator <= 0) continue;
+        final typeName = payload.substring(0, separator);
+        final level = int.tryParse(payload.substring(separator + 1)) ?? 1;
+        final type = ProductImprovementType.values.byName(typeName);
+        final option = ProductEvolutionCatalog.improvementByType(type);
+        products[productIndex] = product.copyWith(
+          speedMs: product.speedMs * option.speedMultiplier,
+          designScore: math
+              .min(100, product.designScore + option.designDelta)
+              .toDouble(),
+          securityScore: math
+              .min(100, product.securityScore + option.securityDelta)
+              .toDouble(),
+          reliability: math
+              .min(0.9999, product.reliability + option.reliabilityDelta)
+              .toDouble(),
+          qualityScore: math
+              .min(100, product.qualityScore + option.qualityDelta)
+              .toDouble(),
+        );
+        improvements.add(
+          ProductImprovementRecord(
+            productId: product.id,
+            type: type,
+            level: level,
+            appliedAtMinutes: state.simulationMinutes,
+          ),
+        );
+        updates.add(
+          ProductUpdateRecord(
+            productId: product.id,
+            updatedAtMinutes: state.simulationMinutes,
+            reason: '${option.name} L$level',
+          ),
+        );
+        messages.add(
+          '${product.name}: ${option.name}, уровень $level завершён командой.',
+        );
+        news.insert(
+          0,
+          NewsItem(
+            id: 'improvement_${product.id}_${type.name}_${state.simulationMinutes}',
+            kind: NewsKind.product,
+            title: '${product.name}: техническое улучшение',
+            body:
+                '${option.name} завершено за ${work.requiredHours.round()} рабочих часов.',
+            simulationMinutes: state.simulationMinutes,
+            critical: false,
+          ),
+        );
+        continue;
+      }
       final feature = GameCatalog.featureById(work.featureId);
       final featureIds = <String>[...product.featureIds, feature.id];
       final projection = ProductEstimator.estimate(
@@ -675,6 +936,7 @@ class GameEngine {
     var next = state.copyWith(
       products: products,
       productFeatureDevelopments: remainingWorks,
+      productImprovements: improvements,
       productUpdates: updates,
       news: news.take(40).toList(growable: false),
     );
@@ -905,28 +1167,26 @@ class GameEngine {
   }
 
   GameState _advanceClientContracts(GameState state, int deltaMinutes) {
-    if (state.activeContracts.isEmpty || deltaMinutes <= 0) {
-      return state;
-    }
+    if (state.activeContracts.isEmpty || deltaMinutes <= 0) return state;
     var cashDelta = 0.0;
     final messages = <String>[];
     final transactions = <FinanceTransaction>[];
     final updated = state.clientContracts
         .map((contract) {
-          if (contract.status != ContractStatus.active) {
-            return contract;
-          }
+          if (contract.status != ContractStatus.active) return contract;
           final template = ContractCatalog.byId(contract.templateId);
           final roleCoverage = state.contractRoleCoverageFor(contract.id);
           final effectiveCapacity =
               state.contractDevelopmentCapacityFor(contract.id) *
               (0.45 + roleCoverage * 0.55);
           final previousMinutes = state.simulationMinutes - deltaMinutes;
-          final minutesBeforeDeadline = math.max(
+          final graceDeadline =
+              contract.deadlineAtMinutes + template.graceDays * 1440;
+          final minutesBeforeGraceEnd = math.max(
             0,
-            contract.deadlineAtMinutes - previousMinutes,
+            graceDeadline - previousMinutes,
           );
-          final workableMinutes = math.min(deltaMinutes, minutesBeforeDeadline);
+          final workableMinutes = math.min(deltaMinutes, minutesBeforeGraceEnd);
           final productiveHours = _workingHoursBetween(
             previousMinutes,
             workableMinutes,
@@ -978,22 +1238,32 @@ class GameEngine {
               milestonePaid: milestonePaid,
             );
           }
-          if (state.simulationMinutes >= contract.deadlineAtMinutes) {
-            final penalty = contract.reward * 0.10;
-            cashDelta -= penalty;
+          if (state.simulationMinutes >= graceDeadline) {
+            final unpaidFraction =
+                1 - template.upfrontPercent - (milestonePaid ? 0.35 : 0);
+            final partialPayment = math
+                .max(0, contract.reward * unpaidFraction * nextProgress * 0.55)
+                .toDouble();
+            cashDelta += partialPayment;
             messages.add(
-              '${template.client}: срок «${template.name}» сорван. Штраф ${penalty.round()} ₽.',
+              '${template.client}: допустимый срок срыва ${template.graceDays} дн. закончился. Выплачено ${partialPayment.round()} ₽ за фактическую готовность ${(nextProgress * 100).round()}%.',
             );
-            transactions.add(
-              FinanceTransaction(
-                id: 'contract_failed_${contract.id}_${state.simulationMinutes}',
-                simulationMinutes: state.simulationMinutes,
-                amount: -penalty,
-                category: FinanceTransactionCategory.contract,
-                description: 'Штраф за «${template.name}»',
-              ),
+            if (partialPayment > 0) {
+              transactions.add(
+                FinanceTransaction(
+                  id: 'contract_partial_${contract.id}_${state.simulationMinutes}',
+                  simulationMinutes: state.simulationMinutes,
+                  amount: partialPayment,
+                  category: FinanceTransactionCategory.contract,
+                  description: 'Частичная выплата • ${template.name}',
+                ),
+              );
+            }
+            return contract.copyWith(
+              status: ContractStatus.failed,
+              progress: nextProgress,
+              milestonePaid: milestonePaid,
             );
-            return contract.copyWith(status: ContractStatus.failed);
           }
           return contract.copyWith(
             progress: nextProgress,
@@ -1374,10 +1644,14 @@ class GameEngine {
         );
       }
     }
-    if (action.languageIds.length > strategy.maximumLanguageCount) {
+    final languageLimit = LanguageLimitResolver.resolve(
+      blueprintId: action.blueprintId,
+      frameworkId: action.frameworkId,
+    );
+    if (action.languageIds.length > languageLimit.allowed) {
       return _withFeed(
         state,
-        '${blueprint.name}: максимум ${strategy.maximumLanguageCount} языков. Лишний стек только замедлит команду.',
+        '${blueprint.name}: максимум ${languageLimit.allowed} языков для ${framework.name}. ${languageLimit.reasons.join(' ')}',
       );
     }
     final missingFrameworkLanguages = frameworkStrategy.requiredLanguageIds
@@ -1703,75 +1977,35 @@ class GameEngine {
     if (product.stage != ProductStage.live) {
       return _withFeed(
         state,
-        '${product.name}: постоянные технические улучшения доступны только после выхода на рынок.',
+        '${product.name}: технические улучшения доступны после выхода на рынок.',
+      );
+    }
+    if (state.activeFeatureDevelopmentFor(productId) != null) {
+      return _withFeed(
+        state,
+        '${product.name}: сначала завершите текущую техническую работу.',
       );
     }
     final option = ProductEvolutionCatalog.improvementByType(type);
-    final currentLevel = state.improvementLevel(productId, type);
-    final cost = state.improvementCost(productId, type);
-    if (state.cash < cost) {
-      return _withFeed(
-        state,
-        '${product.name}: для «${option.name}» нужно ${cost.round()} ₽.',
-      );
-    }
-    final level = currentLevel + 1;
-    final record = ProductImprovementRecord(
+    final level = state.improvementLevel(productId, type) + 1;
+    final requiredHours = math
+        .max(36, option.baseCost / 450 * (1 + (level - 1) * 0.25))
+        .toDouble();
+    final work = ProductFeatureDevelopment(
       productId: productId,
-      type: type,
-      level: level,
-      appliedAtMinutes: state.simulationMinutes,
+      featureId: '__improvement_${type.name}_$level',
+      startedAtMinutes: state.simulationMinutes,
+      requiredHours: requiredHours,
+      progress: 0,
     );
-    final updatedProducts = state.products
-        .map(
-          (item) => item.id == productId
-              ? item.copyWith(
-                  speedMs: item.speedMs * option.speedMultiplier,
-                  designScore: math
-                      .min(100, item.designScore + option.designDelta)
-                      .toDouble(),
-                  securityScore: math
-                      .min(100, item.securityScore + option.securityDelta)
-                      .toDouble(),
-                  reliability: math
-                      .min(0.9999, item.reliability + option.reliabilityDelta)
-                      .toDouble(),
-                  qualityScore: math
-                      .min(100, item.qualityScore + option.qualityDelta)
-                      .toDouble(),
-                )
-              : item,
-        )
-        .toList(growable: false);
-    return _withNews(
-      _withFeed(
-        state.copyWith(
-          cash: state.cash - cost,
-          products: updatedProducts,
-          productImprovements: <ProductImprovementRecord>[
-            ...state.productImprovements,
-            record,
-          ],
-          productUpdates: <ProductUpdateRecord>[
-            ...state.productUpdates,
-            ProductUpdateRecord(
-              productId: productId,
-              updatedAtMinutes: state.simulationMinutes,
-              reason: '${option.name} L$level',
-            ),
-          ],
-        ),
-        '${product.name}: ${option.name}, уровень $level. Продукт снова считается свежим.',
+    return _withFeed(
+      state.copyWith(
+        productFeatureDevelopments: <ProductFeatureDevelopment>[
+          ...state.productFeatureDevelopments,
+          work,
+        ],
       ),
-      NewsItem(
-        id: 'continuous_${product.id}_${type.name}_${state.simulationMinutes}',
-        kind: NewsKind.product,
-        title: '${product.name}: техническое обновление',
-        body:
-            '${option.name} достигло уровня $level. Стоимость следующей итерации вырастет.',
-        simulationMinutes: state.simulationMinutes,
-        critical: false,
-      ),
+      '${product.name}: «${option.name}» поставлено в работу на ${requiredHours.round()} рабочих часов. Отдельного списания нет — компания оплачивает зарплаты и инфраструктуру во времени.',
     );
   }
 
@@ -1910,35 +2144,43 @@ class GameEngine {
     );
   }
 
-  GameState _hireCandidate(GameState state, String candidateId) {
+  GameState _hireCandidate(GameState state, String candidateId) =>
+      _hireCandidateInternal(state, candidateId);
+
+  GameState _hireCandidateInternal(
+    GameState state,
+    String candidateId, {
+    double salaryMultiplier = 1,
+    double bonusMultiplier = 1,
+  }) {
     final candidate = state.candidateById(candidateId);
-    if (candidate == null) {
-      return state;
-    }
+    if (candidate == null) return state;
     if (!candidate.remote &&
         state.onSiteEmployeeCount >= state.office.capacity) {
       return _withFeed(
         state,
-        'Найм заблокирован: все ${state.office.capacity} офисных мест заняты. Remote-кандидаты по-прежнему доступны.',
+        'Найм заблокирован: все ${state.office.capacity} офисных мест заняты. Remote-кандидаты доступны.',
       );
     }
     final employerBrandDiscount = state.office.hiringBoostPercent
         .clamp(0, 0.45)
         .toDouble();
-    final signingBonus = candidate.salary * 0.15 * (1 - employerBrandDiscount);
+    final signingBonus =
+        candidate.salary * 0.15 * bonusMultiplier * (1 - employerBrandDiscount);
     if (state.cash < signingBonus) {
-      return state;
+      return _withFeed(state, 'Недостаточно денег на signing bonus.');
     }
+    final employee = candidate.toEmployee(
+      hiredAtMinutes: state.simulationMinutes,
+      salaryMultiplier: salaryMultiplier,
+    );
     return _withFeed(
       state.copyWith(
         cash: state.cash - signingBonus,
         candidates: state.candidates
             .where((item) => item.id != candidateId)
             .toList(growable: false),
-        employees: <Employee>[
-          ...state.employees,
-          candidate.toEmployee(hiredAtMinutes: state.simulationMinutes),
-        ],
+        employees: <Employee>[...state.employees, employee],
         financeTransactions: <FinanceTransaction>[
           FinanceTransaction(
             id: 'signing_${candidate.id}_${state.simulationMinutes}',
@@ -1950,8 +2192,120 @@ class GameEngine {
           ...state.financeTransactions,
         ].take(120).toList(growable: false),
       ),
-      '${candidate.name} принят. Зарплата ${candidate.salary.round()} ₽/мес., signing bonus ${signingBonus.round()} ₽. Зарплата дальше начисляется только за прошедшее игровое время.',
+      '${candidate.name} принят. Зарплата ${employee.salary.round()} ₽/мес., signing bonus ${signingBonus.round()} ₽.',
     );
+  }
+
+  GameState _hireCandidateForProduct(
+    GameState state,
+    String candidateId,
+    String productId,
+  ) {
+    if (state.productById(productId) == null) return state;
+    final hired = _hireCandidateInternal(state, candidateId);
+    if (hired.employeeById(candidateId) == null) return hired;
+    return _assignEmployee(hired, candidateId, productId);
+  }
+
+  GameState _autoHireProjectTeam(GameState state, String productId) {
+    final product = state.productById(productId);
+    if (product == null) return state;
+    if (!state.employees.any((employee) => employee.isHr)) {
+      return _withFeed(
+        state,
+        '${product.name}: автоматический подбор заблокирован — сначала наймите HR / People Partner.',
+      );
+    }
+    var next = state;
+    var hiredCount = 0;
+    final deficits = StaffingDeficitResolver.forProduct(next, product);
+    for (final deficit in deficits) {
+      for (var index = 0; index < deficit.missingCount; index += 1) {
+        final matching =
+            next.candidates
+                .where((candidate) => candidate.role.name == deficit.roleId)
+                .where(
+                  (candidate) => candidate.skill >= deficit.minimumSkill - 10,
+                )
+                .toList(growable: false)
+              ..sort((left, right) {
+                final leftLanguage =
+                    deficit.languageId != null &&
+                        left.languageIds.contains(deficit.languageId)
+                    ? 1
+                    : 0;
+                final rightLanguage =
+                    deficit.languageId != null &&
+                        right.languageIds.contains(deficit.languageId)
+                    ? 1
+                    : 0;
+                if (leftLanguage != rightLanguage) {
+                  return rightLanguage.compareTo(leftLanguage);
+                }
+                final skill = right.skill.compareTo(left.skill);
+                if (skill != 0) return skill;
+                return left.salary.compareTo(right.salary);
+              });
+        if (matching.isEmpty) break;
+        final candidate = matching.first;
+        final before = next.employees.length;
+        next = _hireCandidateInternal(
+          next,
+          candidate.id,
+          salaryMultiplier: 1.25,
+          bonusMultiplier: 1.25,
+        );
+        if (next.employees.length == before) break;
+        next = _assignEmployee(next, candidate.id, productId);
+        hiredCount += 1;
+      }
+    }
+    return _withFeed(
+      next,
+      hiredCount == 0
+          ? '${product.name}: HR не нашёл доступных кандидатов под текущие дефициты.'
+          : '${product.name}: HR автоматически нанял $hiredCount специалистов. Их зарплата и signing bonus выше рынка на 25%.',
+    );
+  }
+
+  List<EmployeeAssignment> _normalizeProductAllocations(
+    List<EmployeeAssignment> source,
+  ) {
+    final counts = <String, int>{};
+    for (final item in source) {
+      counts.update(item.employeeId, (value) => value + 1, ifAbsent: () => 1);
+    }
+    return source
+        .map(
+          (item) => item.copyWith(
+            allocationPercent: 100 / (counts[item.employeeId] ?? 1),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  GameState _recalculateTeamWorkload(GameState state) {
+    final employees = state.employees
+        .map((employee) {
+          final projectCount = state.employeeAssignments
+              .where((item) => item.employeeId == employee.id)
+              .length;
+          final contractCount = state.contractEmployeeAssignments
+              .where(
+                (item) =>
+                    item.employeeId == employee.id &&
+                    state.contractById(item.contractId)?.status ==
+                        ContractStatus.active,
+              )
+              .length;
+          final workload = math.min(
+            100,
+            18 + (projectCount + contractCount) * 31,
+          );
+          return employee.managedCopyWith(workload: workload.toInt());
+        })
+        .toList(growable: false);
+    return state.copyWith(employees: employees);
   }
 
   GameState _setProductTeam(
@@ -1959,22 +2313,15 @@ class GameEngine {
     String productId,
     List<String> employeeIds,
   ) {
-    if (state.productById(productId) == null) {
-      return state;
-    }
+    final product = state.productById(productId);
+    if (product == null) return state;
     final selected = employeeIds.toSet();
-    if (selected.any((id) => state.employeeById(id) == null)) {
-      return state;
-    }
-    final productAssignments = state.employeeAssignments
-        .where(
-          (item) =>
-              item.productId != productId &&
-              !selected.contains(item.employeeId),
-        )
+    if (selected.any((id) => state.employeeById(id) == null)) return state;
+    final assignments = state.employeeAssignments
+        .where((item) => item.productId != productId)
         .toList(growable: true);
     for (final employeeId in selected) {
-      productAssignments.add(
+      assignments.add(
         EmployeeAssignment(
           employeeId: employeeId,
           productId: productId,
@@ -1982,31 +2329,14 @@ class GameEngine {
         ),
       );
     }
-    return _withFeed(
+    final next = _recalculateTeamWorkload(
       state.copyWith(
-        employeeAssignments: productAssignments,
-        contractEmployeeAssignments: state.contractEmployeeAssignments
-            .where((item) => !selected.contains(item.employeeId))
-            .toList(growable: false),
-        employees: state.employees
-            .map(
-              (item) => item.managedCopyWith(
-                workload: selected.contains(item.id)
-                    ? 78
-                    : productAssignments.any(
-                        (assignment) => assignment.employeeId == item.id,
-                      )
-                    ? item.workload
-                    : state.contractEmployeeAssignments.any(
-                        (assignment) => assignment.employeeId == item.id,
-                      )
-                    ? item.workload
-                    : 20,
-              ),
-            )
-            .toList(growable: false),
+        employeeAssignments: _normalizeProductAllocations(assignments),
       ),
-      '${state.productById(productId)!.name}: команда сохранена, сотрудников ${selected.length}.',
+    );
+    return _withFeed(
+      next,
+      '${product.name}: команда сохранена, сотрудников ${selected.length}. Сотрудники могут участвовать и в других проектах.',
     );
   }
 
@@ -2020,10 +2350,8 @@ class GameEngine {
       return state;
     }
     final selected = employeeIds.toSet();
-    if (selected.any((id) => state.employeeById(id) == null)) {
-      return state;
-    }
-    final contractAssignments = state.contractEmployeeAssignments
+    if (selected.any((id) => state.employeeById(id) == null)) return state;
+    final assignments = state.contractEmployeeAssignments
         .where(
           (item) =>
               item.contractId != contractId &&
@@ -2031,7 +2359,7 @@ class GameEngine {
         )
         .toList(growable: true);
     for (final employeeId in selected) {
-      contractAssignments.add(
+      assignments.add(
         ContractEmployeeAssignment(
           contractId: contractId,
           employeeId: employeeId,
@@ -2039,32 +2367,12 @@ class GameEngine {
         ),
       );
     }
-    final template = state.contractTemplate(contract.templateId);
+    final next = _recalculateTeamWorkload(
+      state.copyWith(contractEmployeeAssignments: assignments),
+    );
     return _withFeed(
-      state.copyWith(
-        employeeAssignments: state.employeeAssignments
-            .where((item) => !selected.contains(item.employeeId))
-            .toList(growable: false),
-        contractEmployeeAssignments: contractAssignments,
-        employees: state.employees
-            .map(
-              (item) => item.managedCopyWith(
-                workload: selected.contains(item.id)
-                    ? 72
-                    : contractAssignments.any(
-                        (assignment) => assignment.employeeId == item.id,
-                      )
-                    ? item.workload
-                    : state.employeeAssignments.any(
-                        (assignment) => assignment.employeeId == item.id,
-                      )
-                    ? item.workload
-                    : 20,
-              ),
-            )
-            .toList(growable: false),
-      ),
-      '${template.name}: команда сохранена, сотрудников ${selected.length}.',
+      next,
+      '${state.contractTemplate(contract.templateId).name}: команда сохранена, сотрудников ${selected.length}.',
     );
   }
 
@@ -2074,20 +2382,14 @@ class GameEngine {
     String? productId,
   ) {
     final employee = state.employeeById(employeeId);
-    if (employee == null) {
-      return state;
-    }
-    if (productId != null && state.productById(productId) == null) {
-      return state;
-    }
-
-    final assignments = state.employeeAssignments
-        .where((item) => item.employeeId != employeeId)
-        .toList(growable: true);
-    final contractAssignments = state.contractEmployeeAssignments
-        .where((item) => item.employeeId != employeeId)
-        .toList(growable: false);
-    if (productId != null) {
+    if (employee == null) return state;
+    if (productId != null && state.productById(productId) == null) return state;
+    var assignments = state.employeeAssignments.toList(growable: true);
+    if (productId == null) {
+      assignments.removeWhere((item) => item.employeeId == employeeId);
+    } else if (!assignments.any(
+      (item) => item.employeeId == employeeId && item.productId == productId,
+    )) {
       assignments.add(
         EmployeeAssignment(
           employeeId: employeeId,
@@ -2096,29 +2398,74 @@ class GameEngine {
         ),
       );
     }
-
-    final updatedEmployees = state.employees
-        .map(
-          (item) => item.id == employeeId
-              ? item.managedCopyWith(
-                  workload: productId == null ? 20 : 78,
-                  morale: productId == null
-                      ? math.min(100, item.morale + 2).toInt()
-                      : item.morale,
-                )
-              : item,
-        )
-        .toList(growable: false);
+    assignments = _normalizeProductAllocations(assignments);
+    final next = _recalculateTeamWorkload(
+      state.copyWith(employeeAssignments: assignments),
+    );
     final targetName = productId == null
         ? 'резерв команды'
         : state.productById(productId)!.name;
     return _withFeed(
+      next,
+      '${employee.name}: назначение обновлено — $targetName.',
+    );
+  }
+
+  GameState _sendEmployeeOnVacation(GameState state, String employeeId) {
+    final employee = state.employeeById(employeeId);
+    if (employee == null) return state;
+    return _withFeed(
       state.copyWith(
-        employees: updatedEmployees,
-        employeeAssignments: assignments,
-        contractEmployeeAssignments: contractAssignments,
+        employeeAssignments: state.employeeAssignments
+            .where((item) => item.employeeId != employeeId)
+            .toList(growable: false),
+        contractEmployeeAssignments: state.contractEmployeeAssignments
+            .where((item) => item.employeeId != employeeId)
+            .toList(growable: false),
+        employees: state.employees
+            .map(
+              (item) => item.id == employeeId
+                  ? item.managedCopyWith(morale: 100, workload: 5)
+                  : item,
+            )
+            .toList(growable: false),
       ),
-      '${employee.name}: назначение изменено — $targetName.',
+      '${employee.name} отправлен в отпуск: morale полностью восстановлена, назначения сняты.',
+    );
+  }
+
+  GameState _giveWellbeingBonus(GameState state, String employeeId) {
+    final employee = state.employeeById(employeeId);
+    if (employee == null) return state;
+    final cost = employee.salary * 0.12;
+    if (state.cash < cost) {
+      return _withFeed(state, 'Недостаточно денег на корпоративный бонус.');
+    }
+    return _withFeed(
+      state.copyWith(
+        cash: state.cash - cost,
+        employees: state.employees
+            .map(
+              (item) => item.id == employeeId
+                  ? item.managedCopyWith(
+                      morale: math.min(100, item.morale + 24).toInt(),
+                      workload: math.max(10, item.workload - 14).toInt(),
+                    )
+                  : item,
+            )
+            .toList(growable: false),
+        financeTransactions: <FinanceTransaction>[
+          FinanceTransaction(
+            id: 'wellbeing_${employee.id}_${state.simulationMinutes}',
+            simulationMinutes: state.simulationMinutes,
+            amount: -cost,
+            category: FinanceTransactionCategory.payroll,
+            description: 'Wellbeing bonus • ${employee.name}',
+          ),
+          ...state.financeTransactions,
+        ].take(120).toList(growable: false),
+      ),
+      '${employee.name}: корпоративный бонус ${cost.round()} ₽, morale восстановлена.',
     );
   }
 
@@ -2660,6 +3007,59 @@ class GameEngine {
     );
   }
 
+  GameState _requestBusinessLoan(GameState state) {
+    if (state.activeLoan != null) {
+      return _withFeed(state, 'Сначала погасите активный кредит.');
+    }
+    final hasProof =
+        state.products.isNotEmpty ||
+        state.activeContracts.isNotEmpty ||
+        state.completedContracts.isNotEmpty;
+    if (!hasProof) {
+      return _withFeed(
+        state,
+        'Банк отказал: сначала создайте продукт или получите контракт.',
+      );
+    }
+    final riskCount = state.products
+        .where((product) => state.productSecurityRisk(product) > 0.72)
+        .length;
+    if (riskCount >= 2 || state.monthlyCosts > 2500000) {
+      return _withFeed(
+        state,
+        'Банк отказал: burn или security-риск слишком высокий.',
+      );
+    }
+    final amount = math
+        .min(3000000, math.max(350000, state.monthlyCosts * 1.4 + 250000))
+        .toDouble();
+    final totalRepayment = amount * 1.10;
+    final loan = CompanyLoan(
+      principal: totalRepayment,
+      remaining: totalRepayment,
+      issuedAtMinutes: state.simulationMinutes,
+      weeklyPayment: totalRepayment / 16,
+      interestRate: 0.10,
+    );
+    return _withFeed(
+      state.copyWith(
+        cash: state.cash + amount,
+        activeLoan: loan,
+        financeTransactions: <FinanceTransaction>[
+          FinanceTransaction(
+            id: 'business_loan_${state.simulationMinutes}',
+            simulationMinutes: state.simulationMinutes,
+            amount: amount,
+            category: FinanceTransactionCategory.financing,
+            description: 'Бизнес-кредит',
+          ),
+          ...state.financeTransactions,
+        ].take(120).toList(growable: false),
+      ),
+      'Бизнес-кредит одобрен: ${amount.round()} ₽. К возврату ${totalRepayment.round()} ₽ за 16 недель.',
+    );
+  }
+
   GameState _acceptEmergencyLoan(GameState state) {
     if (!state.creditOffered || state.activeLoan != null) {
       return _withFeed(state, 'Экстренный кредит сейчас недоступен.');
@@ -2755,89 +3155,42 @@ class GameEngine {
   GameState _requestFunding(GameState state, RequestInvestorFunding action) {
     final investor = GameCatalog.investorById(action.investorId);
     final product = state.productById(action.productId);
-    if (product == null || action.requestedAmount <= 0) {
-      return state;
-    }
-    if (!investor.preferredCategories.contains(product.category)) {
+    if (product == null || action.requestedAmount <= 0) return state;
+    final duplicate = state.investorOffers.any(
+      (offer) =>
+          offer.investorId == investor.id && offer.productId == product.id,
+    );
+    if (duplicate) {
       return _withFeed(
         state,
-        '${investor.name} отказал: категория ${_categoryName(product.category)} не входит в инвестиционный фокус.',
+        '${investor.name}: переговоры по ${product.name} уже идут.',
       );
     }
-    final readiness = product.stage == ProductStage.development
-        ? product.developmentProgress
-        : (product.qualityScore / 100 * 0.55 +
-                  math.min(1, product.users / 50000) * 0.45)
-              .clamp(0, 1)
-              .toDouble();
-    final reputationBonus = state.successfulProducts * 0.04;
-    if (readiness + reputationBonus < investor.minimumReadiness) {
-      return _withFeed(
-        state,
-        '${investor.name} отказал: готовность ${(readiness * 100).round()}%, требуется ${(investor.minimumReadiness * 100).round()}%.',
-      );
-    }
-
-    final productRisk =
-        (state.productSecurityRisk(product) * 0.70 +
-                (1 - product.featureCoverage) * 0.25 +
-                (product.stage == ProductStage.live ? 0 : 0.18))
-            .clamp(0, 1)
-            .toDouble();
-    if (productRisk > investor.riskTolerance + 0.18) {
-      return _withFeed(
-        state,
-        '${investor.name} отказал: риск продукта ${(productRisk * 100).round()}% выше допустимого профиля фонда.',
-      );
-    }
-
-    final offered = math
-        .min(action.requestedAmount, investor.availableCapital)
-        .toDouble();
-    final riskPremium = 1 + productRisk * (1.3 - investor.riskTolerance);
-    final baseEquity = offered / state.valuation * 100 * riskPremium;
-    final equity = baseEquity
-        .clamp(2.5, investor.maximumEquityPercent)
-        .toDouble();
-    final revenueShare = (1.5 + productRisk * 6.5).clamp(1.5, 8).toDouble();
     final sequence = state.rngCounter + 1;
-    final offer = InvestorOffer(
-      id: 'offer_${investor.id}_$sequence',
+    final decisionDays = 1 + sequence % 14;
+    final pending = InvestorOffer(
+      id: 'negotiation_${investor.id}_${sequence}_$decisionDays',
       investorId: investor.id,
       productId: product.id,
       requestedAmount: action.requestedAmount,
-      offeredAmount: offered,
-      equityPercent: equity,
-      revenueSharePercent: revenueShare,
+      offeredAmount: -1,
+      equityPercent: -1,
+      revenueSharePercent: -1,
       createdAtMinutes: state.simulationMinutes,
     );
-    final wording = offered < action.requestedAmount
-        ? 'Запрошено ${action.requestedAmount.round()} ₽, доступно только ${offered.round()} ₽.'
-        : 'Запрос принят полностью.';
-    return _withNews(
-      _withFeed(
-        state.copyWith(
-          investorOffers: <InvestorOffer>[...state.investorOffers, offer],
-          rngCounter: sequence,
-        ),
-        '${investor.name}: $wording Доля ${equity.toStringAsFixed(1)}%, revenue share ${revenueShare.toStringAsFixed(1)}%.',
+    return _withFeed(
+      state.copyWith(
+        investorOffers: <InvestorOffer>[...state.investorOffers, pending],
+        rngCounter: sequence,
       ),
-      NewsItem(
-        id: 'funding_offer_${offer.id}',
-        kind: NewsKind.funding,
-        title: 'Инвестиционное предложение',
-        body:
-            '${investor.name} предлагает ${offered.round()} ₽ за ${equity.toStringAsFixed(1)}% компании.',
-        simulationMinutes: state.simulationMinutes,
-        critical: false,
-      ),
+      '${investor.name}: запрос принят в переговоры. Ответ придёт не позднее чем через $decisionDays дн.',
     );
   }
 
   GameState _acceptOffer(GameState state, String offerId) {
     final offer = state.offerById(offerId);
-    if (offer == null) {
-      return state;
+    if (offer == null || offer.offeredAmount <= 0) {
+      return _withFeed(state, 'Инвестиционный оффер ещё не готов.');
     }
     final agreement = InvestorAgreement(
       id: 'agreement_${offer.id}',
@@ -3474,6 +3827,11 @@ class GameEngine {
         action is AdvanceTime ||
         action is SkipNight ||
         action is StartAdvertisingCampaign ||
+        action is HireCandidate ||
+        action is HireCandidateForProduct ||
+        action is AutoHireProjectTeam ||
+        action is GiveWellbeingBonus ||
+        action is RequestBusinessLoan ||
         action is AcceptEmergencyLoan ||
         action is RedeemDebugPromo ||
         action is ResetGame) {
@@ -3559,15 +3917,6 @@ class GameEngine {
     MonetizationModel.usageBased => 'оплата за использование',
     MonetizationModel.advertising => 'реклама',
     MonetizationModel.transactionFee => 'комиссия с транзакций',
-  };
-
-  String _categoryName(ProductCategory category) => switch (category) {
-    ProductCategory.aiAssistant => 'AI',
-    ProductCategory.cloud => 'Cloud',
-    ProductCategory.saas => 'SaaS',
-    ProductCategory.browser => 'Browser',
-    ProductCategory.cryptoWallet => 'Crypto',
-    ProductCategory.developerTool => 'Developer tools',
   };
 }
 

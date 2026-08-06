@@ -48,8 +48,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
           (sum, item) => sum + state.productImprovementMonthlyCost(item.id),
         );
         final infra =
-            state.office.monthlyRent +
-            state.serverRoom.monthlyRent +
+            state.monthlyOfficeCost +
+            state.monthlyServerRoomCost +
             state.monthlyHardwareCost;
         final history = state.financeHistory.isEmpty
             ? <FinanceHistoryPoint>[
@@ -135,8 +135,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
                             '${((state.simulationMinutes - state.negativeCashSinceMinutes!) / 1440).clamp(0, 999).toStringAsFixed(1)} дн.',
                       ),
                     _FinanceStatusRow(
-                      label: 'Кредитное предложение',
-                      value: state.creditOffered ? 'Доступно' : 'Нет',
+                      label: 'Экстренное предложение',
+                      value: state.creditOffered ? 'Доступно' : 'Не активно',
                     ),
                     if (state.activeLoan != null) ...[
                       _FinanceStatusRow(
@@ -158,6 +158,25 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         value: 'Нет',
                         last: true,
                       ),
+                    if (state.activeLoan == null) ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          key: const Key('request-business-loan'),
+                          onPressed: () => widget.controller.dispatch(
+                            const RequestBusinessLoan(),
+                          ),
+                          icon: const Icon(Icons.request_quote_outlined),
+                          label: const Text('Подать заявку на бизнес-кредит'),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Кредит виден всегда. Банк оценивает продукты, контракты, burn и security-риск.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                     if (state.creditOffered && state.activeLoan == null) ...[
                       const SizedBox(height: 10),
                       SizedBox(
@@ -309,7 +328,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       total: state.monthlyCosts,
                     ),
                     _BreakdownBar(
-                      label: 'Постоянные улучшения',
+                      label: 'Улучшения (только рабочее время)',
                       value: improvements,
                       total: state.monthlyCosts,
                     ),

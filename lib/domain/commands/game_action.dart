@@ -129,6 +129,21 @@ class HireCandidate extends GameAction {
   final String candidateId;
 }
 
+class HireCandidateForProduct extends GameAction {
+  const HireCandidateForProduct({
+    required this.candidateId,
+    required this.productId,
+  });
+
+  final String candidateId;
+  final String productId;
+}
+
+class AutoHireProjectTeam extends GameAction {
+  const AutoHireProjectTeam(this.productId);
+  final String productId;
+}
+
 class AssignEmployeeToProduct extends GameAction {
   const AssignEmployeeToProduct({required this.employeeId, this.productId});
 
@@ -148,6 +163,16 @@ class SetContractTeam extends GameAction {
 
   final String contractId;
   final List<String> employeeIds;
+}
+
+class SendEmployeeOnVacation extends GameAction {
+  const SendEmployeeOnVacation(this.employeeId);
+  final String employeeId;
+}
+
+class GiveWellbeingBonus extends GameAction {
+  const GiveWellbeingBonus(this.employeeId);
+  final String employeeId;
 }
 
 class FireEmployee extends GameAction {
@@ -250,6 +275,10 @@ class StartAdvertisingCampaign extends GameAction {
   final String agencyId;
   final String channelId;
   final double budget;
+}
+
+class RequestBusinessLoan extends GameAction {
+  const RequestBusinessLoan();
 }
 
 class AcceptEmergencyLoan extends GameAction {

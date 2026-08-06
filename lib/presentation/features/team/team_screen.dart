@@ -52,7 +52,7 @@ class _TeamScreenState extends State<TeamScreen> {
               final searchMatch =
                   query.isEmpty ||
                   candidate.name.toLowerCase().contains(query) ||
-                  roleName(candidate.role).toLowerCase().contains(query) ||
+                  candidateRoleName(candidate).toLowerCase().contains(query) ||
                   languageMatch;
               final remoteMatch = !_remoteOnly || candidate.remote;
               return roleMatch && searchMatch && remoteMatch;
@@ -70,7 +70,7 @@ class _TeamScreenState extends State<TeamScreen> {
               '${state.onSiteEmployeeCount}/${state.office.capacity} в офисе • ${state.remoteEmployeeCount} remote • payroll ${money(state.monthlyPayroll)}/мес.',
           hintTitle: 'Как читать команду',
           hintBody:
-              'Общие значения сверху — средние показатели всех нанятых сотрудников. Реальный вклад в продукт дают только люди, назначенные на него в разделе «Операции».',
+              'Общие значения сверху — средние показатели всех нанятых сотрудников. Назначать и нанимать людей можно прямо из рабочей области проекта.',
           hintBullets: const [
             'Skill и speed ускоряют разработку.',
             'Quality и reliability влияют на результат и стабильность.',
@@ -301,7 +301,7 @@ class _CandidateCard extends StatelessWidget {
     return AppCard(
       hintTitle: 'Кандидат ${candidate.name}',
       hintBody:
-          '${roleName(candidate.role)}: ${rolePurpose(candidate.role)} Языки: ${candidate.languageIds.isEmpty ? 'не указаны' : candidate.languageIds.map((id) => GameCatalog.languageById(id).name).join(', ')}. ${candidate.remote ? 'Remote-кандидат не занимает офисное место.' : 'Office-кандидату требуется свободное место.'} Сравните зарплату и рабочие характеристики перед наймом.',
+          '${candidateRoleName(candidate)}: ${candidate.isHr ? 'Открывает автоматический подбор команды под проект.' : rolePurpose(candidate.role)} Языки: ${candidate.languageIds.isEmpty ? 'не указаны' : candidate.languageIds.map((id) => GameCatalog.languageById(id).name).join(', ')}. ${candidate.remote ? 'Remote-кандидат не занимает офисное место.' : 'Office-кандидату требуется свободное место.'} Сравните зарплату и рабочие характеристики перед наймом.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -324,7 +324,7 @@ class _CandidateCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     Text(
-                      '${roleName(candidate.role)} • ${candidate.remote ? 'remote' : 'office'} • loyalty ${candidate.loyalty}/100',
+                      '${candidateRoleName(candidate)} • ${candidate.remote ? 'remote' : 'office'} • loyalty ${candidate.loyalty}/100',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -398,7 +398,7 @@ class _EmployeeCard extends StatelessWidget {
     return AppCard(
       hintTitle: 'Сотрудник ${employee.name}',
       hintBody:
-          '${roleName(employee.role)}: ${rolePurpose(employee.role)} Языки: ${employee.languageIds.isEmpty ? 'не указаны' : employee.languageIds.map((id) => GameCatalog.languageById(id).name).join(', ')}. Зарплата списывается каждый месяц. Реальный вклад появляется только после назначения на продукт или контракт.',
+          '${employeeRoleName(employee)}: ${employee.isHr ? 'Разрешает автоматический подбор специалистов под проекты.' : rolePurpose(employee.role)} Языки: ${employee.languageIds.isEmpty ? 'не указаны' : employee.languageIds.map((id) => GameCatalog.languageById(id).name).join(', ')}. Зарплата списывается каждый месяц. Реальный вклад появляется только после назначения на продукт или контракт.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -421,7 +421,7 @@ class _EmployeeCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     Text(
-                      '${roleName(employee.role)} • ${employee.remote ? 'remote' : 'office'}',
+                      '${employeeRoleName(employee)} • ${employee.remote ? 'remote' : 'office'}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],

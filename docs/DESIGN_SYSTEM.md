@@ -49,3 +49,11 @@
 - Narrow iPhone: controls use fixed compact targets and a fitted day/time label.
 - Team averages: compact 3×2 metric grid capped at 148 pt.
 - Ecosystem and hosting: stacked cards, wrapping chips and explicit blocker text; no fixed wide rows.
+
+<!-- V10_UAT_REWORK -->
+## v10 product workspace
+
+- The product title is followed by six horizontally scrollable, always-instantiated section controls: Overview, Development, Team, Marketing, Metrics, Infrastructure.
+- Time and cash are persistent global status pills with explicit normal/warning colors and no text decoration.
+- Product cards use stable category accents with sufficient contrast and blueprint labels.
+- Long metric charts are isolated with `RepaintBoundary`; section changes use short 160 ms transitions.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
+import '../../../domain/catalog/game_catalog.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/business_models.dart';
 import '../../../domain/entities/game_state.dart';
@@ -11,7 +12,7 @@ import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
 import '../contracts/contract_detail_screen.dart';
 import '../contracts/contracts_screen.dart';
-import '../products/product_detail_screen.dart';
+import '../products/product_workspace_screen.dart';
 import '../products/products_screen.dart';
 
 class OperationsScreen extends StatelessWidget {
@@ -108,7 +109,7 @@ class OperationsScreen extends StatelessWidget {
               const SectionHeader(
                 title: 'Распределение сотрудников',
                 subtitle:
-                    'Один сотрудник может работать только над одним активным проектом.',
+                    'Сотрудник может участвовать в нескольких продуктах: его 100% времени делятся между назначениями, а workload растёт.',
               ),
               const SizedBox(height: 10),
               if (state.employees.isEmpty)
@@ -135,7 +136,9 @@ class OperationsScreen extends StatelessWidget {
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
                             title: Text(employee.name),
-                            subtitle: Text(roleName(employee.role)),
+                            subtitle: Text(
+                              '${employeeRoleName(employee)} • проектов ${state.assignmentsForEmployee(employee.id).length} • workload ${employee.workload}/100',
+                            ),
                             trailing: ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 150),
                               child: Text(
@@ -180,7 +183,7 @@ class _ProductWorkCard extends StatelessWidget {
       key: Key('work-product-${product.id}'),
       onTap: () => Navigator.of(context).push<void>(
         MaterialPageRoute(
-          builder: (_) => ProductDetailScreen(
+          builder: (_) => ProductWorkspaceScreen(
             controller: controller,
             productId: product.id,
           ),
@@ -203,7 +206,7 @@ class _ProductWorkCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     Text(
-                      '${categoryName(product.category)} • ${stageName(product.stage)}',
+                      '${GameCatalog.blueprintById(product.blueprintId).name} • ${stageName(product.stage)}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -305,7 +308,7 @@ class _ContractWorkCard extends StatelessWidget {
       ),
       hintTitle: 'Контракт ${template.name}',
       hintBody:
-          'Контракт больше не использует весь резерв автоматически. Назначьте конкретных сотрудников — они станут недоступны для других проектов.',
+          'Назначьте конкретных сотрудников. Они могут участвовать и в продуктах, но параллельная работа повышает workload и снижает morale.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -342,6 +345,7 @@ class _ContractWorkCard extends StatelessWidget {
               Chip(label: Text('Команда ${team.length}')),
               Chip(label: Text('Роли ${(coverage * 100).round()}%')),
               Chip(label: Text('${daysLeft.toStringAsFixed(1)} дн.')),
+              Chip(label: Text('Grace +${template.graceDays} дн.')),
               Chip(
                 label: Text('${(contract.progress * 100).toStringAsFixed(1)}%'),
               ),

@@ -240,3 +240,14 @@
 - As a manager, I see exactly which specialist, skill and stack are missing now.
 - As a bootstrapped company, I can launch on rented hosting and migrate to owned hardware later.
 - As a learner, I can open the terminology catalog at any time.
+
+<!-- V10_UAT_REWORK -->
+## v10 stories
+
+- As a player, I understand each stack limit before creating a product.
+- As a player, I can hire a suitable candidate directly from a project or pay HR to auto-staff it.
+- As a player, I can split employees across products and manage the workload consequence.
+- As a player, I always see cash and time and can find credit before insolvency.
+- As a player, I see investor negotiation progress and receive an explicit answer.
+- As a player, I can compare project metrics over selectable time ranges.
+- As a player, I can distinguish rented active compute from owned prepared hardware.

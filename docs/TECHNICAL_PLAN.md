@@ -206,3 +206,13 @@ UI and engine read the same `ProductStrategyCatalog`. The reducer revalidates fr
 <!-- FOUNDER_OS_V9 -->
 ## v9 architecture
 `View → GameAction → GameEngine.reduce → GameState → View` remains unchanged. `ProductConfigurationResolver` and `StaffingDeficitResolver` are pure deterministic explainability services. Snapshot version is 9; missing `selectedHostingPlanId` migrates to `shared_launch`. Expanded data lives in `assets/data/content_catalog_v9.json` and is validated by the verifier.
+
+<!-- V10_UAT_REWORK -->
+## Snapshot v10 and UX/economy changes
+
+- Add persisted product metric history and display preferences.
+- Migrate v9 saves to prepared starter hardware without changing RNG state.
+- Normalize employee allocation across product assignments.
+- Keep investor resolution deterministic through snapshot state and RNG counter.
+- Trigger emergency persistence when cash crosses below zero.
+- Keep all economic values in rubles; convert only in presentation.

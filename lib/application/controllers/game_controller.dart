@@ -64,6 +64,7 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
     if (_disposed) {
       return;
     }
+    final previousCash = _state.cash;
     final next = _engine.reduce(_state, action);
     if (identical(_state, next)) {
       return;
@@ -75,7 +76,8 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
     }
     notifyListeners();
 
-    if (save) {
+    final crossedIntoNegative = previousCash >= 0 && next.cash < 0;
+    if (save || crossedIntoNegative) {
       unawaited(saveNow());
     }
   }

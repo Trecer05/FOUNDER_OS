@@ -13,6 +13,7 @@ class ContractTemplate {
     required this.deadlineDays,
     required this.upfrontPercent,
     required this.requiredRoles,
+    this.graceDays = 3,
   });
 
   final String id;
@@ -24,6 +25,7 @@ class ContractTemplate {
   final int deadlineDays;
   final double upfrontPercent;
   final List<EmployeeRole> requiredRoles;
+  final int graceDays;
 }
 
 class ClientContract {

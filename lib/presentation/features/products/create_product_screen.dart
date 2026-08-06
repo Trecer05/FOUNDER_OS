@@ -10,6 +10,7 @@ import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/models.dart';
 import '../../../domain/entities/product_strategy_models.dart';
 import '../../../domain/entities/v9_models.dart';
+import '../../../domain/explainability/language_limit_resolver.dart';
 import '../../../domain/explainability/product_configuration_resolver.dart';
 import '../../../domain/simulation/product_estimator.dart';
 import '../../shared/widgets/app_card.dart';
@@ -49,6 +50,11 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
   ProductBlueprint get _blueprint => GameCatalog.blueprintById(_blueprintId);
   ProductStrategyProfile get _strategy =>
       ProductStrategyCatalog.strategyFor(_blueprintId);
+
+  LanguageLimitExplanation get _languageLimit => LanguageLimitResolver.resolve(
+    blueprintId: _blueprintId,
+    frameworkId: _frameworkId,
+  );
 
   TechnologyLimitExplanation get _technologyLimit =>
       ProductConfigurationResolver.technologyLimit(
@@ -110,7 +116,11 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         ..clear()
         ..addAll(frameworkProfile.requiredLanguageIds)
         ..addAll(strategy.recommendedLanguageIds.take(1));
-      while (_languageIds.length > strategy.maximumLanguageCount) {
+      final languageLimit = LanguageLimitResolver.resolve(
+        blueprintId: id,
+        frameworkId: _frameworkId,
+      );
+      while (_languageIds.length > languageLimit.allowed) {
         _languageIds.remove(_languageIds.last);
       }
       _technologyIds
@@ -159,7 +169,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         );
         return !availability.enabled && !availability.mandatory;
       });
-      while (_languageIds.length > _strategy.maximumLanguageCount) {
+      while (_languageIds.length > _languageLimit.allowed) {
         final removable = _languageIds.firstWhere(
           (language) => !profile.requiredLanguageIds.contains(language),
           orElse: () => _languageIds.last,
@@ -176,7 +186,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
     return _nameController.text.trim().isNotEmpty &&
         _strategy.allowedFrameworkIds.contains(_frameworkId) &&
         _languageIds.isNotEmpty &&
-        _languageIds.length <= _strategy.maximumLanguageCount &&
+        _languageIds.length <= _languageLimit.allowed &&
         _technologyIds.length <= _technologyLimit.allowed &&
         frameworkProfile.requiredLanguageIds.every(_languageIds.contains) &&
         _featureIds.isNotEmpty &&
@@ -200,8 +210,8 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
       2 =>
         _languageIds.isEmpty
             ? 'Выберите хотя бы один язык.'
-            : _languageIds.length > _strategy.maximumLanguageCount
-            ? 'Слишком много языков для этого масштаба.'
+            : _languageIds.length > _languageLimit.allowed
+            ? 'Можно выбрать максимум ${_languageLimit.allowed}: лимит рассчитан из масштаба и framework.'
             : frameworkProfile.requiredLanguageIds
                   .where((id) => !_languageIds.contains(id))
                   .isNotEmpty
@@ -421,6 +431,10 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         ..._frameworks.map((framework) {
           final profile = ProductStrategyCatalog.frameworkProfile(framework.id);
           final selected = framework.id == _frameworkId;
+          final languageLimit = LanguageLimitResolver.resolve(
+            blueprintId: _blueprintId,
+            frameworkId: framework.id,
+          );
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: AppCard(
@@ -456,7 +470,14 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Обязательные языки: ${profile.requiredLanguageIds.map((id) => GameCatalog.languageById(id).name).join(', ')}',
+                    'Языковые слоты: ${languageLimit.allowed} • база ${languageLimit.base} • влияние framework ${languageLimit.frameworkAdjustment >= 0 ? '+' : ''}${languageLimit.frameworkAdjustment}',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    'Обязательные языки: ${profile.requiredLanguageIds.isEmpty ? 'нет' : profile.requiredLanguageIds.map((id) => GameCatalog.languageById(id).name).join(', ')}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   Text(
@@ -486,7 +507,9 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         SectionHeader(
           title: 'Языки проекта',
           subtitle:
-              'Максимум ${_strategy.maximumLanguageCount}. Каждый лишний язык добавляет координацию и требует людей с нужным стеком.',
+              'Можно выбрать ${_languageLimit.allowed}. База ${_languageLimit.base}, framework ${_languageLimit.frameworkAdjustment >= 0 ? '+' : ''}${_languageLimit.frameworkAdjustment}, обязательных ${_languageLimit.requiredLanguages}.',
+          hintTitle: 'Почему есть лимит языков',
+          hintBody: _languageLimit.reasons.join(' '),
         ),
         const SizedBox(height: 10),
         ...GameCatalog.languages.map((language) {
@@ -507,7 +530,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                   if (selected && !mandatory) {
                     _languageIds.remove(language.id);
                   } else if (!selected &&
-                      _languageIds.length < _strategy.maximumLanguageCount) {
+                      _languageIds.length < _languageLimit.allowed) {
                     _languageIds.add(language.id);
                   }
                 });
@@ -526,7 +549,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                                   if (selected) {
                                     _languageIds.remove(language.id);
                                   } else if (_languageIds.length <
-                                      _strategy.maximumLanguageCount) {
+                                      _languageLimit.allowed) {
                                     _languageIds.add(language.id);
                                   }
                                 });
@@ -719,8 +742,16 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                 '${optimisticDays.ceil()} рабочих дней при команде ${_strategy.optimalTeamSize}',
               ),
               _SummaryRow(
-                'Стек',
-                '${(projection.stackCoherence * 100).round()}% coherence',
+                'Совместимость стека',
+                '${(projection.stackCoherence * 100).round()}% — ${projection.stackCoherence >= 0.70
+                    ? 'хорошо сочетается'
+                    : projection.stackCoherence >= 0.45
+                    ? 'есть спорные сочетания'
+                    : 'конфликтный стек'}',
+              ),
+              _SummaryRow(
+                'Языки',
+                '${_languageIds.length}/${_languageLimit.allowed} • ${_languageLimit.reasons.join(' ')}',
               ),
               _SummaryRow(
                 'Технологии',

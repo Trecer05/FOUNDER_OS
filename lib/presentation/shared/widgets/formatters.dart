@@ -1,19 +1,7 @@
+import '../../../application/settings/display_preferences.dart';
 import '../../../domain/entities/models.dart';
 
-String money(double value) {
-  final sign = value < 0 ? '−' : '';
-  final absolute = value.abs();
-  if (absolute >= 1000000000) {
-    return '$sign${(absolute / 1000000000).toStringAsFixed(2)} млрд ₽';
-  }
-  if (absolute >= 1000000) {
-    return '$sign${(absolute / 1000000).toStringAsFixed(2)} млн ₽';
-  }
-  if (absolute >= 1000) {
-    return '$sign${(absolute / 1000).toStringAsFixed(1)} тыс. ₽';
-  }
-  return '$sign${absolute.round()} ₽';
-}
+String money(double value) => DisplayPreferences.instance.formatMoney(value);
 
 String compactNumber(num value) {
   final absolute = value.abs();
@@ -40,6 +28,12 @@ String categoryName(ProductCategory category) => switch (category) {
   ProductCategory.cryptoWallet => 'Криптокошелёк',
   ProductCategory.developerTool => 'Developer tools',
 };
+
+String candidateRoleName(Candidate candidate) =>
+    candidate.isHr ? 'HR / People Partner' : roleName(candidate.role);
+
+String employeeRoleName(Employee employee) =>
+    employee.isHr ? 'HR / People Partner' : roleName(employee.role);
 
 String roleName(EmployeeRole role) => switch (role) {
   EmployeeRole.productManager => 'Product Manager',

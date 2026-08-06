@@ -14,8 +14,9 @@ import 'operations_models.dart';
 import 'product_evolution_models.dart';
 import 'product_strategy_models.dart';
 import 'v9_models.dart';
+import 'v10_models.dart';
 
-const int currentSnapshotVersion = 9;
+const int currentSnapshotVersion = 10;
 
 enum GameSpeed {
   x1(1),
@@ -51,6 +52,7 @@ class GameState {
     required this.advertisingCampaigns,
     required this.priceChanges,
     required this.productFeatureDevelopments,
+    required this.productMetricHistory,
     required this.activeLoan,
     required this.negativeCashSinceMinutes,
     required this.creditOffered,
@@ -100,6 +102,7 @@ class GameState {
     advertisingCampaigns: const <AdvertisingCampaign>[],
     priceChanges: const <ProductPriceChange>[],
     productFeatureDevelopments: const <ProductFeatureDevelopment>[],
+    productMetricHistory: const <ProductMetricPoint>[],
     activeLoan: null,
     negativeCashSinceMinutes: null,
     creditOffered: false,
@@ -108,7 +111,9 @@ class GameState {
     selectedOfficeId: 'garage',
     selectedServerRoomId: 'closet',
     selectedHostingPlanId: 'shared_launch',
-    installedServers: const <InstalledServer>[],
+    installedServers: const <InstalledServer>[
+      InstalledServer(hardwareId: 'edge_s1', count: 2),
+    ],
     investorOffers: const <InvestorOffer>[],
     investorAgreements: const <InvestorAgreement>[],
     founderOwnershipPercent: 100,
@@ -169,6 +174,7 @@ class GameState {
   final List<AdvertisingCampaign> advertisingCampaigns;
   final List<ProductPriceChange> priceChanges;
   final List<ProductFeatureDevelopment> productFeatureDevelopments;
+  final List<ProductMetricPoint> productMetricHistory;
   final CompanyLoan? activeLoan;
   final int? negativeCashSinceMinutes;
   final bool creditOffered;
@@ -234,14 +240,35 @@ class GameState {
     return null;
   }
 
+  List<EmployeeAssignment> assignmentsForEmployee(String employeeId) =>
+      employeeAssignments
+          .where((item) => item.employeeId == employeeId)
+          .toList(growable: false);
+
   EmployeeAssignment? assignmentForEmployee(String employeeId) {
+    final matches = assignmentsForEmployee(employeeId);
+    return matches.isEmpty ? null : matches.first;
+  }
+
+  EmployeeAssignment? assignmentForEmployeeOnProduct(
+    String employeeId,
+    String productId,
+  ) {
     for (final assignment in employeeAssignments) {
-      if (assignment.employeeId == employeeId) {
+      if (assignment.employeeId == employeeId &&
+          assignment.productId == productId) {
         return assignment;
       }
     }
     return null;
   }
+
+  double employeeAllocationForProduct(String employeeId, String productId) =>
+      assignmentForEmployeeOnProduct(
+        employeeId,
+        productId,
+      )?.allocationPercent ??
+      0;
 
   List<Employee> employeesForProduct(String productId) => employeeAssignments
       .where((item) => item.productId == productId)
@@ -252,7 +279,7 @@ class GameState {
   List<Employee> get unassignedEmployees => employees
       .where(
         (employee) =>
-            assignmentForEmployee(employee.id) == null &&
+            assignmentsForEmployee(employee.id).isEmpty &&
             contractAssignmentForEmployee(employee.id) == null,
       )
       .toList(growable: false);
@@ -582,13 +609,21 @@ class GameState {
           : employee.languageIds.any(selectedLanguages.contains)
           ? 1.0
           : 0.28;
-      effectiveFte += productivity * phaseWeight * languageMatch;
+      final allocation =
+          employeeAllocationForProduct(employee.id, productId) / 100;
+      effectiveFte += productivity * phaseWeight * languageMatch * allocation;
     }
 
-    final comfortMultiplier = 0.90 + office.comfortScore / 1000;
+    final usesOffice = team.any((employee) => !employee.remote);
+    final comfortMultiplier = usesOffice
+        ? 0.90 + office.comfortScore / 1000
+        : 1.0;
+    final communicationMultiplier = usesOffice
+        ? office.communicationEfficiency
+        : 1.0;
     return effectiveFte *
         staffing.efficiency *
-        office.communicationEfficiency *
+        communicationMultiplier *
         comfortMultiplier *
         aiMultiplier;
   }
@@ -724,12 +759,7 @@ class GameState {
     return option.baseCost * (1 + level * 0.38);
   }
 
-  double productImprovementMonthlyCost(String productId) =>
-      ProductImprovementType.values.fold<double>(0, (sum, type) {
-        final option = ProductEvolutionCatalog.improvementByType(type);
-        return sum +
-            option.monthlyCostDelta * improvementLevel(productId, type);
-      });
+  double productImprovementMonthlyCost(String productId) => 0;
 
   double productImprovementComputeMultiplier(String productId) =>
       ProductImprovementType.values.fold<double>(1, (value, type) {
@@ -841,11 +871,14 @@ class GameState {
     return sum + hardware.powerKw * item.count;
   });
 
+  double get preparedComputeUnits =>
+      installedServers.fold<double>(0, (sum, item) {
+        final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+        return sum + hardware.computeUnits * item.count;
+      });
+
   double get totalComputeUnits => usingOwnedInfrastructure
-      ? installedServers.fold<double>(0, (sum, item) {
-          final hardware = GameCatalog.serverHardwareById(item.hardwareId);
-          return sum + hardware.computeUnits * item.count;
-        })
+      ? preparedComputeUnits
       : hostingPlan.computeUnits;
 
   double get totalNetworkGbps {
@@ -1089,6 +1122,9 @@ class GameState {
   double get monthlyServerRoomCost =>
       usingOwnedInfrastructure ? serverRoom.monthlyRent : 0;
 
+  double get monthlyOfficeCost =>
+      onSiteEmployeeCount == 0 ? 0 : office.monthlyRent;
+
   double get monthlyProductRevenue =>
       products.fold<double>(0, (sum, item) => sum + item.monthlyRevenue);
 
@@ -1113,7 +1149,7 @@ class GameState {
 
   double get monthlyCosts =>
       monthlyPayroll +
-      office.monthlyRent +
+      monthlyOfficeCost +
       monthlyServerRoomCost +
       monthlyHardwareCost +
       monthlySecurityCost +
@@ -1157,6 +1193,11 @@ class GameState {
   }
 
   double get founderPortfolioValue => valuation * founderOwnershipPercent / 100;
+
+  List<ProductMetricPoint> metricHistoryFor(String productId) =>
+      productMetricHistory
+          .where((item) => item.productId == productId)
+          .toList(growable: false);
 
   ProductMonetizationChange? latestMonetizationChange(String productId) {
     ProductMonetizationChange? latest;
@@ -1279,6 +1320,7 @@ class GameState {
     List<AdvertisingCampaign>? advertisingCampaigns,
     List<ProductPriceChange>? priceChanges,
     List<ProductFeatureDevelopment>? productFeatureDevelopments,
+    List<ProductMetricPoint>? productMetricHistory,
     CompanyLoan? activeLoan,
     bool clearActiveLoan = false,
     int? negativeCashSinceMinutes,
@@ -1360,6 +1402,9 @@ class GameState {
       ),
       productFeatureDevelopments: List<ProductFeatureDevelopment>.unmodifiable(
         productFeatureDevelopments ?? this.productFeatureDevelopments,
+      ),
+      productMetricHistory: List<ProductMetricPoint>.unmodifiable(
+        productMetricHistory ?? this.productMetricHistory,
       ),
       activeLoan: clearActiveLoan ? null : activeLoan ?? this.activeLoan,
       negativeCashSinceMinutes: clearNegativeCashSinceMinutes
@@ -1445,6 +1490,9 @@ class GameState {
         .toList(),
     'priceChanges': priceChanges.map((item) => item.toJson()).toList(),
     'productFeatureDevelopments': productFeatureDevelopments
+        .map((item) => item.toJson())
+        .toList(),
+    'productMetricHistory': productMetricHistory
         .map((item) => item.toJson())
         .toList(),
     'activeLoan': activeLoan?.toJson(),
@@ -1561,6 +1609,10 @@ class GameState {
         json['productFeatureDevelopments'],
         ProductFeatureDevelopment.fromJson,
       ),
+      productMetricHistory: _decodeList(
+        json['productMetricHistory'],
+        ProductMetricPoint.fromJson,
+      ),
       activeLoan: json['activeLoan'] is Map
           ? CompanyLoan.fromJson(
               (json['activeLoan']! as Map).cast<String, Object?>(),
@@ -1609,20 +1661,28 @@ class GameState {
       rngCounter: (json['rngCounter']! as num).toInt(),
       feed: (json['feed']! as List).cast<String>(),
     );
-    if (version < currentSnapshotVersion && state.productUpdates.isEmpty) {
-      return state.copyWith(
-        productUpdates: state.products
+    var migrated = state;
+    if (version < 10 && migrated.installedServers.isEmpty) {
+      migrated = migrated.copyWith(
+        installedServers: const <InstalledServer>[
+          InstalledServer(hardwareId: 'edge_s1', count: 2),
+        ],
+      );
+    }
+    if (version < currentSnapshotVersion && migrated.productUpdates.isEmpty) {
+      return migrated.copyWith(
+        productUpdates: migrated.products
             .map(
               (product) => ProductUpdateRecord(
                 productId: product.id,
-                updatedAtMinutes: state.simulationMinutes,
+                updatedAtMinutes: migrated.simulationMinutes,
                 reason: 'Миграция snapshot v$version',
               ),
             )
             .toList(growable: false),
       );
     }
-    return state;
+    return migrated;
   }
 
   static GameState _migrateLegacy(Map<String, Object?> json, int version) {

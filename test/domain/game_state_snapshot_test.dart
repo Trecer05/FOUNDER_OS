@@ -11,7 +11,7 @@ void main() {
   const engine = GameEngine();
 
   test(
-    'version 9 snapshot round-trips strategy, AI, evolution and operations',
+    'version 10 snapshot round-trips strategy, AI, evolution and operations',
     () {
       var state = _fundedInitial().copyWith(cash: 10000000);
       state = engine.reduce(
@@ -98,7 +98,12 @@ void main() {
       expect(restored.employeeAssignments, hasLength(1));
       expect(restored.securityControls, hasLength(1));
       expect(restored.securityAudits, hasLength(1));
-      expect(restored.productImprovements, hasLength(1));
+      expect(restored.productImprovements, isEmpty);
+      expect(restored.productFeatureDevelopments, hasLength(1));
+      expect(
+        restored.productFeatureDevelopments.single.featureId,
+        startsWith('__improvement_'),
+      );
       expect(restored.productUpdates, isNotEmpty);
       expect(restored.productAiDeployments, hasLength(1));
       expect(restored.onboardingCompleted, isTrue);
@@ -107,7 +112,7 @@ void main() {
   );
 
   test(
-    'legacy snapshot migrates to version 9 with controlled reset of model',
+    'legacy snapshot migrates to version 10 with controlled reset of model',
     () {
       final legacy = jsonEncode(<String, Object?>{
         'snapshotVersion': 2,

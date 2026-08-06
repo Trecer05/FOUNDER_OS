@@ -1226,6 +1226,22 @@ abstract final class GameCatalog {
       remote: true,
       languageIds: <String>[],
     ),
+    Candidate(
+      id: 'c_hr_natalia',
+      name: 'Наталья Морозова',
+      role: EmployeeRole.productManager,
+      skill: 76,
+      speed: 79,
+      quality: 80,
+      autonomy: 82,
+      communication: 94,
+      reliability: 86,
+      salary: 155000,
+      loyalty: 84,
+      remote: true,
+      languageIds: <String>[],
+      isHr: true,
+    ),
   ];
 
   static const List<OfficeOption> offices = <OfficeOption>[

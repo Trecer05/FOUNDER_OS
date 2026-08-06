@@ -132,3 +132,15 @@ Checkbox в assignment sheet меняет только локальный выб
 3. Dynamic technology limit is resolved from scope, framework, roadmap, team capacity and maintenance penalty.
 4. Blocker ordering is explicitly sorted.
 5. Contract milestone is 35% at 50% progress; upfront remains template-driven; final pays the balance.
+
+<!-- V10_UAT_REWORK -->
+## v10 decisions
+
+- Product-facing labels use blueprint names; broad internal categories remain implementation details.
+- Rented hosting and prepared owned hardware are separate capacity pools; only the selected mode is active.
+- A remote-only company has zero effective office rent.
+- Improvements consume team hours, not an upfront purchase price.
+- Automatic project hiring requires HR and carries a 25% salary/signing premium.
+- Employees may split their time across products; workload and morale represent the cost of parallel work.
+- Currency conversion is display-only and offline; snapshots continue storing ruble-denominated values.
+- Swift/Kotlin are not added without profiling evidence of a platform bottleneck.

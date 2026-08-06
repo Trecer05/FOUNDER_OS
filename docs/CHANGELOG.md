@@ -131,3 +131,10 @@ Prepared but not yet compiled in the archive-generation environment. Local Flutt
 <!-- FOUNDER_OS_V9 -->
 ## v9 — UI, Infrastructure, Explainability & Content Expansion
 Added floating time controls, hosting plans, owned migration, dynamic stack selection, concrete staffing deficits, staged contract payments, detailed payroll transactions, glossary, compact team metrics, ecosystem integration timing/risks, snapshot v9 migration, >7× content asset, validator and tests.
+
+<!-- V10_UAT_REWORK -->
+## v10 UAT rework
+
+- Added six-section product workspaces, metric ranges, explainable coherence/capacity, project hiring, and infrastructure separation.
+- Added HR auto-hire, multi-product assignments, workload/morale recovery, investor negotiation status, business credit, emergency negative-cash save, time-based improvements, contract grace and partial payouts.
+- Added snapshot v10, prepared starter servers, remote-first office economics, RUB/USD/EUR display, partial RU/EN preference support, tests, and verifier.

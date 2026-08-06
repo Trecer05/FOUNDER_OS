@@ -68,6 +68,7 @@ class Candidate {
     required this.loyalty,
     required this.remote,
     this.languageIds = const <String>[],
+    this.isHr = false,
   });
 
   final String id;
@@ -83,25 +84,28 @@ class Candidate {
   final int loyalty;
   final bool remote;
   final List<String> languageIds;
+  final bool isHr;
 
-  Employee toEmployee({int hiredAtMinutes = 0}) => Employee(
-    id: id,
-    name: name,
-    role: role,
-    skill: skill,
-    speed: speed,
-    quality: quality,
-    autonomy: autonomy,
-    communication: communication,
-    reliability: reliability,
-    salary: salary,
-    loyalty: loyalty,
-    morale: 78,
-    workload: 35,
-    remote: remote,
-    languageIds: languageIds,
-    hiredAtMinutes: hiredAtMinutes,
-  );
+  Employee toEmployee({int hiredAtMinutes = 0, double salaryMultiplier = 1}) =>
+      Employee(
+        id: id,
+        name: name,
+        role: role,
+        skill: skill,
+        speed: speed,
+        quality: quality,
+        autonomy: autonomy,
+        communication: communication,
+        reliability: reliability,
+        salary: salary * salaryMultiplier,
+        loyalty: loyalty,
+        morale: 78,
+        workload: 35,
+        remote: remote,
+        languageIds: languageIds,
+        hiredAtMinutes: hiredAtMinutes,
+        isHr: isHr,
+      );
 
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
@@ -117,6 +121,7 @@ class Candidate {
     'loyalty': loyalty,
     'remote': remote,
     'languageIds': languageIds,
+    'isHr': isHr,
   };
 
   factory Candidate.fromJson(Map<String, Object?> json) => Candidate(
@@ -134,6 +139,7 @@ class Candidate {
     remote: json['remote']! as bool,
     languageIds:
         (json['languageIds'] as List?)?.cast<String>() ?? const <String>[],
+    isHr: json['isHr'] as bool? ?? false,
   );
 }
 
@@ -155,6 +161,7 @@ class Employee {
     required this.remote,
     this.languageIds = const <String>[],
     this.hiredAtMinutes = 0,
+    this.isHr = false,
   });
 
   final String id;
@@ -173,6 +180,7 @@ class Employee {
   final bool remote;
   final List<String> languageIds;
   final int hiredAtMinutes;
+  final bool isHr;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
@@ -191,6 +199,7 @@ class Employee {
     'remote': remote,
     'languageIds': languageIds,
     'hiredAtMinutes': hiredAtMinutes,
+    'isHr': isHr,
   };
 
   factory Employee.fromJson(Map<String, Object?> json) => Employee(
@@ -211,6 +220,7 @@ class Employee {
     languageIds:
         (json['languageIds'] as List?)?.cast<String>() ?? const <String>[],
     hiredAtMinutes: (json['hiredAtMinutes'] as num?)?.toInt() ?? 0,
+    isHr: json['isHr'] as bool? ?? false,
   );
 }
 

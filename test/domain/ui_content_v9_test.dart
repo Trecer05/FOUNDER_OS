@@ -17,13 +17,13 @@ import 'package:founder_os/domain/validation/v9_content_validator.dart';
 void main() {
   const engine = GameEngine();
 
-  test('snapshot v9 migrates v8 and preserves RNG', () {
+  test('snapshot v10 migrates v9 and preserves RNG', () {
     final original = GameState.initial().copyWith(rngSeed: 77, rngCounter: 19);
-    final json = original.toJson()..['snapshotVersion'] = 8;
-    json.remove('selectedHostingPlanId');
+    final json = original.toJson()..['snapshotVersion'] = 9;
+    json.remove('productMetricHistory');
     final migrated = GameState.decode(jsonEncode(json));
 
-    expect(migrated.snapshotVersion, 9);
+    expect(migrated.snapshotVersion, 10);
     expect(migrated.selectedHostingPlanId, 'shared_launch');
     expect(migrated.rngSeed, 77);
     expect(migrated.rngCounter, 19);

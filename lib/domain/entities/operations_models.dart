@@ -7,16 +7,27 @@ class EmployeeAssignment {
     required this.employeeId,
     required this.productId,
     required this.assignedAtMinutes,
+    this.allocationPercent = 100,
   });
 
   final String employeeId;
   final String productId;
   final int assignedAtMinutes;
+  final double allocationPercent;
+
+  EmployeeAssignment copyWith({double? allocationPercent}) =>
+      EmployeeAssignment(
+        employeeId: employeeId,
+        productId: productId,
+        assignedAtMinutes: assignedAtMinutes,
+        allocationPercent: allocationPercent ?? this.allocationPercent,
+      );
 
   Map<String, Object?> toJson() => <String, Object?>{
     'employeeId': employeeId,
     'productId': productId,
     'assignedAtMinutes': assignedAtMinutes,
+    'allocationPercent': allocationPercent,
   };
 
   factory EmployeeAssignment.fromJson(Map<String, Object?> json) =>
@@ -24,6 +35,8 @@ class EmployeeAssignment {
         employeeId: json['employeeId']! as String,
         productId: json['productId']! as String,
         assignedAtMinutes: (json['assignedAtMinutes']! as num).toInt(),
+        allocationPercent:
+            (json['allocationPercent'] as num?)?.toDouble() ?? 100,
       );
 }
 
@@ -161,6 +174,7 @@ extension ManagedEmployee on Employee {
       remote: remote,
       languageIds: languageIds,
       hiredAtMinutes: hiredAtMinutes,
+      isHr: isHr,
     );
   }
 }

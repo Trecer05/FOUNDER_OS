@@ -192,3 +192,20 @@ flutter build apk --debug
 - Rental hosting, compute limits, owned migration blockers and snapshot persistence.
 - Glossary, compact averages height, ecosystem uniqueness/delay.
 - v8→v9 migration, RNG persistence, duplicate IDs, references and >7× content growth.
+
+<!-- V10_UAT_REWORK -->
+## v10 verification
+
+- language-limit framework explanation;
+- remote start costs and prepared/active compute separation;
+- multi-product assignment allocation and HR auto-hire premium;
+- time-only improvements;
+- deterministic investor response within 14 days;
+- website compute demand growth with users;
+- discoverable business credit;
+- contract grace and partial payout;
+- snapshot v10 round trip;
+- emergency negative-cash save;
+- currency preference persistence;
+- global cash/time bar and six product sections;
+- full Flutter tests, analyze, diff check, and iOS simulator debug build.

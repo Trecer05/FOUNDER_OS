@@ -238,8 +238,16 @@ void main() {
 
       expect(state.investorOffers, hasLength(1));
       expect(state.investorOffers.single.requestedAmount, 1000000);
-      expect(state.investorOffers.single.offeredAmount, 500000);
+      expect(state.investorOffers.single.offeredAmount, lessThan(0));
+      final decisionDays = int.parse(
+        state.investorOffers.single.id.split('_').last,
+      );
 
+      state = state.copyWith(paused: false);
+      state = engine.reduce(state, AdvanceTime(decisionDays * 360 + 1));
+
+      expect(state.investorOffers, hasLength(1));
+      expect(state.investorOffers.single.offeredAmount, 500000);
       state = engine.reduce(
         state,
         AcceptInvestorOffer(state.investorOffers.single.id),
@@ -461,7 +469,7 @@ void main() {
     expect(attacked.monthlyRevenue, greaterThan(0));
   });
 
-  test('employee assignment makes product capacity explicit and exclusive', () {
+  test('employee assignment splits capacity across several products', () {
     var state = _fundedInitial().copyWith(cash: 10000000);
     state = engine.reduce(
       state,
@@ -503,8 +511,11 @@ void main() {
       state,
       AssignEmployeeToProduct(employeeId: 'c_anna', productId: secondId),
     );
-    expect(state.employeesForProduct(firstId), isEmpty);
+    expect(state.employeesForProduct(firstId), hasLength(1));
     expect(state.employeesForProduct(secondId), hasLength(1));
+    expect(state.assignmentsForEmployee('c_anna'), hasLength(2));
+    expect(state.employeeAllocationForProduct('c_anna', firstId), 50);
+    expect(state.employeeAllocationForProduct('c_anna', secondId), 50);
   });
 
   test('training and raise change exact employee metrics and payroll', () {
@@ -686,7 +697,7 @@ void main() {
     expect(state.productAiIntegrations, isEmpty);
   });
 
-  test('stale product loses freshness and repeatable update restores it', () {
+  test('stale product queues repeatable update without upfront cash', () {
     var state = _fundedInitial().copyWith(cash: 10000000);
     state = engine.reduce(
       state,
@@ -705,10 +716,7 @@ void main() {
       simulationMinutes: state.simulationMinutes + 50 * 1440,
     );
     expect(state.productFreshnessScore(product), lessThan(70));
-    final firstCost = state.improvementCost(
-      product.id,
-      ProductImprovementType.performance,
-    );
+    final cashBefore = state.cash;
 
     state = engine.reduce(
       state,
@@ -718,14 +726,15 @@ void main() {
       ),
     );
 
+    expect(state.cash, cashBefore);
     expect(
       state.improvementLevel(product.id, ProductImprovementType.performance),
-      1,
+      0,
     );
-    expect(state.productFreshnessScore(state.products.single), 100);
+    expect(state.activeFeatureDevelopmentFor(product.id), isNotNull);
     expect(
-      state.improvementCost(product.id, ProductImprovementType.performance),
-      greaterThan(firstCost),
+      state.activeFeatureDevelopmentFor(product.id)!.featureId,
+      startsWith('__improvement_performance_'),
     );
   });
 
@@ -920,7 +929,7 @@ void main() {
       const AcceptClientContract('internal_dashboard'),
     );
 
-    state = engine.reduce(state, const AdvanceTime(5100));
+    state = engine.reduce(state, const AdvanceTime(6500));
 
     expect(state.clientContracts.single.status, ContractStatus.failed);
     expect(state.completedContracts, isEmpty);

@@ -216,3 +216,8 @@ UI and engine read the same `ProductStrategyCatalog`. The reducer revalidates fr
 - Keep investor resolution deterministic through snapshot state and RNG counter.
 - Trigger emergency persistence when cash crosses below zero.
 - Keep all economic values in rubles; convert only in presentation.
+
+<!-- V10_OPTIMIZATION -->
+## Native performance boundary
+
+Dart owns reducer/snapshot schema/RNG. A shared MethodChannel delegates atomic snapshot file I/O to Swift/Kotlin. Projection caching and immutable-state indexes optimize repeated pure calculations without changing serialization.

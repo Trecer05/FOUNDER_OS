@@ -18,6 +18,9 @@ import '../help/glossary_screen.dart';
 import '../investors/investors_screen.dart';
 import '../market/market_screen.dart';
 import '../news/news_screen.dart';
+import '../../../application/localization/app_text.dart';
+import '../../shared/widgets/scoped_listenable_builder.dart';
+import '../../../application/localization/app_localizer.dart';
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({required this.controller, super.key});
@@ -145,7 +148,7 @@ class MoreScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         AppCard(
-          child: AnimatedBuilder(
+          child: ScopedAnimatedBuilder(
             animation: DisplayPreferences.instance,
             builder: (context, _) {
               final preferences = DisplayPreferences.instance;
@@ -153,17 +156,17 @@ class MoreScreen extends StatelessWidget {
                 children: [
                   DropdownButtonFormField<AppLanguage>(
                     initialValue: preferences.language,
-                    decoration: const InputDecoration(
-                      labelText: 'Language / Язык',
+                    decoration: InputDecoration(
+                      labelText: trContext(context, 'Language / Язык'),
                     ),
                     items: const [
                       DropdownMenuItem(
                         value: AppLanguage.ru,
-                        child: Text('Русский'),
+                        child: AppText('Русский'),
                       ),
                       DropdownMenuItem(
                         value: AppLanguage.en,
-                        child: Text('English'),
+                        child: AppText('English'),
                       ),
                     ],
                     onChanged: (value) {
@@ -175,14 +178,14 @@ class MoreScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   DropdownButtonFormField<DisplayCurrency>(
                     initialValue: preferences.currency,
-                    decoration: const InputDecoration(
-                      labelText: 'Валюта отображения',
+                    decoration: InputDecoration(
+                      labelText: trContext(context, 'Валюта отображения'),
                     ),
                     items: DisplayCurrency.values
                         .map(
                           (value) => DropdownMenuItem(
                             value: value,
-                            child: Text(switch (value) {
+                            child: AppText(switch (value) {
                               DisplayCurrency.rub => 'RUB · ₽',
                               DisplayCurrency.usd => 'USD · \$',
                               DisplayCurrency.eur => 'EUR · €',
@@ -197,7 +200,7 @@ class MoreScreen extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: 8),
-                  Text(preferences.rateNote),
+                  AppText(preferences.rateNote),
                 ],
               );
             },
@@ -218,8 +221,8 @@ class MoreScreen extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: SwitchListTile(
             value: state.miniGamesEnabled,
-            title: const Text('Технические мини-игры'),
-            subtitle: const Text(
+            title: const AppText('Технические мини-игры'),
+            subtitle: const AppText(
               'При отключении результат рассчитывается по навыкам команды.',
             ),
             onChanged: (_) => controller.dispatch(const ToggleMiniGames()),
@@ -233,7 +236,7 @@ class MoreScreen extends StatelessWidget {
               children: [
                 const Icon(Icons.error_outline, color: AppColors.red),
                 const SizedBox(width: 10),
-                Expanded(child: Text(controller.storageError!)),
+                Expanded(child: AppText(controller.storageError!)),
               ],
             ),
           ),
@@ -281,9 +284,9 @@ class _MenuCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: Theme.of(context).textTheme.titleMedium),
+                AppText(title, style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 3),
-                Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+                AppText(subtitle, style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
           ),

@@ -144,3 +144,11 @@ Checkbox в assignment sheet меняет только локальный выб
 - Employees may split their time across products; workload and morale represent the cost of parallel work.
 - Currency conversion is display-only and offline; snapshots continue storing ruble-denominated values.
 - Swift/Kotlin are not added without profiling evidence of a platform bottleneck.
+
+<!-- V10_OPTIMIZATION -->
+## v10_optimization decisions
+
+- GameEngine and seeded RNG remain single-source deterministic Dart.
+- Swift/Kotlin are limited to atomic snapshot I/O and platform diagnostics.
+- Derived indexes are GC-safe and excluded from snapshots.
+- Historic presentation strings pass through one localization adapter until fully extracted into generated resources.

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
 import '../../../domain/commands/game_action.dart';
+import '../../../application/localization/app_text.dart';
 
 Future<void> showFounderTutorial(
   BuildContext context,
@@ -76,13 +77,13 @@ class _FounderTutorialDialogState extends State<_FounderTutorialDialog> {
     final last = _page == _pages.length - 1;
     return AlertDialog(
       icon: Icon(page.icon, size: 42, color: AppColors.primary),
-      title: Text(page.title),
+      title: AppText(page.title),
       content: SizedBox(
         width: 420,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(page.body),
+            AppText(page.body),
             const SizedBox(height: 14),
             Container(
               width: double.infinity,
@@ -92,7 +93,7 @@ class _FounderTutorialDialogState extends State<_FounderTutorialDialog> {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: AppColors.primary.withAlpha(55)),
               ),
-              child: Text('Подсказка: ${page.tip}'),
+              child: AppText('Подсказка: ${page.tip}'),
             ),
             const SizedBox(height: 16),
             LinearProgressIndicator(value: (_page + 1) / _pages.length),
@@ -103,17 +104,17 @@ class _FounderTutorialDialogState extends State<_FounderTutorialDialog> {
         TextButton(
           key: const Key('tutorial-skip'),
           onPressed: _complete,
-          child: const Text('Пропустить'),
+          child: const AppText('Пропустить'),
         ),
         if (_page > 0)
           TextButton(
             onPressed: () => setState(() => _page -= 1),
-            child: const Text('Назад'),
+            child: const AppText('Назад'),
           ),
         FilledButton(
           key: Key(last ? 'tutorial-complete' : 'tutorial-next'),
           onPressed: last ? _complete : () => setState(() => _page += 1),
-          child: Text(last ? 'Начать' : 'Далее'),
+          child: AppText(last ? 'Начать' : 'Далее'),
         ),
       ],
     );

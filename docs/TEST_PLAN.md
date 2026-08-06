@@ -209,3 +209,13 @@ flutter build apk --debug
 - currency preference persistence;
 - global cash/time bar and six product sections;
 - full Flutter tests, analyze, diff check, and iOS simulator debug build.
+
+<!-- V10_OPTIMIZATION -->
+## v10_optimization verification
+
+- projection cache determinism and bound;
+- state index freshness across copyWith;
+- latest-only save coalescing;
+- native channel contract and fallback;
+- RU normalization and EN Cyrillic audit;
+- full tests plus iOS simulator and Android debug builds.

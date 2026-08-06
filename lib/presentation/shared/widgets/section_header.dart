@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'info_hint_button.dart';
+import '../../../application/localization/app_text.dart';
 
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
@@ -36,10 +37,13 @@ class SectionHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: Theme.of(context).textTheme.titleLarge),
+              AppText(title, style: Theme.of(context).textTheme.titleLarge),
               if (subtitle != null) ...[
                 const SizedBox(height: 4),
-                Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
+                AppText(
+                  subtitle!,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ],
             ],
           ),

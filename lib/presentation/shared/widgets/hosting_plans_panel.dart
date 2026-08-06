@@ -8,6 +8,7 @@ import '../../../domain/entities/v9_models.dart';
 import 'app_card.dart';
 import 'formatters.dart';
 import 'section_header.dart';
+import '../../../application/localization/app_text.dart';
 
 class HostingPlansPanel extends StatelessWidget {
   const HostingPlansPanel({required this.controller, super.key});
@@ -47,12 +48,12 @@ class HostingPlansPanel extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            AppText(
                               plan.name,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             const SizedBox(height: 2),
-                            Text(
+                            AppText(
                               '${plan.provider} • ${owned ? 'CAPEX' : '${money(plan.monthlyCost)}/мес.'}',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
@@ -60,7 +61,7 @@ class HostingPlansPanel extends StatelessWidget {
                         ),
                       ),
                       if (current)
-                        const Chip(label: Text('Текущий'))
+                        const Chip(label: AppText('Текущий'))
                       else
                         FilledButton(
                           key: Key('select-hosting-${plan.id}'),
@@ -71,12 +72,12 @@ class HostingPlansPanel extends StatelessWidget {
                                       : RentHostingPlan(plan.id),
                                 )
                               : null,
-                          child: Text(owned ? 'Мигрировать' : 'Арендовать'),
+                          child: AppText(owned ? 'Мигрировать' : 'Арендовать'),
                         ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text(plan.description),
+                  AppText(plan.description),
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 7,
@@ -101,7 +102,7 @@ class HostingPlansPanel extends StatelessWidget {
                   if (plan.requiredRoles.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
-                      child: Text(
+                      child: AppText(
                         'Требуются: ${plan.requiredRoles.map(_roleLabel).join(', ')}.',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
@@ -111,7 +112,7 @@ class HostingPlansPanel extends StatelessWidget {
                     ...reasons.map(
                       (reason) => Padding(
                         padding: const EdgeInsets.only(bottom: 3),
-                        child: Text(
+                        child: AppText(
                           'Блокировка: $reason',
                           style: const TextStyle(
                             color: AppColors.red,
@@ -175,7 +176,7 @@ class _Chip extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       border: Border.all(color: AppColors.border),
     ),
-    child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+    child: AppText(label, style: Theme.of(context).textTheme.bodySmall),
   );
 }
 
@@ -192,7 +193,7 @@ class _List extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 4),
-    child: Text(
+    child: AppText(
       '$title: ${items.join(' • ')}',
       style: TextStyle(color: positive ? AppColors.green : AppColors.textMuted),
     ),

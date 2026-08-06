@@ -9,6 +9,8 @@ import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
 import 'create_product_screen.dart';
 import 'product_workspace_screen.dart';
+import '../../../application/localization/app_text.dart';
+import '../../../application/localization/app_localizer.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({required this.controller, super.key});
@@ -71,14 +73,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 );
               },
               icon: const Icon(Icons.add),
-              label: const Text('Создать'),
+              label: const AppText('Создать'),
             ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _searchController,
-            decoration: const InputDecoration(
-              hintText: 'Поиск по названию или категории',
+            decoration: InputDecoration(
+              hintText: trContext(context, 'Поиск по названию или категории'),
               prefixIcon: Icon(Icons.search),
             ),
             onChanged: (_) => setState(() {}),
@@ -89,7 +91,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             child: Row(
               children: [
                 ChoiceChip(
-                  label: const Text('Все'),
+                  label: const AppText('Все'),
                   selected: _category == null,
                   onSelected: (_) => setState(() => _category = null),
                 ),
@@ -98,7 +100,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   (category) => Padding(
                     padding: const EdgeInsets.only(right: 7),
                     child: ChoiceChip(
-                      label: Text(categoryName(category)),
+                      label: AppText(categoryName(category)),
                       selected: _category == category,
                       onSelected: (_) => setState(() => _category = category),
                     ),
@@ -118,7 +120,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     color: AppColors.textMuted,
                   ),
                   const SizedBox(height: 10),
-                  Text(
+                  AppText(
                     state.products.isEmpty
                         ? 'Продуктов пока нет. Соберите первый стек и набор функций.'
                         : 'По фильтрам ничего не найдено.',
@@ -189,11 +191,11 @@ class _ProductCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AppText(
                       product.name,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text(
+                    AppText(
                       '${GameCatalog.blueprintById(product.blueprintId).name} • ${stageName(product.stage)}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
@@ -207,7 +209,7 @@ class _ProductCard extends StatelessWidget {
             const SizedBox(height: 13),
             LinearProgressIndicator(value: product.developmentProgress),
             const SizedBox(height: 6),
-            Text(
+            AppText(
               'Готовность ${(product.developmentProgress * 100).toStringAsFixed(1)}%',
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -227,13 +229,13 @@ class _ProductCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 10),
-          Text(
+          AppText(
             '${GameCatalog.frameworkById(product.frameworkId).name} • ${product.featureIds.length} функций • ${directPercent(product.allocatedCapacityPercent)} мощности',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           if (missingRoles.isNotEmpty) ...[
             const SizedBox(height: 5),
-            Text(
+            AppText(
               'Не хватает: $missingRoles',
               style: const TextStyle(color: AppColors.red),
             ),
@@ -258,7 +260,7 @@ class _MetricPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
       ),
-      child: Text(
+      child: AppText(
         '$label: $value',
         style: Theme.of(context).textTheme.bodySmall,
       ),

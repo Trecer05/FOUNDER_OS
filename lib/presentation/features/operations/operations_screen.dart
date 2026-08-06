@@ -14,6 +14,9 @@ import '../contracts/contract_detail_screen.dart';
 import '../contracts/contracts_screen.dart';
 import '../products/product_workspace_screen.dart';
 import '../products/products_screen.dart';
+import '../../../application/localization/app_text.dart';
+import '../../shared/widgets/scoped_listenable_builder.dart';
+import '../../../application/localization/app_localizer.dart';
 
 class OperationsScreen extends StatelessWidget {
   const OperationsScreen({required this.controller, super.key});
@@ -22,12 +25,12 @@ class OperationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return ScopedListenableBuilder(
       listenable: controller,
       builder: (context, _) {
         final state = controller.state;
         return Scaffold(
-          appBar: AppBar(title: const Text('Центр проектов')),
+          appBar: AppBar(title: const AppText('Центр проектов')),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
@@ -49,7 +52,7 @@ class OperationsScreen extends StatelessWidget {
                         ProductsScreen(controller: controller),
                       ),
                       icon: const Icon(Icons.apps_outlined),
-                      label: const Text('Каталог продуктов'),
+                      label: const AppText('Каталог продуктов'),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -60,7 +63,7 @@ class OperationsScreen extends StatelessWidget {
                         ContractsScreen(controller: controller),
                       ),
                       icon: const Icon(Icons.handshake_outlined),
-                      label: const Text('Новые контракты'),
+                      label: const AppText('Новые контракты'),
                     ),
                   ),
                 ],
@@ -74,7 +77,7 @@ class OperationsScreen extends StatelessWidget {
               const SizedBox(height: 10),
               if (state.products.isEmpty)
                 const AppCard(
-                  child: Text('Продуктов пока нет. Откройте каталог выше.'),
+                  child: AppText('Продуктов пока нет. Откройте каталог выше.'),
                 )
               else
                 ...state.products.map(
@@ -94,7 +97,7 @@ class OperationsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               if (state.activeContracts.isEmpty)
-                const AppCard(child: Text('Активных контрактов пока нет.'))
+                const AppCard(child: AppText('Активных контрактов пока нет.'))
               else
                 ...state.activeContracts.map(
                   (contract) => Padding(
@@ -113,7 +116,7 @@ class OperationsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               if (state.employees.isEmpty)
-                const AppCard(child: Text('Сотрудников пока нет.'))
+                const AppCard(child: AppText('Сотрудников пока нет.'))
               else
                 AppCard(
                   child: Column(
@@ -135,13 +138,13 @@ class OperationsScreen extends StatelessWidget {
                               : 'Свободен';
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
-                            title: Text(employee.name),
-                            subtitle: Text(
+                            title: AppText(employee.name),
+                            subtitle: AppText(
                               '${employeeRoleName(employee)} • проектов ${state.assignmentsForEmployee(employee.id).length} • workload ${employee.workload}/100',
                             ),
                             trailing: ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 150),
-                              child: Text(
+                              child: AppText(
                                 work ?? 'Свободен',
                                 textAlign: TextAlign.end,
                                 overflow: TextOverflow.ellipsis,
@@ -201,11 +204,11 @@ class _ProductWorkCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AppText(
                       product.name,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text(
+                    AppText(
                       '${GameCatalog.blueprintById(product.blueprintId).name} • ${stageName(product.stage)}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
@@ -214,7 +217,7 @@ class _ProductWorkCard extends StatelessWidget {
               ),
               IconButton.filledTonal(
                 key: Key('manage-team-${product.id}'),
-                tooltip: 'Управлять командой',
+                tooltip: trContext(context, 'Управлять командой'),
                 onPressed: () => _showProductTeamSheet(context, state),
                 icon: const Icon(Icons.manage_accounts_outlined),
               ),
@@ -226,12 +229,12 @@ class _ProductWorkCard extends StatelessWidget {
           if (product.stage == ProductStage.development) ...[
             LinearProgressIndicator(value: product.developmentProgress),
             const SizedBox(height: 7),
-            Text('${phase.name} • ${staffing.status}'),
+            AppText('${phase.name} • ${staffing.status}'),
             const SizedBox(height: 7),
           ] else if (featureWork != null) ...[
             LinearProgressIndicator(value: featureWork.progress),
             const SizedBox(height: 7),
-            Text(
+            AppText(
               'Обновление: ${state.featureDevelopmentRemainingHours(product.id).round()} ч. осталось',
             ),
             const SizedBox(height: 7),
@@ -240,18 +243,22 @@ class _ProductWorkCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              Chip(label: Text('Команда ${team.length}')),
-              Chip(label: Text('Роли ${(coverage * 100).round()}%')),
-              Chip(label: Text('Capacity ${capacity.toStringAsFixed(2)} FTE')),
-              Chip(label: Text('Эфф. ${(staffing.efficiency * 100).round()}%')),
+              Chip(label: AppText('Команда ${team.length}')),
+              Chip(label: AppText('Роли ${(coverage * 100).round()}%')),
+              Chip(
+                label: AppText('Capacity ${capacity.toStringAsFixed(2)} FTE'),
+              ),
+              Chip(
+                label: AppText('Эфф. ${(staffing.efficiency * 100).round()}%'),
+              ),
               if (product.stage == ProductStage.development)
                 Chip(
-                  label: Text(
+                  label: AppText(
                     'Готовность ${(product.developmentProgress * 100).toStringAsFixed(1)}%',
                   ),
                 ),
               if (product.stage == ProductStage.live)
-                Chip(label: Text('${money(product.monthlyRevenue)}/мес.')),
+                Chip(label: AppText('${money(product.monthlyRevenue)}/мес.')),
             ],
           ),
         ],
@@ -318,16 +325,16 @@ class _ContractWorkCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AppText(
                       template.name,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text(template.client),
+                    AppText(template.client),
                   ],
                 ),
               ),
               IconButton.filledTonal(
-                tooltip: 'Управлять командой',
+                tooltip: trContext(context, 'Управлять командой'),
                 onPressed: () => _showContractTeamSheet(context, state),
                 icon: const Icon(Icons.manage_accounts_outlined),
               ),
@@ -342,12 +349,14 @@ class _ContractWorkCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              Chip(label: Text('Команда ${team.length}')),
-              Chip(label: Text('Роли ${(coverage * 100).round()}%')),
-              Chip(label: Text('${daysLeft.toStringAsFixed(1)} дн.')),
-              Chip(label: Text('Grace +${template.graceDays} дн.')),
+              Chip(label: AppText('Команда ${team.length}')),
+              Chip(label: AppText('Роли ${(coverage * 100).round()}%')),
+              Chip(label: AppText('${daysLeft.toStringAsFixed(1)} дн.')),
+              Chip(label: AppText('Grace +${template.graceDays} дн.')),
               Chip(
-                label: Text('${(contract.progress * 100).toStringAsFixed(1)}%'),
+                label: AppText(
+                  '${(contract.progress * 100).toStringAsFixed(1)}%',
+                ),
               ),
             ],
           ),
@@ -398,12 +407,12 @@ Future<void> _showAssignmentSheet({
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                AppText(
                   title,
                   style: Theme.of(sheetContext).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 6),
-                Text(
+                AppText(
                   'Выбрано ${selected.length}. Checkbox не закрывает панель; всё применяется только кнопкой сохранения.',
                 ),
                 const SizedBox(height: 12),
@@ -435,8 +444,8 @@ Future<void> _showAssignmentSheet({
                               : '$keyPrefix-${employee.id}',
                         ),
                         value: selected.contains(employee.id),
-                        title: Text(employee.name),
-                        subtitle: Text(
+                        title: AppText(employee.name),
+                        subtitle: AppText(
                           '${roleName(employee.role)} • ${busy ?? 'Свободен'}',
                         ),
                         onChanged: (value) => setSheetState(() {
@@ -455,7 +464,7 @@ Future<void> _showAssignmentSheet({
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => Navigator.of(sheetContext).pop(),
-                        child: const Text('Отмена'),
+                        child: const AppText('Отмена'),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -472,7 +481,7 @@ Future<void> _showAssignmentSheet({
                           Navigator.of(sheetContext).pop();
                         },
                         icon: const Icon(Icons.save_outlined),
-                        label: const Text('Сохранить команду'),
+                        label: const AppText('Сохранить команду'),
                       ),
                     ),
                   ],

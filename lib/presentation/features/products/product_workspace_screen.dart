@@ -12,11 +12,14 @@ import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/models.dart';
 import '../../../domain/entities/product_evolution_models.dart';
 import '../../../domain/explainability/staffing_deficit_resolver.dart';
-import '../../../domain/simulation/product_estimator.dart';
+import '../../../domain/simulation/product_projection_cache.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
 import 'product_detail_screen.dart';
+import '../../../application/localization/app_text.dart';
+import '../../shared/widgets/scoped_listenable_builder.dart';
+import '../../../application/localization/app_localizer.dart';
 
 enum _WorkspaceSection {
   overview,
@@ -66,14 +69,14 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
   Widget build(BuildContext context) {
     final product = _product;
     if (product == null) {
-      return const Scaffold(body: Center(child: Text('Продукт не найден')));
+      return const Scaffold(body: Center(child: AppText('Продукт не найден')));
     }
     return Scaffold(
       appBar: AppBar(
-        title: Text(product.name),
+        title: AppText(product.name),
         actions: [
           IconButton(
-            tooltip: 'Все расширенные инструменты',
+            tooltip: trContext(context, 'Все расширенные инструменты'),
             icon: const Icon(Icons.tune),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
@@ -86,33 +89,35 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
           ),
         ],
       ),
-      body: AnimatedBuilder(
-        animation: Listenable.merge([
-          widget.controller,
-          DisplayPreferences.instance,
-        ]),
-        builder: (context, _) {
-          final current = _product;
-          if (current == null) return const SizedBox.shrink();
-          return Column(
-            children: [
-              _SectionRail(
-                selected: _section,
-                onSelected: (value) => setState(() => _section = value),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: AnimatedSwitcher(
+      body: Column(
+        children: <Widget>[
+          _SectionRail(
+            selected: _section,
+            onSelected: (value) => setState(() => _section = value),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ScopedAnimatedBuilder(
+              animation: Listenable.merge(<Listenable>[
+                widget.controller,
+                DisplayPreferences.instance,
+              ]),
+              builder: (context, _) {
+                final current = _product;
+                if (current == null) {
+                  return const SizedBox.shrink();
+                }
+                return AnimatedSwitcher(
                   duration: const Duration(milliseconds: 160),
                   child: KeyedSubtree(
-                    key: ValueKey(_section),
+                    key: ValueKey<_WorkspaceSection>(_section),
                     child: _buildSection(current),
                   ),
-                ),
-              ),
-            ],
-          );
-        },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -134,7 +139,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
   Widget _overview(Product product) {
     final state = widget.controller.state;
     final blueprint = GameCatalog.blueprintById(product.blueprintId);
-    final projection = ProductEstimator.estimate(
+    final projection = ProductProjectionCache.estimate(
       blueprintId: product.blueprintId,
       frameworkId: product.frameworkId,
       languageIds: product.languageIds,
@@ -180,7 +185,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               borderRadius: BorderRadius.circular(8),
             ),
             const SizedBox(height: 8),
-            Text(
+            AppText(
               'Совместимость ${(projection.stackCoherence * 100).round()}%: ${_coherenceMeaning(projection.stackCoherence)}',
             ),
           ],
@@ -191,7 +196,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            const AppText(
               'Быстрые действия',
               style: TextStyle(fontWeight: FontWeight.w900),
             ),
@@ -208,7 +213,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                           )
                         : null,
                     icon: const Icon(Icons.rocket_launch),
-                    label: Text(
+                    label: AppText(
                       product.developmentProgress >= 1
                           ? 'Выпустить'
                           : 'Релиз ${(product.developmentProgress * 100).round()}%',
@@ -218,13 +223,13 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                   onPressed: () =>
                       setState(() => _section = _WorkspaceSection.team),
                   icon: const Icon(Icons.group_add),
-                  label: const Text('Нанять под проект'),
+                  label: const AppText('Нанять под проект'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () =>
                       setState(() => _section = _WorkspaceSection.metrics),
                   icon: const Icon(Icons.show_chart),
-                  label: const Text('Графики'),
+                  label: const AppText('Графики'),
                 ),
               ],
             ),
@@ -236,7 +241,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            const AppText(
               'Экономика сейчас',
               style: TextStyle(fontWeight: FontWeight.w900),
             ),
@@ -279,12 +284,12 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            AppText(
               'Эффективная скорость: ${capacity.toStringAsFixed(2)} FTE',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            Text(_capacityMeaning(capacity)),
+            AppText(_capacityMeaning(capacity)),
             const SizedBox(height: 12),
             LinearProgressIndicator(
               value: math.min(1, capacity / 5),
@@ -312,7 +317,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              const AppText(
                 'Поставить техническую работу',
                 style: TextStyle(fontWeight: FontWeight.w900),
               ),
@@ -322,8 +327,8 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                 final level = state.improvementLevel(product.id, type);
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text('${option.name} • уровень ${level + 1}'),
-                  subtitle: Text(
+                  title: AppText('${option.name} • уровень ${level + 1}'),
+                  subtitle: AppText(
                     'Только время команды; отдельного списания денег нет.',
                   ),
                   trailing: FilledButton(
@@ -335,7 +340,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                             ),
                           )
                         : null,
-                    child: const Text('Начать'),
+                    child: const AppText('Начать'),
                   ),
                 );
               }),
@@ -383,7 +388,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             Row(
               children: [
                 const Expanded(
-                  child: Text(
+                  child: AppText(
                     'Автоподбор команды',
                     style: TextStyle(fontWeight: FontWeight.w900),
                   ),
@@ -393,12 +398,12 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                     hasHr ? Icons.check_circle : Icons.lock,
                     size: 18,
                   ),
-                  label: Text(hasHr ? 'HR есть' : 'Нужен HR'),
+                  label: AppText(hasHr ? 'HR есть' : 'Нужен HR'),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            const Text(
+            const AppText(
               'Игра сама подберёт доступных специалистов под дефициты проекта. За срочный подбор зарплата и signing bonus каждого нанятого сотрудника будут на 25% выше.',
             ),
             const SizedBox(height: 12),
@@ -412,7 +417,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                       )
                     : null,
                 icon: const Icon(Icons.auto_awesome),
-                label: Text(
+                label: AppText(
                   deficits.isEmpty
                       ? 'Критических дефицитов нет'
                       : hasHr
@@ -430,7 +435,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              const AppText(
                 'Кого не хватает',
                 style: TextStyle(fontWeight: FontWeight.w900),
               ),
@@ -441,10 +446,10 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                     (deficit) => ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.person_search),
-                      title: Text(
+                      title: AppText(
                         '${deficit.roleName} ×${deficit.missingCount}',
                       ),
-                      subtitle: Text(
+                      subtitle: AppText(
                         '${deficit.effect}${deficit.languageName == null ? '' : ' • ${deficit.languageName}'}',
                       ),
                     ),
@@ -457,13 +462,13 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            const AppText(
               'Подходящие кандидаты',
               style: TextStyle(fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
             if (candidates.isEmpty)
-              const Text('На рынке сейчас нет кандидатов.')
+              const AppText('На рынке сейчас нет кандидатов.')
             else
               ...candidates.take(8).map((candidate) {
                 final roleNeeded = requiredRoles.contains(candidate.role.name);
@@ -474,10 +479,10 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
-                    child: Text(candidate.name.substring(0, 1)),
+                    child: AppText(candidate.name.substring(0, 1)),
                   ),
-                  title: Text(candidate.name),
-                  subtitle: Text(
+                  title: AppText(candidate.name),
+                  subtitle: AppText(
                     '${candidateRoleName(candidate)} • skill ${candidate.skill}${roleNeeded ? ' • нужная роль' : ''}${languageMatch.isEmpty ? '' : ' • ${languageMatch.join(', ')}'}',
                   ),
                   trailing: FilledButton(
@@ -487,7 +492,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                         productId: product.id,
                       ),
                     ),
-                    child: const Text('Нанять'),
+                    child: const AppText('Нанять'),
                   ),
                 );
               }),
@@ -500,7 +505,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              const AppText(
                 'Назначенные сотрудники',
                 style: TextStyle(fontWeight: FontWeight.w900),
               ),
@@ -511,8 +516,8 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                 );
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(employee.name),
-                  subtitle: Text(
+                  title: AppText(employee.name),
+                  subtitle: AppText(
                     '${employeeRoleName(employee)} • ${allocation.round()}% времени • workload ${employee.workload}/100 • morale ${employee.morale}/100',
                   ),
                   trailing: PopupMenuButton<String>(
@@ -530,11 +535,11 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                     itemBuilder: (_) => const [
                       PopupMenuItem(
                         value: 'vacation',
-                        child: Text('Отправить в отпуск'),
+                        child: AppText('Отправить в отпуск'),
                       ),
                       PopupMenuItem(
                         value: 'bonus',
-                        child: Text('Корпоративный бонус'),
+                        child: AppText('Корпоративный бонус'),
                       ),
                     ],
                   ),
@@ -572,12 +577,14 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
           children: [
             DropdownButtonFormField<String>(
               initialValue: _agencyId,
-              decoration: const InputDecoration(labelText: 'Агентство'),
+              decoration: InputDecoration(
+                labelText: trContext(context, 'Агентство'),
+              ),
               items: agencies
                   .map(
                     (item) => DropdownMenuItem(
                       value: item.id,
-                      child: Text(item.name),
+                      child: AppText(item.name),
                     ),
                   )
                   .toList(growable: false),
@@ -586,7 +593,9 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               initialValue: _channelId,
-              decoration: const InputDecoration(labelText: 'Канал'),
+              decoration: InputDecoration(
+                labelText: trContext(context, 'Канал'),
+              ),
               items:
                   (channels.isEmpty
                           ? ProductStrategyCatalog.channels
@@ -594,14 +603,14 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                       .map(
                         (item) => DropdownMenuItem(
                           value: item.id,
-                          child: Text(item.name),
+                          child: AppText(item.name),
                         ),
                       )
                       .toList(growable: false),
               onChanged: (value) => setState(() => _channelId = value),
             ),
             const SizedBox(height: 12),
-            Text('Бюджет: ${money(_campaignBudget)}'),
+            AppText('Бюджет: ${money(_campaignBudget)}'),
             Slider(
               value: _campaignBudget,
               min: 25000,
@@ -627,7 +636,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                       )
                     : null,
                 icon: const Icon(Icons.campaign),
-                label: const Text('Запустить кампанию на 7 дней'),
+                label: const AppText('Запустить кампанию на 7 дней'),
               ),
             ),
           ],
@@ -641,7 +650,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                AppText(
                   ProductStrategyCatalog.channelById(campaign.channelId).name,
                   style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
@@ -658,7 +667,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                           .toDouble(),
                 ),
                 const SizedBox(height: 8),
-                Text(
+                AppText(
                   'Прогноз ${campaign.projectedUsersLow}–${campaign.projectedUsersHigh} пользователей • ${money(campaign.budget)}',
                 ),
               ],
@@ -687,7 +696,9 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
       const SizedBox(height: 10),
       SegmentedButton<_MetricRange>(
         segments: _MetricRange.values
-            .map((item) => ButtonSegment(value: item, label: Text(item.label)))
+            .map(
+              (item) => ButtonSegment(value: item, label: AppText(item.label)),
+            )
             .toList(growable: false),
         selected: {_range},
         onSelectionChanged: (value) => setState(() => _range = value.first),
@@ -713,7 +724,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
       if (history.isEmpty) ...[
         const SizedBox(height: 12),
         const AppCard(
-          child: Text(
+          child: AppText(
             'История появится после смены игрового дня. Текущие значения уже учитываются.',
           ),
         ),
@@ -753,11 +764,11 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             _row('Выделено продукту', allocated.toStringAsFixed(1)),
             _row('Требуется сейчас', required.toStringAsFixed(1)),
             const SizedBox(height: 8),
-            Text(
+            AppText(
               'Формула спроса: базовая нагрузка + пользователи / 1000 × ${blueprint.computePerThousandUsers.toStringAsFixed(1)} × сложность стека. Поэтому требование растёт вместе с аудиторией.',
             ),
             const SizedBox(height: 12),
-            Text(
+            AppText(
               'Доля общей мощности: ${product.allocatedCapacityPercent.round()}%',
             ),
             Slider(
@@ -780,7 +791,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               const Icon(Icons.inventory_2, color: AppColors.yellow),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
+                child: AppText(
                   '${prepared.toStringAsFixed(0)} compute units куплено, но пока не участвует в расчёте: активен арендный hosting.',
                 ),
               ),
@@ -824,10 +835,10 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
     padding: const EdgeInsets.symmetric(vertical: 4),
     child: Row(
       children: [
-        Expanded(child: Text(label)),
+        Expanded(child: AppText(label)),
         const SizedBox(width: 12),
         Flexible(
-          child: Text(
+          child: AppText(
             value,
             textAlign: TextAlign.right,
             style: const TextStyle(fontWeight: FontWeight.w800),
@@ -887,7 +898,7 @@ class _SectionRail extends StatelessWidget {
                           children: [
                             Icon(item.$2, size: 18),
                             const SizedBox(height: 2),
-                            Text(
+                            AppText(
                               item.$3,
                               style: const TextStyle(
                                 fontSize: 11,
@@ -936,12 +947,12 @@ class _MetricStrip extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  AppText(
                     item.label,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 3),
-                  Text(
+                  AppText(
                     item.value,
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
@@ -976,12 +987,12 @@ class _MetricChartCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(
+                  child: AppText(
                     title,
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                 ),
-                Text(current),
+                AppText(current),
               ],
             ),
             const SizedBox(height: 12),
@@ -1039,6 +1050,18 @@ class _LinePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _LinePainter oldDelegate) =>
-      oldDelegate.points != points;
+  bool shouldRepaint(covariant _LinePainter oldDelegate) {
+    if (identical(oldDelegate.points, points)) {
+      return false;
+    }
+    if (oldDelegate.points.length != points.length) {
+      return true;
+    }
+    for (var index = 0; index < points.length; index += 1) {
+      if (oldDelegate.points[index] != points[index]) {
+        return true;
+      }
+    }
+    return false;
+  }
 }

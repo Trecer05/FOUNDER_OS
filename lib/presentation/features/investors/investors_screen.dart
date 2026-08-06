@@ -10,6 +10,9 @@ import '../../../domain/entities/models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../../application/localization/app_text.dart';
+import '../../shared/widgets/scoped_listenable_builder.dart';
+import '../../../application/localization/app_localizer.dart';
 
 class InvestorsScreen extends StatelessWidget {
   const InvestorsScreen({required this.controller, super.key});
@@ -18,12 +21,12 @@ class InvestorsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return ScopedListenableBuilder(
       listenable: controller,
       builder: (context, _) {
         final state = controller.state;
         return Scaffold(
-          appBar: AppBar(title: const Text('Инвесторы и доли')),
+          appBar: AppBar(title: const AppText('Инвесторы и доли')),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
@@ -68,7 +71,7 @@ class InvestorsScreen extends StatelessWidget {
                       Icon(Icons.warning_amber_rounded, color: AppColors.red),
                       SizedBox(width: 10),
                       Expanded(
-                        child: Text(
+                        child: AppText(
                           'Опасная зона: ещё одна крупная сделка может опустить долю ниже 50%.',
                         ),
                       ),
@@ -84,7 +87,7 @@ class InvestorsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               if (state.investorOffers.isEmpty)
-                const AppCard(child: Text('Активных предложений нет.'))
+                const AppCard(child: AppText('Активных предложений нет.'))
               else
                 ...state.investorOffers.map(
                   (offer) => Padding(
@@ -100,7 +103,7 @@ class InvestorsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               if (state.investorAgreements.isEmpty)
-                const AppCard(child: Text('Инвесторов в капитале пока нет.'))
+                const AppCard(child: AppText('Инвесторов в капитале пока нет.'))
               else
                 ...state.investorAgreements.map(
                   (agreement) => Padding(
@@ -137,13 +140,13 @@ class InvestorsScreen extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
+                                  AppText(
                                     investor.name,
                                     style: Theme.of(
                                       context,
                                     ).textTheme.titleMedium,
                                   ),
-                                  Text(
+                                  AppText(
                                     'Доступно до ${money(investor.availableCapital)}',
                                   ),
                                 ],
@@ -157,12 +160,12 @@ class InvestorsScreen extends StatelessWidget {
                                       investor,
                                     )
                                   : null,
-                              child: const Text('Запросить'),
+                              child: const AppText('Запросить'),
                             ),
                           ],
                         ),
                         const SizedBox(height: 10),
-                        Text(investor.thesis),
+                        AppText(investor.thesis),
                         const SizedBox(height: 9),
                         Wrap(
                           spacing: 7,
@@ -214,24 +217,26 @@ class InvestorsScreen extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                AppText(
                   'Запрос в ${investor.name}',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 6),
-                Text(
+                AppText(
                   'Если сумма выше лимита, инвестор предложит доступный максимум. При несоответствии фокусу или готовности он откажет.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
                   initialValue: selectedProductId,
-                  decoration: const InputDecoration(labelText: 'Продукт'),
+                  decoration: InputDecoration(
+                    labelText: trContext(context, 'Продукт'),
+                  ),
                   items: controller.state.products
                       .map(
                         (product) => DropdownMenuItem(
                           value: product.id,
-                          child: Text(product.name),
+                          child: AppText(product.name),
                         ),
                       )
                       .toList(growable: false),
@@ -242,7 +247,7 @@ class InvestorsScreen extends StatelessWidget {
                   },
                 ),
                 const SizedBox(height: 14),
-                Text(
+                AppText(
                   'Запрашиваемая сумма',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
@@ -253,7 +258,7 @@ class InvestorsScreen extends StatelessWidget {
                   children: <double>[250000, 500000, 1000000, 2000000, 5000000]
                       .map(
                         (value) => ChoiceChip(
-                          label: Text(money(value)),
+                          label: AppText(money(value)),
                           selected: amount == value,
                           onSelected: (_) =>
                               setModalState(() => amount = value),
@@ -275,7 +280,7 @@ class InvestorsScreen extends StatelessWidget {
                       );
                       Navigator.of(context).pop();
                     },
-                    child: const Text('Отправить запрос'),
+                    child: const AppText('Отправить запрос'),
                   ),
                 ),
               ],
@@ -308,9 +313,12 @@ class _OfferCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(investor.name, style: Theme.of(context).textTheme.titleMedium),
+          AppText(
+            investor.name,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 4),
-          Text('На продукт ${product?.name ?? 'закрытый продукт'}'),
+          AppText('На продукт ${product?.name ?? 'закрытый продукт'}'),
           const SizedBox(height: 10),
           _InfoRow('Запрошено', money(offer.requestedAmount)),
           if (pending) ...[
@@ -322,7 +330,7 @@ class _OfferCard extends StatelessWidget {
             const SizedBox(height: 10),
             LinearProgressIndicator(value: progress),
             const SizedBox(height: 6),
-            Text(
+            AppText(
               'Инвестор проверяет команду, готовность, риск и рынок. Максимальный срок — 14 дней.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -344,7 +352,7 @@ class _OfferCard extends StatelessWidget {
                   child: OutlinedButton(
                     onPressed: () =>
                         controller.dispatch(RejectInvestorOffer(offer.id)),
-                    child: const Text('Отказать'),
+                    child: const AppText('Отказать'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -352,7 +360,7 @@ class _OfferCard extends StatelessWidget {
                   child: FilledButton(
                     onPressed: () =>
                         controller.dispatch(AcceptInvestorOffer(offer.id)),
-                    child: const Text('Принять'),
+                    child: const AppText('Принять'),
                   ),
                 ),
               ],
@@ -377,8 +385,11 @@ class _AgreementCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(investor.name, style: Theme.of(context).textTheme.titleMedium),
-          Text(product?.name ?? 'Продукт продан/закрыт'),
+          AppText(
+            investor.name,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          AppText(product?.name ?? 'Продукт продан/закрыт'),
           const SizedBox(height: 10),
           _InfoRow('Инвестировано', money(agreement.investedAmount)),
           _InfoRow(
@@ -397,7 +408,7 @@ class _AgreementCard extends StatelessWidget {
               onPressed: controller.state.cash >= agreement.buybackPrice
                   ? () => controller.dispatch(BuyBackInvestor(agreement.id))
                   : null,
-              child: const Text('Выкупить долю обратно'),
+              child: const AppText('Выкупить долю обратно'),
             ),
           ),
         ],
@@ -426,8 +437,8 @@ class _InfoRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             children: [
-              Expanded(child: Text(label)),
-              Text(
+              Expanded(child: AppText(label)),
+              AppText(
                 value,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: danger ? AppColors.red : null,
@@ -455,7 +466,7 @@ class _Chip extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
       ),
-      child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+      child: AppText(label, style: Theme.of(context).textTheme.bodySmall),
     );
   }
 }

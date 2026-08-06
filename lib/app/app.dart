@@ -6,6 +6,7 @@ import '../application/settings/display_preferences.dart';
 import '../presentation/features/dashboard/founder_dashboard.dart';
 import '../presentation/shared/widgets/global_time_control_bar.dart';
 import 'theme/app_theme.dart';
+import '../presentation/shared/widgets/scoped_listenable_builder.dart';
 
 class FounderOsApp extends StatelessWidget {
   const FounderOsApp({
@@ -19,7 +20,7 @@ class FounderOsApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
+    return ScopedAnimatedBuilder(
       animation: DisplayPreferences.instance,
       builder: (context, _) => MaterialApp(
         debugShowCheckedModeBanner: false,

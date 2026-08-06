@@ -120,3 +120,8 @@ Implemented in the v9 overlay package: floating time UI, dynamic stack resolver,
 Status: **implemented, verification pending**.
 
 Automated verification command: `bash tools/verify_ux_economy_v10.sh`. Physical-iPhone UAT remains required before marking the iteration verified. Full historic RU/EN localization and a complete regional price audit remain partial.
+
+<!-- V10_OPTIMIZATION -->
+## v10_optimization
+
+Status: **implemented, verification pending**. Automated verifier includes 95 existing tests plus optimization/localization tests and iOS/Android builds. Physical-device profiling remains required.

@@ -11,6 +11,8 @@ import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/metric_card.dart';
 import '../../shared/widgets/section_header.dart';
 import 'contract_detail_screen.dart';
+import '../../../application/localization/app_text.dart';
+import '../../shared/widgets/scoped_listenable_builder.dart';
 
 class ContractsScreen extends StatelessWidget {
   const ContractsScreen({required this.controller, super.key});
@@ -19,12 +21,12 @@ class ContractsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return ScopedListenableBuilder(
       listenable: controller,
       builder: (context, _) {
         final state = controller.state;
         return Scaffold(
-          appBar: AppBar(title: const Text('Клиентские контракты')),
+          appBar: AppBar(title: const AppText('Клиентские контракты')),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
@@ -56,12 +58,12 @@ class ContractsScreen extends StatelessWidget {
                         size: 34,
                       ),
                       SizedBox(height: 10),
-                      Text(
+                      AppText(
                         'Контракты пока закрыты',
                         style: TextStyle(fontWeight: FontWeight.w900),
                       ),
                       SizedBox(height: 5),
-                      Text(
+                      AppText(
                         'Создайте и выпустите «Сайт компании». После релиза заказы появятся здесь и внутри карточки сайта.',
                       ),
                     ],
@@ -186,11 +188,11 @@ class _ActiveContractCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AppText(
                       template.name,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text(
+                    AppText(
                       template.client,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
@@ -203,7 +205,7 @@ class _ActiveContractCard extends StatelessWidget {
           const SizedBox(height: 10),
           LinearProgressIndicator(value: contract.progress),
           const SizedBox(height: 8),
-          Text(
+          AppText(
             '${(contract.progress * 100).toStringAsFixed(1)}% • ${daysLeft.toStringAsFixed(1)} дн.',
           ),
           const SizedBox(height: 8),
@@ -211,9 +213,9 @@ class _ActiveContractCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              Chip(label: Text('Команда ${team.length}')),
-              Chip(label: Text('Роли ${(coverage * 100).round()}%')),
-              Chip(label: Text(money(contract.reward))),
+              Chip(label: AppText('Команда ${team.length}')),
+              Chip(label: AppText('Роли ${(coverage * 100).round()}%')),
+              Chip(label: AppText(money(contract.reward))),
             ],
           ),
         ],
@@ -252,38 +254,38 @@ class _ContractOfferCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AppText(
                       template.name,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text(template.client),
+                    AppText(template.client),
                   ],
                 ),
               ),
-              Text(
+              AppText(
                 money(template.reward),
                 style: const TextStyle(fontWeight: FontWeight.w900),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(template.description),
+          AppText(template.description),
           const SizedBox(height: 10),
           Wrap(
             spacing: 7,
             runSpacing: 7,
             children: [
-              Chip(label: Text('${template.deadlineDays} дней')),
-              Chip(label: Text('${template.developmentHours.round()} ч.')),
+              Chip(label: AppText('${template.deadlineDays} дней')),
+              Chip(label: AppText('${template.developmentHours.round()} ч.')),
               Chip(
-                label: Text(
+                label: AppText(
                   'Доступные роли ${(availableCoverage * 100).round()}%',
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(
+          AppText(
             'Нужны: ${template.requiredRoles.map(roleName).join(', ')}',
             style: Theme.of(context).textTheme.bodySmall,
           ),
@@ -294,7 +296,7 @@ class _ContractOfferCard extends StatelessWidget {
               key: Key('accept-contract-${template.id}'),
               onPressed: active || limitReached ? null : onAccept,
               icon: const Icon(Icons.handshake_outlined),
-              label: Text(
+              label: AppText(
                 active
                     ? 'Уже выполняется'
                     : limitReached

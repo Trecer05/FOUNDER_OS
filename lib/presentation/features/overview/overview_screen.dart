@@ -11,6 +11,7 @@ import '../../shared/widgets/metric_card.dart';
 import '../../shared/widgets/section_header.dart';
 import '../contracts/contract_detail_screen.dart';
 import '../products/product_detail_screen.dart';
+import '../../../application/localization/app_text.dart';
 
 class OverviewScreen extends StatelessWidget {
   const OverviewScreen({required this.controller, super.key});
@@ -124,7 +125,7 @@ class OverviewScreen extends StatelessWidget {
             hintTitle: 'Первый продукт',
             hintBody:
                 'Откройте вкладку «Продукты», выберите категорию, стек и функции. Новый проект начнётся с 0% разработки.',
-            child: Text('Создайте первый продукт во вкладке «Продукты».'),
+            child: AppText('Создайте первый продукт во вкладке «Продукты».'),
           )
         else
           ...state.products.map(
@@ -194,12 +195,12 @@ class OverviewScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            AppText(
                               item.title,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             const SizedBox(height: 4),
-                            Text(item.body),
+                            AppText(item.body),
                           ],
                         ),
                       ),
@@ -233,7 +234,7 @@ class OverviewScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        Expanded(child: Text(message)),
+                        Expanded(child: AppText(message)),
                       ],
                     ),
                   ),
@@ -286,11 +287,11 @@ class _ProjectSummaryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AppText(
                       product.name,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text(
+                    AppText(
                       '${categoryName(product.category)} • ${stageName(product.stage)}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
@@ -304,40 +305,45 @@ class _ProjectSummaryCard extends StatelessWidget {
           if (!live) ...[
             LinearProgressIndicator(value: product.developmentProgress),
             const SizedBox(height: 7),
-            Text(
+            AppText(
               '${phase.name} • ${(product.developmentProgress * 100).toStringAsFixed(1)}%',
             ),
             const SizedBox(height: 4),
-            Text(staffing.status, style: Theme.of(context).textTheme.bodySmall),
+            AppText(
+              staffing.status,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ],
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              Chip(label: Text('Команда $teamCount')),
-              Chip(label: Text('Роли ${(coverage * 100).round()}%')),
+              Chip(label: AppText('Команда $teamCount')),
+              Chip(label: AppText('Роли ${(coverage * 100).round()}%')),
               if (!live)
                 Chip(
-                  label: Text('Эфф. ${(staffing.efficiency * 100).round()}%'),
+                  label: AppText(
+                    'Эфф. ${(staffing.efficiency * 100).round()}%',
+                  ),
                 ),
               if (featureWork != null)
                 Chip(
-                  label: Text(
+                  label: AppText(
                     'Update ${(featureWork.progress * 100).toStringAsFixed(0)}%',
                   ),
                 ),
               if (live)
-                Chip(label: Text('Users ${compactNumber(product.users)}')),
+                Chip(label: AppText('Users ${compactNumber(product.users)}')),
               if (live)
                 Chip(
-                  label: Text(
+                  label: AppText(
                     'Свежесть ${state.productFreshnessScore(product).round()}',
                   ),
                 ),
               if (live)
                 Chip(
-                  label: Text('${net >= 0 ? '+' : ''}${money(net)}/мес.'),
+                  label: AppText('${net >= 0 ? '+' : ''}${money(net)}/мес.'),
                   backgroundColor: (net >= 0 ? AppColors.green : AppColors.red)
                       .withAlpha(18),
                 ),
@@ -383,11 +389,11 @@ class _ContractSummaryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AppText(
                       template.name,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text(template.client),
+                    AppText(template.client),
                   ],
                 ),
               ),
@@ -402,10 +408,12 @@ class _ContractSummaryCard extends StatelessWidget {
             runSpacing: 8,
             children: [
               Chip(
-                label: Text('${(contract.progress * 100).toStringAsFixed(1)}%'),
+                label: AppText(
+                  '${(contract.progress * 100).toStringAsFixed(1)}%',
+                ),
               ),
-              Chip(label: Text('Команда ${team.length}')),
-              Chip(label: Text('${daysLeft.toStringAsFixed(1)} дн.')),
+              Chip(label: AppText('Команда ${team.length}')),
+              Chip(label: AppText('${daysLeft.toStringAsFixed(1)} дн.')),
             ],
           ),
         ],
@@ -434,11 +442,11 @@ class _SummaryRow extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(flex: 2, child: Text(label)),
+              Expanded(flex: 2, child: AppText(label)),
               const SizedBox(width: 12),
               Expanded(
                 flex: 3,
-                child: Text(
+                child: AppText(
                   value,
                   textAlign: TextAlign.end,
                   softWrap: true,

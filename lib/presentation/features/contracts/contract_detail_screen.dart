@@ -8,6 +8,8 @@ import '../../../domain/entities/game_state.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../../application/localization/app_text.dart';
+import '../../shared/widgets/scoped_listenable_builder.dart';
 
 class ContractDetailScreen extends StatelessWidget {
   const ContractDetailScreen({
@@ -21,14 +23,14 @@ class ContractDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return ScopedListenableBuilder(
       listenable: controller,
       builder: (context, _) {
         final state = controller.state;
         final contract = state.contractById(contractId);
         if (contract == null) {
           return const Scaffold(
-            body: Center(child: Text('Контракт не найден')),
+            body: Center(child: AppText('Контракт не найден')),
           );
         }
         final template = state.contractTemplate(contract.templateId);
@@ -45,7 +47,7 @@ class ContractDetailScreen extends StatelessWidget {
             : remainingHours / (0.30 + capacity / 80) / 24;
 
         return Scaffold(
-          appBar: AppBar(title: Text(template.name)),
+          appBar: AppBar(title: AppText(template.name)),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
@@ -65,7 +67,7 @@ class ContractDetailScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AppText(
                       '${(contract.progress * 100).toStringAsFixed(1)}%',
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
@@ -118,8 +120,8 @@ class ContractDetailScreen extends StatelessWidget {
                               color: ready ? AppColors.green : AppColors.red,
                             ),
                             const SizedBox(width: 8),
-                            Expanded(child: Text(roleName(role))),
-                            Text('$actual/1'),
+                            Expanded(child: AppText(roleName(role))),
+                            AppText('$actual/1'),
                           ],
                         ),
                       );
@@ -133,7 +135,7 @@ class ContractDetailScreen extends StatelessWidget {
                             ? () => _showTeamSheet(context, state, contract)
                             : null,
                         icon: const Icon(Icons.groups_2_outlined),
-                        label: const Text('Изменить команду'),
+                        label: const AppText('Изменить команду'),
                       ),
                     ),
                   ],
@@ -187,18 +189,18 @@ class ContractDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  AppText(
                     'Команда контракта',
                     style: Theme.of(sheetContext).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 6),
-                  Text(
+                  AppText(
                     'Выбрано: ${selected.length}. Изменения применятся только после сохранения.',
                   ),
                   const SizedBox(height: 12),
                   Expanded(
                     child: state.employees.isEmpty
-                        ? const Center(child: Text('Сотрудников пока нет.'))
+                        ? const Center(child: AppText('Сотрудников пока нет.'))
                         : ListView.builder(
                             itemCount: state.employees.length,
                             itemBuilder: (_, index) {
@@ -225,8 +227,8 @@ class ContractDetailScreen extends StatelessWidget {
                                   'contract-${contract.id}-employee-${employee.id}',
                                 ),
                                 value: selected.contains(employee.id),
-                                title: Text(employee.name),
-                                subtitle: Text(
+                                title: AppText(employee.name),
+                                subtitle: AppText(
                                   '${roleName(employee.role)} • ${busyLabel ?? 'свободен'}',
                                 ),
                                 onChanged: (value) => setSheetState(() {
@@ -245,7 +247,7 @@ class ContractDetailScreen extends StatelessWidget {
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () => Navigator.of(sheetContext).pop(),
-                          child: const Text('Отмена'),
+                          child: const AppText('Отмена'),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -263,7 +265,7 @@ class ContractDetailScreen extends StatelessWidget {
                             Navigator.of(sheetContext).pop();
                           },
                           icon: const Icon(Icons.save_outlined),
-                          label: const Text('Сохранить команду'),
+                          label: const AppText('Сохранить команду'),
                         ),
                       ),
                     ],
@@ -303,8 +305,11 @@ class _ValueRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 7),
           child: Row(
             children: [
-              Expanded(child: Text(label)),
-              Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+              Expanded(child: AppText(label)),
+              AppText(
+                value,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
             ],
           ),
         ),

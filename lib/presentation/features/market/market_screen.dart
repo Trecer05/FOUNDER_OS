@@ -8,6 +8,9 @@ import '../../../domain/entities/models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../../application/localization/app_text.dart';
+import '../../shared/widgets/scoped_listenable_builder.dart';
+import '../../../application/localization/app_localizer.dart';
 
 class MarketScreen extends StatelessWidget {
   const MarketScreen({required this.controller, super.key});
@@ -16,7 +19,7 @@ class MarketScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return ScopedListenableBuilder(
       listenable: controller,
       builder: (context, _) {
         final state = controller.state;
@@ -26,7 +29,7 @@ class MarketScreen extends StatelessWidget {
               double.infinity,
             );
         return Scaffold(
-          appBar: AppBar(title: const Text('Рынок и M&A')),
+          appBar: AppBar(title: const AppText('Рынок и M&A')),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
@@ -113,11 +116,11 @@ class _CompanyCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AppText(
                       company.companyName,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text(
+                    AppText(
                       '${company.productName} • ${categoryName(company.category)}',
                     ),
                   ],
@@ -127,7 +130,7 @@ class _CompanyCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Text(company.description),
+          AppText(company.description),
           const SizedBox(height: 10),
           Wrap(
             spacing: 7,
@@ -147,7 +150,7 @@ class _CompanyCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           if (holding != null)
-            Text(
+            AppText(
               'В портфеле: ${holding.ownershipPercent.toStringAsFixed(1)}%, вложено ${money(holding.amountPaid)}',
               style: const TextStyle(
                 color: AppColors.green,
@@ -171,7 +174,7 @@ class _CompanyCard extends StatelessWidget {
                           ),
                         )
                       : null,
-                  child: const Text('Купить 5%'),
+                  child: const AppText('Купить 5%'),
                 ),
               ),
               const SizedBox(width: 8),
@@ -186,7 +189,7 @@ class _CompanyCard extends StatelessWidget {
                           sameCategoryProducts,
                         )
                       : null,
-                  child: const Text('Купить продукт'),
+                  child: const AppText('Купить продукт'),
                 ),
               ),
             ],
@@ -198,7 +201,7 @@ class _CompanyCard extends StatelessWidget {
               onPressed: !acquired && state.cash >= company.valuation
                   ? () => controller.dispatch(AcquireMarketCompany(company.id))
                   : null,
-              child: Text('Купить компанию • ${money(company.valuation)}'),
+              child: AppText('Купить компанию • ${money(company.valuation)}'),
             ),
           ),
           const SizedBox(height: 9),
@@ -213,7 +216,7 @@ class _CompanyCard extends StatelessWidget {
               ),
               const SizedBox(width: 7),
               Expanded(
-                child: Text(
+                child: AppText(
                   migrationReady
                       ? 'Миграция готова: есть аналог и ${(company.computeDemand * 1.2).round()}+ свободных compute units.'
                       : 'Миграция не готова: нужен свой аналог и ${(company.computeDemand * 1.2).round()} свободных compute units.',
@@ -249,7 +252,7 @@ class _CompanyCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                AppText(
                   'Купить ${company.productName}',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
@@ -271,11 +274,11 @@ class _CompanyCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            AppText(
                               'Поддерживать отдельно',
                               style: TextStyle(fontWeight: FontWeight.w900),
                             ),
-                            Text(
+                            AppText(
                               'Продукт, пользователи и выручка сохраняются. Нужно выделить ему compute.',
                             ),
                           ],
@@ -306,11 +309,11 @@ class _CompanyCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            const AppText(
                               'Перевести пользователей',
                               style: TextStyle(fontWeight: FontWeight.w900),
                             ),
-                            Text(
+                            AppText(
                               migrationReady
                                   ? '82% пользователей перейдут в выбранный аналог без критической просадки.'
                                   : 'Заблокировано: недостаточно инфраструктуры или нет аналога.',
@@ -326,14 +329,14 @@ class _CompanyCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: targetId,
-                    decoration: const InputDecoration(
-                      labelText: 'Целевой продукт',
+                    decoration: InputDecoration(
+                      labelText: trContext(context, 'Целевой продукт'),
                     ),
                     items: sameCategoryProducts
                         .map(
                           (product) => DropdownMenuItem(
                             value: product.id,
-                            child: Text(product.name),
+                            child: AppText(product.name),
                           ),
                         )
                         .toList(growable: false),
@@ -358,7 +361,9 @@ class _CompanyCard extends StatelessWidget {
                             Navigator.of(context).pop();
                           }
                         : null,
-                    child: Text('Подтвердить • ${money(company.productPrice)}'),
+                    child: AppText(
+                      'Подтвердить • ${money(company.productPrice)}',
+                    ),
                   ),
                 ),
               ],
@@ -384,8 +389,8 @@ class _InfoRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             children: [
-              Expanded(child: Text(label)),
-              Text(value, style: Theme.of(context).textTheme.titleMedium),
+              Expanded(child: AppText(label)),
+              AppText(value, style: Theme.of(context).textTheme.titleMedium),
             ],
           ),
         ),
@@ -408,7 +413,7 @@ class _ValueChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
       ),
-      child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+      child: AppText(label, style: Theme.of(context).textTheme.bodySmall),
     );
   }
 }
@@ -426,7 +431,7 @@ class _StatusChip extends StatelessWidget {
         color: (positive ? AppColors.green : AppColors.red).withAlpha(20),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Text(
+      child: AppText(
         label,
         style: TextStyle(
           color: positive ? AppColors.green : AppColors.red,

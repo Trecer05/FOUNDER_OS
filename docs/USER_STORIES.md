@@ -251,3 +251,10 @@
 - As a player, I see investor negotiation progress and receive an explicit answer.
 - As a player, I can compare project metrics over selectable time ranges.
 - As a player, I can distinguish rented active compute from owned prepared hardware.
+
+<!-- V10_OPTIMIZATION -->
+## v10_optimization stories
+
+- As a player, I can run a large company without heavy per-tick UI stalls.
+- As a player, my newest state survives rapid actions and emergency negative cash.
+- As a RU/EN player, I do not see accidental mixed-language implementation copy.

@@ -11,6 +11,9 @@ import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/metric_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../../application/localization/app_text.dart';
+import '../../shared/widgets/scoped_listenable_builder.dart';
+import '../../../application/localization/app_localizer.dart';
 
 enum _FinanceSeries { cash, income, expenses, profit }
 
@@ -35,7 +38,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return ScopedListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) {
         final state = widget.controller.state;
@@ -65,7 +68,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
             : state.financeHistory;
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Финансы компании')),
+          appBar: AppBar(title: const AppText('Финансы компании')),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
@@ -168,11 +171,13 @@ class _FinanceScreenState extends State<FinanceScreen> {
                             const RequestBusinessLoan(),
                           ),
                           icon: const Icon(Icons.request_quote_outlined),
-                          label: const Text('Подать заявку на бизнес-кредит'),
+                          label: const AppText(
+                            'Подать заявку на бизнес-кредит',
+                          ),
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
+                      AppText(
                         'Кредит виден всегда. Банк оценивает продукты, контракты, burn и security-риск.',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
@@ -187,11 +192,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
                             const AcceptEmergencyLoan(),
                           ),
                           icon: const Icon(Icons.account_balance_outlined),
-                          label: const Text('Запросить экстренный кредит'),
+                          label: const AppText('Запросить экстренный кредит'),
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
+                      AppText(
                         'Банк может отказать: учитываются выпущенные продукты, контракты, burn и security-риск.',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
@@ -215,9 +220,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       controller: _promoController,
                       autocorrect: false,
                       textCapitalization: TextCapitalization.characters,
-                      decoration: const InputDecoration(
-                        labelText: 'Промокод',
-                        hintText: 'FOUNDER-RICH',
+                      decoration: InputDecoration(
+                        labelText: trContext(context, 'Промокод'),
+                        hintText: trContext(context, 'FOUNDER-RICH'),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -232,12 +237,12 @@ class _FinanceScreenState extends State<FinanceScreen> {
                           _promoController.clear();
                         },
                         icon: const Icon(Icons.science_outlined),
-                        label: const Text('Применить'),
+                        label: const AppText('Применить'),
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text('FOUNDER-RICH — добавить 5 млн ₽.'),
-                    const Text(
+                    const AppText('FOUNDER-RICH — добавить 5 млн ₽.'),
+                    const AppText(
                       'FOUNDER-BROKE — установить баланс −500 тыс. ₽.',
                     ),
                   ],
@@ -257,19 +262,19 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       segments: const [
                         ButtonSegment(
                           value: _FinanceSeries.cash,
-                          label: Text('Cash'),
+                          label: AppText('Cash'),
                         ),
                         ButtonSegment(
                           value: _FinanceSeries.income,
-                          label: Text('Доход'),
+                          label: AppText('Доход'),
                         ),
                         ButtonSegment(
                           value: _FinanceSeries.expenses,
-                          label: Text('Расход'),
+                          label: AppText('Расход'),
                         ),
                         ButtonSegment(
                           value: _FinanceSeries.profit,
-                          label: Text('Profit'),
+                          label: AppText('Profit'),
                         ),
                       ],
                       selected: <_FinanceSeries>{_series},
@@ -296,7 +301,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(
+                    AppText(
                       'Точек: ${history.length} • от дня ${history.first.simulationMinutes ~/ 1440 + 1} до дня ${history.last.simulationMinutes ~/ 1440 + 1}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
@@ -365,7 +370,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
               const SizedBox(height: 10),
               AppCard(
                 child: state.financeTransactions.isEmpty
-                    ? const Text('Разовых финансовых операций пока нет.')
+                    ? const AppText('Разовых финансовых операций пока нет.')
                     : Column(
                         children: state.financeTransactions
                             .take(30)
@@ -388,7 +393,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                     ),
                     const SizedBox(height: 12),
                     if (state.investorAgreements.isEmpty)
-                      const Text('Внешних инвесторов пока нет.')
+                      const AppText('Внешних инвесторов пока нет.')
                     else
                       ...state.investorAgreements.map((agreement) {
                         final investor = GameCatalog.investorById(
@@ -396,11 +401,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         );
                         return ListTile(
                           contentPadding: EdgeInsets.zero,
-                          title: Text(investor.name),
-                          subtitle: Text(
+                          title: AppText(investor.name),
+                          subtitle: AppText(
                             'Revenue share ${directPercent(agreement.revenueSharePercent, fractionDigits: 1)}',
                           ),
-                          trailing: Text(
+                          trailing: AppText(
                             directPercent(
                               agreement.equityPercent,
                               fractionDigits: 1,
@@ -438,10 +443,10 @@ class _FinanceStatusRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             children: [
-              Expanded(child: Text(label)),
+              Expanded(child: AppText(label)),
               const SizedBox(width: 10),
               Flexible(
-                child: Text(
+                child: AppText(
                   value,
                   textAlign: TextAlign.end,
                   style: Theme.of(context).textTheme.titleMedium,
@@ -547,8 +552,8 @@ class _BreakdownBar extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(child: Text(label)),
-              Text(
+              Expanded(child: AppText(label)),
+              AppText(
                 money(value),
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
@@ -581,11 +586,11 @@ class _TransactionTile extends StatelessWidget {
           size: 18,
         ),
       ),
-      title: Text(transaction.description),
-      subtitle: Text(
+      title: AppText(transaction.description),
+      subtitle: AppText(
         'День ${transaction.simulationMinutes ~/ 1440 + 1} • ${transaction.category.name}',
       ),
-      trailing: Text(
+      trailing: AppText(
         '${transaction.income ? '+' : ''}${money(transaction.amount)}',
         style: TextStyle(
           color: transaction.income ? AppColors.green : AppColors.red,
@@ -607,8 +612,8 @@ class _OwnershipBar extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Expanded(child: Text('Основатель')),
-            Text(
+            const Expanded(child: AppText('Основатель')),
+            AppText(
               directPercent(founderPercent, fractionDigits: 1),
               style: const TextStyle(fontWeight: FontWeight.w900),
             ),

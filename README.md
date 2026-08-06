@@ -81,3 +81,8 @@ Verification: `bash tools/verify_ui_content_v9.sh`.
 ## v10 UAT rework
 
 Product workspaces, explainable language/stack limits, multi-project staffing, HR auto-hire, visible finance/time, investor negotiations, discoverable credit, time-based improvements, contract grace periods, display currency, and v10 snapshot migration are documented in `docs/V10_UAT_REWORK.md`. Run `bash tools/verify_ux_economy_v10.sh` before commit.
+
+<!-- V10_OPTIMIZATION -->
+## v10_optimization
+
+Native atomic snapshot I/O, coalesced saves, projection/index caches, localized rebuilds, RU/EN presentation audit and dual-platform verification are documented in `docs/V10_OPTIMIZATION.md`. Run `bash tools/verify_v10_optimization.sh`.

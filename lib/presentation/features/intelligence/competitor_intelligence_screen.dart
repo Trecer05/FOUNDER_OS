@@ -7,6 +7,7 @@ import '../../../domain/entities/models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../../application/localization/app_text.dart';
 
 class CompetitorIntelligenceScreen extends StatefulWidget {
   const CompetitorIntelligenceScreen({required this.controller, super.key});
@@ -41,7 +42,7 @@ class _CompetitorIntelligenceScreenState
     final ownBest = own.isEmpty ? null : own.first;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Конкурентная разведка')),
+      appBar: AppBar(title: const AppText('Конкурентная разведка')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
@@ -59,7 +60,7 @@ class _CompetitorIntelligenceScreenState
                     (category) => Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ChoiceChip(
-                        label: Text(categoryName(category)),
+                        label: AppText(categoryName(category)),
                         selected: category == selected,
                         onSelected: (_) => setState(() => _category = category),
                       ),
@@ -113,11 +114,11 @@ class _CompetitorCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          AppText(
             competitor.productName,
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          Text(
+          AppText(
             '${competitor.companyName} • ${compactNumber(competitor.users)} пользователей • ${money(competitor.monthlyPrice)}/мес.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
@@ -174,8 +175,8 @@ class _Comparison extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         children: [
-          Expanded(child: Text(label)),
-          Text(
+          Expanded(child: AppText(label)),
+          AppText(
             ownValue,
             style: TextStyle(
               fontWeight: FontWeight.w900,
@@ -184,11 +185,11 @@ class _Comparison extends StatelessWidget {
           ),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 8),
-            child: Text('vs', style: TextStyle(color: AppColors.textMuted)),
+            child: AppText('vs', style: TextStyle(color: AppColors.textMuted)),
           ),
           SizedBox(
             width: 86,
-            child: Text(
+            child: AppText(
               competitorValue,
               textAlign: TextAlign.end,
               style: const TextStyle(fontWeight: FontWeight.w700),
@@ -218,8 +219,8 @@ class _SegmentCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(segment.name, style: Theme.of(context).textTheme.titleMedium),
-          Text(
+          AppText(segment.name, style: Theme.of(context).textTheme.titleMedium),
+          AppText(
             'Доступный рынок: ${compactNumber(segment.addressableUsers)} пользователей',
             style: Theme.of(context).textTheme.bodySmall,
           ),
@@ -229,7 +230,7 @@ class _SegmentCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 3),
               child: Row(
                 children: [
-                  Expanded(child: Text(item.key)),
+                  Expanded(child: AppText(item.key)),
                   SizedBox(
                     width: 140,
                     child: LinearProgressIndicator(value: item.value),
@@ -237,7 +238,10 @@ class _SegmentCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   SizedBox(
                     width: 42,
-                    child: Text(percent(item.value), textAlign: TextAlign.end),
+                    child: AppText(
+                      percent(item.value),
+                      textAlign: TextAlign.end,
+                    ),
                   ),
                 ],
               ),

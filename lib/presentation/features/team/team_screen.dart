@@ -9,6 +9,8 @@ import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/compact_team_averages.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../../application/localization/app_text.dart';
+import '../../../application/localization/app_localizer.dart';
 
 enum _TeamView { candidates, employees }
 
@@ -85,14 +87,14 @@ class _TeamScreenState extends State<TeamScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              AppText(
                 'Средние показатели',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 10),
               CompactTeamAverages(state: state),
               const SizedBox(height: 10),
-              Text(
+              AppText(
                 '${state.employees.length - state.unassignedEmployees.length} назначено • ${state.unassignedEmployees.length} в резерве',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -128,8 +130,8 @@ class _TeamScreenState extends State<TeamScreen> {
             key: const Key('team-candidate-search'),
             controller: _searchController,
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              hintText: 'Имя, роль или язык',
+            decoration: InputDecoration(
+              hintText: trContext(context, 'Имя, роль или язык'),
               prefixIcon: Icon(Icons.search),
             ),
           ),
@@ -139,7 +141,7 @@ class _TeamScreenState extends State<TeamScreen> {
             child: Row(
               children: [
                 ChoiceChip(
-                  label: const Text('Все роли'),
+                  label: const AppText('Все роли'),
                   selected: _role == null,
                   onSelected: (_) => setState(() => _role = null),
                 ),
@@ -148,7 +150,7 @@ class _TeamScreenState extends State<TeamScreen> {
                   (role) => Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: Text(roleName(role)),
+                      label: AppText(roleName(role)),
                       selected: _role == role,
                       onSelected: (_) => setState(() => _role = role),
                     ),
@@ -168,26 +170,26 @@ class _TeamScreenState extends State<TeamScreen> {
                   children: [
                     const Icon(Icons.sort, color: AppColors.textMuted),
                     const SizedBox(width: 10),
-                    const Expanded(child: Text('Сортировка')),
+                    const Expanded(child: AppText('Сортировка')),
                     DropdownButton<_CandidateSort>(
                       value: _sort,
                       underline: const SizedBox.shrink(),
                       items: const [
                         DropdownMenuItem(
                           value: _CandidateSort.skill,
-                          child: Text('Навык'),
+                          child: AppText('Навык'),
                         ),
                         DropdownMenuItem(
                           value: _CandidateSort.salary,
-                          child: Text('Зарплата'),
+                          child: AppText('Зарплата'),
                         ),
                         DropdownMenuItem(
                           value: _CandidateSort.reliability,
-                          child: Text('Надёжность'),
+                          child: AppText('Надёжность'),
                         ),
                         DropdownMenuItem(
                           value: _CandidateSort.communication,
-                          child: Text('Коммуникация'),
+                          child: AppText('Коммуникация'),
                         ),
                       ],
                       onChanged: (value) {
@@ -202,7 +204,7 @@ class _TeamScreenState extends State<TeamScreen> {
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: _remoteOnly,
-                  title: const Text('Только remote'),
+                  title: const AppText('Только remote'),
                   onChanged: (value) => setState(() => _remoteOnly = value),
                 ),
               ],
@@ -210,7 +212,7 @@ class _TeamScreenState extends State<TeamScreen> {
           ),
           const SizedBox(height: 12),
           if (candidates.isEmpty)
-            const AppCard(child: Text('По фильтрам кандидаты не найдены.'))
+            const AppCard(child: AppText('По фильтрам кандидаты не найдены.'))
           else
             ...candidates.map(
               (candidate) => Padding(
@@ -228,7 +230,7 @@ class _TeamScreenState extends State<TeamScreen> {
             ),
         ] else if (state.employees.isEmpty)
           const AppCard(
-            child: Text('Команда пуста. Наймите людей из рынка кандидатов.'),
+            child: AppText('Команда пуста. Наймите людей из рынка кандидатов.'),
           )
         else
           ...state.employees.map(
@@ -271,7 +273,7 @@ class _ViewButton extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-          child: Text(
+          child: AppText(
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -310,7 +312,7 @@ class _CandidateCard extends StatelessWidget {
               CircleAvatar(
                 backgroundColor: _roleColor(candidate.role).withAlpha(24),
                 foregroundColor: _roleColor(candidate.role),
-                child: Text(
+                child: AppText(
                   candidate.name.isEmpty ? '?' : candidate.name.substring(0, 1),
                 ),
               ),
@@ -319,18 +321,18 @@ class _CandidateCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AppText(
                       candidate.name,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text(
+                    AppText(
                       '${candidateRoleName(candidate)} • ${candidate.remote ? 'remote' : 'office'} • loyalty ${candidate.loyalty}/100',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),
               ),
-              Text(
+              AppText(
                 '${money(candidate.salary)}/мес.',
                 style: const TextStyle(fontWeight: FontWeight.w900),
               ),
@@ -341,12 +343,12 @@ class _CandidateCard extends StatelessWidget {
             spacing: 7,
             runSpacing: 7,
             children: candidate.languageIds.isEmpty
-                ? const <Widget>[Chip(label: Text('Языки не указаны'))]
+                ? const <Widget>[Chip(label: AppText('Языки не указаны'))]
                 : candidate.languageIds
                       .map(
                         (id) => Chip(
                           avatar: const Icon(Icons.code, size: 16),
-                          label: Text(GameCatalog.languageById(id).name),
+                          label: AppText(GameCatalog.languageById(id).name),
                         ),
                       )
                       .toList(growable: false),
@@ -374,7 +376,7 @@ class _CandidateCard extends StatelessWidget {
             child: FilledButton(
               key: Key('hire-${candidate.id}'),
               onPressed: canHire ? onHire : null,
-              child: Text(
+              child: AppText(
                 canHire
                     ? 'Нанять • signing bonus ${money(candidate.salary * 0.15)}'
                     : candidate.remote
@@ -407,7 +409,7 @@ class _EmployeeCard extends StatelessWidget {
               CircleAvatar(
                 backgroundColor: _roleColor(employee.role).withAlpha(24),
                 foregroundColor: _roleColor(employee.role),
-                child: Text(
+                child: AppText(
                   employee.name.isEmpty ? '?' : employee.name.substring(0, 1),
                 ),
               ),
@@ -416,18 +418,18 @@ class _EmployeeCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AppText(
                       employee.name,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text(
+                    AppText(
                       '${employeeRoleName(employee)} • ${employee.remote ? 'remote' : 'office'}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),
               ),
-              Text('${money(employee.salary)}/мес.'),
+              AppText('${money(employee.salary)}/мес.'),
             ],
           ),
           const SizedBox(height: 12),
@@ -470,7 +472,7 @@ class _Skill extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
+          AppText(
             label,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -481,7 +483,7 @@ class _Skill extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 3),
-          Text(
+          AppText(
             '$value',
             style: const TextStyle(
               fontSize: 14,
@@ -507,7 +509,7 @@ class _ValueChip extends StatelessWidget {
         color: AppColors.surfaceMuted,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+      child: AppText(label, style: Theme.of(context).textTheme.bodySmall),
     );
   }
 }

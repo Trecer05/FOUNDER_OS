@@ -11,6 +11,9 @@ import '../overview/overview_screen.dart';
 import '../products/products_screen.dart';
 import '../team/team_screen.dart';
 import '../tutorial/founder_tutorial_dialog.dart';
+import '../../../application/localization/app_localizer.dart';
+import '../../../application/localization/app_text.dart';
+import '../../shared/widgets/scoped_listenable_builder.dart';
 
 class FounderDashboard extends StatefulWidget {
   const FounderDashboard({required this.controller, super.key});
@@ -25,10 +28,18 @@ class _FounderDashboardState extends State<FounderDashboard> {
   int _tab = 0;
   CriticalEventType _shownEvent = CriticalEventType.none;
   bool _tutorialShowing = false;
+  late final List<Widget Function()> _screenBuilders;
 
   @override
   void initState() {
     super.initState();
+    _screenBuilders = <Widget Function()>[
+      () => OverviewScreen(controller: widget.controller),
+      () => ProductsScreen(controller: widget.controller),
+      () => TeamScreen(controller: widget.controller),
+      () => InfrastructureScreen(controller: widget.controller),
+      () => MoreScreen(controller: widget.controller),
+    ];
     widget.controller.addListener(_handleControllerUpdate);
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowTutorial());
   }
@@ -97,8 +108,8 @@ class _FounderDashboardState extends State<FounderDashboard> {
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         icon: Icon(content.icon, color: AppColors.red, size: 40),
-        title: Text(content.title),
-        content: Text(content.body),
+        title: AppText(content.title),
+        content: AppText(content.body),
         actions: [
           if (event == CriticalEventType.lostControl ||
               event == CriticalEventType.insolvency)
@@ -110,7 +121,7 @@ class _FounderDashboardState extends State<FounderDashboard> {
                   setState(() => _tab = 0);
                 }
               },
-              child: const Text('Начать новую компанию'),
+              child: const AppText('Начать новую компанию'),
             )
           else
             FilledButton(
@@ -121,7 +132,7 @@ class _FounderDashboardState extends State<FounderDashboard> {
                   _tab = event == CriticalEventType.serverOverload ? 3 : 1;
                 });
               },
-              child: Text(content.action),
+              child: AppText(content.action),
             ),
         ],
       ),
@@ -130,114 +141,125 @@ class _FounderDashboardState extends State<FounderDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: widget.controller,
-      builder: (context, _) {
-        final state = widget.controller.state;
-        final screens = <Widget>[
-          OverviewScreen(controller: widget.controller),
-          ProductsScreen(controller: widget.controller),
-          TeamScreen(controller: widget.controller),
-          InfrastructureScreen(controller: widget.controller),
-          MoreScreen(controller: widget.controller),
-        ];
-
-        return Scaffold(
-          appBar: AppBar(
-            titleSpacing: 16,
-            title: Column(
+    return Scaffold(
+      appBar: AppBar(
+        titleSpacing: 16,
+        title: ScopedListenableBuilder(
+          listenable: widget.controller,
+          builder: (context, _) {
+            final state = widget.controller.state;
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
+              children: <Widget>[
+                const AppText(
                   'FOUNDER.OS',
                   style: TextStyle(fontWeight: FontWeight.w900),
                 ),
-                Text(
+                AppText(
                   'День ${state.day} • ${state.formattedTime}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
+            );
+          },
+        ),
+        actions: <Widget>[
+          ScopedListenableBuilder(
+            listenable: widget.controller,
+            builder: (context, _) => _HeaderMetric(
+              label: trContext(context, 'Деньги'),
+              value: money(widget.controller.state.cash),
             ),
-            actions: [
-              _HeaderMetric(label: 'Cash', value: money(state.cash)),
-              const SizedBox(width: 6),
-              PopupMenuButton<String>(
-                tooltip: 'Меню компании',
-                onSelected: (value) async {
-                  if (value != 'reset') {
-                    return;
-                  }
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (dialogContext) => AlertDialog(
-                      title: const Text('Начать заново?'),
-                      content: const Text(
-                        'Текущее локальное сохранение будет удалено.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.of(dialogContext).pop(false),
-                          child: const Text('Отмена'),
-                        ),
-                        FilledButton(
-                          onPressed: () =>
-                              Navigator.of(dialogContext).pop(true),
-                          child: const Text('Сбросить'),
-                        ),
-                      ],
+          ),
+          const SizedBox(width: 6),
+          PopupMenuButton<String>(
+            tooltip: trContext(context, 'Меню компании'),
+            onSelected: (value) async {
+              if (value != 'reset') {
+                return;
+              }
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                  title: const AppText('Начать заново?'),
+                  content: const AppText(
+                    'Текущее локальное сохранение будет удалено.',
+                  ),
+                  actions: <Widget>[
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(false),
+                      child: const AppText('Отмена'),
                     ),
-                  );
-                  if ((confirmed ?? false) && mounted) {
-                    await widget.controller.reset();
-                    if (mounted) {
-                      setState(() => _tab = 0);
-                    }
-                  }
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'reset', child: Text('Новая компания')),
-                ],
+                    FilledButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(true),
+                      child: const AppText('Сбросить'),
+                    ),
+                  ],
+                ),
+              );
+              if ((confirmed ?? false) && mounted) {
+                await widget.controller.reset();
+                if (mounted) {
+                  setState(() => _tab = 0);
+                }
+              }
+            },
+            itemBuilder: (_) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'reset',
+                child: AppText('Новая компания'),
               ),
             ],
           ),
-          body: SafeArea(
-            top: false,
-            child: IndexedStack(index: _tab, children: screens),
+        ],
+      ),
+      body: SafeArea(
+        top: false,
+        child: IndexedStack(
+          index: _tab,
+          children: <Widget>[
+            for (var index = 0; index < _screenBuilders.length; index += 1)
+              ActiveTabScope(
+                active: index == _tab,
+                child: ScopedListenableBuilder(
+                  listenable: widget.controller,
+                  builder: (context, _) => _screenBuilders[index](),
+                ),
+              ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _tab,
+        onDestinationSelected: (value) => setState(() => _tab = value),
+        destinations: <NavigationDestination>[
+          NavigationDestination(
+            icon: const Icon(Icons.space_dashboard_outlined),
+            selectedIcon: const Icon(Icons.space_dashboard),
+            label: trContext(context, 'Обзор'),
           ),
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: _tab,
-            onDestinationSelected: (value) => setState(() => _tab = value),
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.space_dashboard_outlined),
-                selectedIcon: Icon(Icons.space_dashboard),
-                label: 'Обзор',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.apps_outlined),
-                selectedIcon: Icon(Icons.apps),
-                label: 'Продукты',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.groups_2_outlined),
-                selectedIcon: Icon(Icons.groups_2),
-                label: 'Команда',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.dns_outlined),
-                selectedIcon: Icon(Icons.dns),
-                label: 'Инфра',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.grid_view_rounded),
-                selectedIcon: Icon(Icons.grid_view),
-                label: 'Ещё',
-              ),
-            ],
+          NavigationDestination(
+            icon: const Icon(Icons.apps_outlined),
+            selectedIcon: const Icon(Icons.apps),
+            label: trContext(context, 'Продукты'),
           ),
-        );
-      },
+          NavigationDestination(
+            icon: const Icon(Icons.groups_2_outlined),
+            selectedIcon: const Icon(Icons.groups_2),
+            label: trContext(context, 'Команда'),
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.dns_outlined),
+            selectedIcon: const Icon(Icons.dns),
+            label: trContext(context, 'Инфра'),
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.grid_view_rounded),
+            selectedIcon: const Icon(Icons.grid_view),
+            label: trContext(context, 'Ещё'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -261,7 +283,7 @@ class _HeaderMetric extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
+          AppText(
             '$label ',
             style: const TextStyle(
               fontSize: 9,
@@ -269,7 +291,7 @@ class _HeaderMetric extends StatelessWidget {
               color: AppColors.textMuted,
             ),
           ),
-          Text(
+          AppText(
             value,
             maxLines: 1,
             softWrap: false,

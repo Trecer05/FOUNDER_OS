@@ -17,6 +17,9 @@ import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/technology_selector_panel.dart';
+import '../../../domain/simulation/product_projection_cache.dart';
+import '../../../application/localization/app_text.dart';
+import '../../../application/localization/app_localizer.dart';
 
 class CreateProductScreen extends StatefulWidget {
   const CreateProductScreen({required this.controller, super.key});
@@ -81,7 +84,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
     return all;
   }
 
-  ProductProjection get _projection => ProductEstimator.estimate(
+  ProductProjection get _projection => ProductProjectionCache.estimate(
     blueprintId: _blueprintId,
     frameworkId: _frameworkId,
     languageIds: _languageIds.toList(growable: false),
@@ -238,7 +241,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
     final projection = _projection;
     return Scaffold(
       appBar: AppBar(
-        title: Text('Новый проект • ${_step + 1}/${_stepTitles.length}'),
+        title: AppText('Новый проект • ${_step + 1}/${_stepTitles.length}'),
       ),
       body: Column(
         children: [
@@ -251,13 +254,13 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                   value: (_step + 1) / _stepTitles.length,
                 ),
                 const SizedBox(height: 8),
-                Text(
+                AppText(
                   _stepTitles[_step],
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 if (_stepBlockingReason != null) ...[
                   const SizedBox(height: 5),
-                  Text(
+                  AppText(
                     _stepBlockingReason!,
                     style: const TextStyle(
                       color: AppColors.red,
@@ -293,7 +296,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () => setState(() => _step -= 1),
                     icon: const Icon(Icons.arrow_back),
-                    label: const Text('Назад'),
+                    label: const AppText('Назад'),
                   ),
                 ),
               if (_step > 0) const SizedBox(width: 8),
@@ -306,7 +309,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                             ? () => setState(() => _step += 1)
                             : null,
                         icon: const Icon(Icons.arrow_forward),
-                        label: const Text('Далее'),
+                        label: const AppText('Далее'),
                       )
                     : FilledButton.icon(
                         key: const Key('create-configured-product'),
@@ -314,7 +317,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                         icon: const Icon(Icons.rocket_launch_outlined),
                         label: const FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: Text('Запустить разработку'),
+                          child: AppText('Запустить разработку'),
                         ),
                       ),
               ),
@@ -371,7 +374,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(
+                        child: AppText(
                           blueprint.name,
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
@@ -380,7 +383,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                     ],
                   ),
                   const SizedBox(height: 7),
-                  Text(strategy.shortDescription),
+                  AppText(strategy.shortDescription),
                   const SizedBox(height: 9),
                   Wrap(
                     spacing: 7,
@@ -416,8 +419,8 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         TextField(
           controller: _nameController,
           onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(
-            labelText: 'Название проекта',
+          decoration: InputDecoration(
+            labelText: trContext(context, 'Название проекта'),
             prefixIcon: Icon(Icons.drive_file_rename_outline),
           ),
         ),
@@ -454,7 +457,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(
+                        child: AppText(
                           framework.name,
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
@@ -462,29 +465,29 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text(profile.summary),
+                  AppText(profile.summary),
                   const SizedBox(height: 9),
                   _ProsCons(
                     strengths: profile.strengths,
                     weaknesses: profile.weaknesses,
                   ),
                   const SizedBox(height: 8),
-                  Text(
+                  AppText(
                     'Языковые слоты: ${languageLimit.allowed} • база ${languageLimit.base} • влияние framework ${languageLimit.frameworkAdjustment >= 0 ? '+' : ''}${languageLimit.frameworkAdjustment}',
                     style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  Text(
+                  AppText(
                     'Обязательные языки: ${profile.requiredLanguageIds.isEmpty ? 'нет' : profile.requiredLanguageIds.map((id) => GameCatalog.languageById(id).name).join(', ')}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  Text(
+                  AppText(
                     'Dev speed ${_signed(framework.developmentSpeedDelta)} • OPEX ${money(framework.monthlyCost)}/мес.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  Text(
+                  AppText(
                     'С текущим roadmap: ${_projectionForFramework(framework.id).developmentHours.round()} ч. • setup ${money(_projectionForFramework(framework.id).developmentCost)}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
@@ -556,7 +559,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                               },
                       ),
                       Expanded(
-                        child: Text(
+                        child: AppText(
                           language.name,
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
@@ -566,14 +569,14 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                         const _InfoChip('Рекомендуется'),
                     ],
                   ),
-                  Text(profile.summary),
+                  AppText(profile.summary),
                   const SizedBox(height: 8),
                   _ProsCons(
                     strengths: profile.strengths,
                     weaknesses: profile.weaknesses,
                   ),
                   const SizedBox(height: 7),
-                  Text(
+                  AppText(
                     'Кандидатов на рынке: $candidates • доступность ${language.talentAvailability}/100 • сложность ×${profile.complexityMultiplier.toStringAsFixed(2)}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
@@ -631,11 +634,11 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
               clipBehavior: Clip.antiAlias,
               child: CheckboxListTile(
                 value: selected,
-                title: Text(feature.name),
+                title: AppText(feature.name),
                 secondary: expected
                     ? const Icon(Icons.star_outline, color: AppColors.primary)
                     : null,
-                subtitle: Text(
+                subtitle: AppText(
                   '${feature.description}\n≈ $hours рабочих часов • retention +${(feature.retentionDelta * 100).toStringAsFixed(1)} п.п. • compute ×${feature.computeMultiplier.toStringAsFixed(2)}',
                 ),
                 onChanged: (value) {
@@ -684,12 +687,12 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        AppText(
                           monetizationName(model),
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         const SizedBox(height: 4),
-                        Text(_monetizationDescription(model)),
+                        AppText(_monetizationDescription(model)),
                       ],
                     ),
                   ),
@@ -779,7 +782,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                AppText(
                   'Риски конфигурации',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
@@ -787,7 +790,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                 ...projection.warnings.map(
                   (warning) => Padding(
                     padding: const EdgeInsets.only(bottom: 6),
-                    child: Text('• $warning'),
+                    child: AppText('• $warning'),
                   ),
                 ),
               ],
@@ -796,7 +799,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         if (missingFrameworkLanguages.isNotEmpty) ...[
           const SizedBox(height: 12),
           AppCard(
-            child: Text(
+            child: AppText(
               'Нельзя создать: framework требует ${missingFrameworkLanguages.map((id) => GameCatalog.languageById(id).name).join(', ')}.',
             ),
           ),
@@ -804,7 +807,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         if (widget.controller.state.cash < projection.developmentCost) ...[
           const SizedBox(height: 12),
           AppCard(
-            child: Text(
+            child: AppText(
               'Недостаточно денег на setup: доступно ${money(widget.controller.state.cash)}.',
             ),
           ),
@@ -812,7 +815,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         if (currentInvestors < _strategy.requiredInvestorCount) ...[
           const SizedBox(height: 12),
           AppCard(
-            child: Text(
+            child: AppText(
               'Проект заблокирован: нужно инвесторов ${_strategy.requiredInvestorCount}.',
             ),
           ),
@@ -831,7 +834,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
       );
       languages.remove(removable);
     }
-    return ProductEstimator.estimate(
+    return ProductProjectionCache.estimate(
       blueprintId: _blueprintId,
       frameworkId: frameworkId,
       languageIds: languages.toList(growable: false),
@@ -888,7 +891,7 @@ class _InfoChip extends StatelessWidget {
           color: (warning ? AppColors.red : AppColors.primary).withAlpha(55),
         ),
       ),
-      child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+      child: AppText(label, style: Theme.of(context).textTheme.bodySmall),
     );
   }
 }
@@ -904,12 +907,14 @@ class _ProsCons extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ...strengths.map(
-          (item) =>
-              Text('+ $item', style: const TextStyle(color: AppColors.green)),
+          (item) => AppText(
+            '+ $item',
+            style: const TextStyle(color: AppColors.green),
+          ),
         ),
         ...weaknesses.map(
           (item) =>
-              Text('− $item', style: const TextStyle(color: AppColors.red)),
+              AppText('− $item', style: const TextStyle(color: AppColors.red)),
         ),
       ],
     );
@@ -931,10 +936,10 @@ class _SummaryRow extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: Text(label)),
+              Expanded(child: AppText(label)),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
+                child: AppText(
                   value,
                   textAlign: TextAlign.end,
                   style: Theme.of(context).textTheme.titleMedium,

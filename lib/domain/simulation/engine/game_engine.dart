@@ -19,7 +19,7 @@ import '../../entities/v10_models.dart';
 import '../../explainability/language_limit_resolver.dart';
 import '../../explainability/product_configuration_resolver.dart';
 import '../../explainability/staffing_deficit_resolver.dart';
-import '../product_estimator.dart';
+import '../product_projection_cache.dart';
 
 class GameEngine {
   const GameEngine();
@@ -203,10 +203,14 @@ class GameEngine {
 
     final monthFraction = deltaMinutes / 43200;
     var nextCounter = state.rngCounter;
+    final productiveHours = _workingHoursBetween(
+      state.simulationMinutes,
+      deltaMinutes,
+    );
 
     final updatedProducts = state.products
         .map((product) {
-          final projection = ProductEstimator.estimate(
+          final projection = ProductProjectionCache.estimate(
             blueprintId: product.blueprintId,
             frameworkId: product.frameworkId,
             languageIds: product.languageIds,
@@ -215,10 +219,6 @@ class GameEngine {
           );
 
           if (product.stage == ProductStage.development) {
-            final productiveHours = _workingHoursBetween(
-              state.simulationMinutes,
-              deltaMinutes,
-            );
             final developmentCapacity = state.productDevelopmentCapacity(
               product.id,
             );
@@ -894,7 +894,7 @@ class GameEngine {
       }
       final feature = GameCatalog.featureById(work.featureId);
       final featureIds = <String>[...product.featureIds, feature.id];
-      final projection = ProductEstimator.estimate(
+      final projection = ProductProjectionCache.estimate(
         blueprintId: product.blueprintId,
         frameworkId: product.frameworkId,
         languageIds: product.languageIds,
@@ -1685,7 +1685,7 @@ class GameEngine {
       );
     }
 
-    final projection = ProductEstimator.estimate(
+    final projection = ProductProjectionCache.estimate(
       blueprintId: action.blueprintId,
       frameworkId: action.frameworkId,
       languageIds: action.languageIds,

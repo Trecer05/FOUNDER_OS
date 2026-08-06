@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_theme.dart';
 import 'app_card.dart';
 import 'info_hint_button.dart';
+import '../../../application/localization/app_text.dart';
 
 class MetricCard extends StatelessWidget {
   const MetricCard({
@@ -49,7 +50,7 @@ class MetricCard extends StatelessWidget {
                 const SizedBox(width: 7),
               ],
               Expanded(
-                child: Text(
+                child: AppText(
                   label,
                   style: Theme.of(context).textTheme.bodySmall,
                   maxLines: 1,
@@ -65,7 +66,7 @@ class MetricCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 5),
-          Text(
+          AppText(
             value,
             style: Theme.of(context).textTheme.titleMedium,
             maxLines: 1,
@@ -73,7 +74,7 @@ class MetricCard extends StatelessWidget {
           ),
           if (caption != null) ...[
             const SizedBox(height: 4),
-            Text(
+            AppText(
               caption!,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

@@ -9,6 +9,8 @@ import '../../../domain/entities/v9_models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../../application/localization/app_text.dart';
+import '../../../application/localization/app_localizer.dart';
 
 class EcosystemScreen extends StatefulWidget {
   const EcosystemScreen({required this.controller, super.key});
@@ -29,7 +31,7 @@ class _EcosystemScreenState extends State<EcosystemScreen> {
       ..sort((a, b) => a.name.compareTo(b.name));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Экосистема')),
+      appBar: AppBar(title: const AppText('Экосистема')),
       body: products.length < 2
           ? _EmptyState(productCount: products.length)
           : ListView(
@@ -62,12 +64,14 @@ class _EcosystemScreenState extends State<EcosystemScreen> {
               key: const Key('ecosystem-product-picker'),
               initialValue: selectedId,
               isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Основной продукт'),
+              decoration: InputDecoration(
+                labelText: trContext(context, 'Основной продукт'),
+              ),
               items: products
                   .map(
                     (product) => DropdownMenuItem(
                       value: product.id,
-                      child: Text(
+                      child: AppText(
                         product.name,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -134,7 +138,7 @@ class _EcosystemScreenState extends State<EcosystemScreen> {
       ),
       const SizedBox(height: 10),
       if (state.ecosystemLinks.isEmpty)
-        const AppCard(child: Text('Интеграций пока нет.'))
+        const AppCard(child: AppText('Интеграций пока нет.'))
       else
         AppCard(
           child: Column(
@@ -155,8 +159,8 @@ class _EcosystemScreenState extends State<EcosystemScreen> {
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.link, color: AppColors.violet),
-                    title: Text('${left.name} ↔ ${right.name}'),
-                    subtitle: Text(
+                    title: AppText('${left.name} ↔ ${right.name}'),
+                    subtitle: AppText(
                       '${profile.title} • $status • рост +${percent(profile.growthBoost)} • compute ×${profile.computeMultiplier.toStringAsFixed(2)}',
                     ),
                   );
@@ -218,13 +222,13 @@ class _EmptyState extends StatelessWidget {
                     color: AppColors.violet,
                   ),
                   const SizedBox(height: 12),
-                  Text(
+                  AppText(
                     'Нужно минимум два продукта',
                     style: Theme.of(context).textTheme.titleLarge,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
-                  Text(
+                  AppText(
                     productCount == 0
                         ? 'Создайте первый продукт, затем второй — после этого появятся варианты интеграции.'
                         : 'Создайте ещё один продукт. Существующий продолжит работать самостоятельно.',
@@ -275,11 +279,11 @@ class _IntegrationCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AppText(
                       other.name,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text(
+                    AppText(
                       profile.title,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
@@ -294,7 +298,7 @@ class _IntegrationCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Text(profile.description),
+          AppText(profile.description),
           const SizedBox(height: 10),
           Wrap(
             spacing: 7,
@@ -316,7 +320,7 @@ class _IntegrationCard extends StatelessWidget {
             ...blockingReasons.map(
               (reason) => Padding(
                 padding: const EdgeInsets.only(bottom: 3),
-                child: Text(
+                child: AppText(
                   '• $reason',
                   style: const TextStyle(
                     color: AppColors.red,
@@ -345,7 +349,7 @@ class _MetricChip extends StatelessWidget {
         color: AppColors.surfaceMuted,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
+      child: AppText(
         '$label: $value',
         style: Theme.of(context).textTheme.bodySmall,
       ),

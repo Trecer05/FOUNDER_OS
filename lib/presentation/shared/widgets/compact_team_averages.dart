@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../../../domain/entities/game_state.dart';
+import '../../../application/localization/app_text.dart';
 
 class CompactTeamAverages extends StatelessWidget {
   const CompactTeamAverages({required this.state, super.key});
@@ -46,13 +47,13 @@ class CompactTeamAverages extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
+                            AppText(
                               item.$1,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.labelSmall,
                             ),
-                            Text(
+                            AppText(
                               item.$2.toStringAsFixed(0),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w900,

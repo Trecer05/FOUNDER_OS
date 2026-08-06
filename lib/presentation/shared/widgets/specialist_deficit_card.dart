@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../domain/entities/v9_models.dart';
 import 'app_card.dart';
+import '../../../application/localization/app_text.dart';
 
 class SpecialistDeficitCard extends StatelessWidget {
   const SpecialistDeficitCard({required this.deficits, super.key});
@@ -21,7 +22,7 @@ class SpecialistDeficitCard extends StatelessWidget {
                 Icon(Icons.check_circle_outline, color: AppColors.green),
                 SizedBox(width: 10),
                 Expanded(
-                  child: Text('Критичных дефицитов для текущей стадии нет.'),
+                  child: AppText('Критичных дефицитов для текущей стадии нет.'),
                 ),
               ],
             )
@@ -29,7 +30,7 @@ class SpecialistDeficitCard extends StatelessWidget {
               key: const Key('specialist-deficit-list'),
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                AppText(
                   'Что тормозит проект',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
@@ -48,16 +49,16 @@ class SpecialistDeficitCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          AppText(
                             deficit.message,
                             style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
                           const SizedBox(height: 4),
-                          Text(
+                          AppText(
                             '${deficit.effect} Стадия: ${deficit.stageName}.',
                           ),
                           const SizedBox(height: 5),
-                          Text(
+                          AppText(
                             'Решения: ${deficit.solutions.join(' • ')}',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),

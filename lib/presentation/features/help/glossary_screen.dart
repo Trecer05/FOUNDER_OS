@@ -5,6 +5,8 @@ import '../../../domain/catalog/v9_content_catalog.dart';
 import '../../../domain/entities/v9_models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../../application/localization/app_text.dart';
+import '../../../application/localization/app_localizer.dart';
 
 class GlossaryScreen extends StatefulWidget {
   const GlossaryScreen({this.initialTermId, super.key});
@@ -41,7 +43,7 @@ class _GlossaryScreenState extends State<GlossaryScreen> {
             return a.term.compareTo(b.term);
           });
     return Scaffold(
-      appBar: AppBar(title: const Text('Метрики и терминология')),
+      appBar: AppBar(title: const AppText('Метрики и терминология')),
       body: ListView(
         key: const Key('glossary-screen'),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
@@ -56,14 +58,14 @@ class _GlossaryScreenState extends State<GlossaryScreen> {
             key: const Key('glossary-search'),
             controller: _search,
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              hintText: 'Найти MRR, churn, compute…',
+            decoration: InputDecoration(
+              hintText: trContext(context, 'Найти MRR, churn, compute…'),
               prefixIcon: Icon(Icons.search),
             ),
           ),
           const SizedBox(height: 12),
           if (entries.isEmpty)
-            const AppCard(child: Text('Термин не найден.'))
+            const AppCard(child: AppText('Термин не найден.'))
           else
             ...entries.map(
               (entry) => Padding(
@@ -88,15 +90,18 @@ class _GlossaryCard extends StatelessWidget {
         key: Key('glossary-${entry.id}'),
         tilePadding: EdgeInsets.zero,
         childrenPadding: const EdgeInsets.only(bottom: 4),
-        title: Text(entry.term, style: Theme.of(context).textTheme.titleMedium),
-        subtitle: Text(entry.shortExplanation),
+        title: AppText(
+          entry.term,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        subtitle: AppText(entry.shortExplanation),
         children: [
           Align(
             alignment: Alignment.centerLeft,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(entry.detailedExplanation),
+                AppText(entry.detailedExplanation),
                 const SizedBox(height: 10),
                 _Label('Пример из игры', entry.gameExample),
                 _Label('Где применяется', entry.usedIn.join(', ')),
@@ -120,7 +125,7 @@ class _Label extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(bottom: last ? 0 : 8),
-      child: RichText(
+      child: AppRichText(
         text: TextSpan(
           style: Theme.of(context).textTheme.bodySmall,
           children: [

@@ -7,6 +7,7 @@ import '../../../domain/entities/v9_models.dart';
 import '../../../domain/explainability/product_configuration_resolver.dart';
 import 'formatters.dart';
 import 'section_header.dart';
+import '../../../application/localization/app_text.dart';
 
 class TechnologySelectorPanel extends StatelessWidget {
   const TechnologySelectorPanel({
@@ -57,7 +58,7 @@ class TechnologySelectorPanel extends StatelessWidget {
           key: const Key('technology-limit-explanation'),
           onPressed: () => _showLimit(context, limit),
           icon: const Icon(Icons.info_outline),
-          label: Text('Почему доступно ${limit.allowed}'),
+          label: AppText('Почему доступно ${limit.allowed}'),
         ),
         const SizedBox(height: 10),
         ...GameCatalog.technologies.map((technology) {
@@ -119,16 +120,16 @@ class TechnologySelectorPanel extends StatelessWidget {
                                   },
                           ),
                           Expanded(
-                            child: Text(
+                            child: AppText(
                               technology.name,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                           ),
                           if (availability.mandatory)
-                            const Chip(label: Text('Обязательна')),
+                            const Chip(label: AppText('Обязательна')),
                         ],
                       ),
-                      Text(technology.description),
+                      AppText(technology.description),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 7,
@@ -160,7 +161,7 @@ class TechnologySelectorPanel extends StatelessWidget {
                       ),
                       if (!availability.enabled) ...[
                         const SizedBox(height: 8),
-                        Text(
+                        AppText(
                           '${availability.reason} ${availability.nextStep}',
                           style: const TextStyle(
                             color: AppColors.red,
@@ -169,7 +170,7 @@ class TechnologySelectorPanel extends StatelessWidget {
                         ),
                       ] else if (atLimit) ...[
                         const SizedBox(height: 8),
-                        Text(
+                        AppText(
                           'Лимит достигнут: выбрано ${limit.selected} из ${limit.allowed}. Нажмите, чтобы увидеть расчёт.',
                           style: const TextStyle(color: AppColors.red),
                         ),
@@ -197,7 +198,7 @@ class TechnologySelectorPanel extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              AppText(
                 'Выбрано ${value.selected} • разрешено ${value.allowed}',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
@@ -205,11 +206,11 @@ class TechnologySelectorPanel extends StatelessWidget {
               ...value.reasons.map(
                 (reason) => Padding(
                   padding: const EdgeInsets.only(bottom: 6),
-                  child: Text('• $reason'),
+                  child: AppText('• $reason'),
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              const AppText(
                 'Чтобы увеличить реальную способность сопровождать стек: упростите framework/roadmap или наймите сильную инженерную команду. Выбор сверх лимита запрещён движком.',
               ),
             ],
@@ -227,14 +228,14 @@ class TechnologySelectorPanel extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('$name недоступна'),
-        content: Text(
+        title: AppText('$name недоступна'),
+        content: AppText(
           '${availability.reason}\n\nСледующий шаг: ${availability.nextStep}',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Понятно'),
+            child: const AppText('Понятно'),
           ),
         ],
       ),
@@ -254,6 +255,6 @@ class _ImpactChip extends StatelessWidget {
       color: (warning ? AppColors.red : AppColors.primary).withAlpha(16),
       borderRadius: BorderRadius.circular(12),
     ),
-    child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+    child: AppText(label, style: Theme.of(context).textTheme.bodySmall),
   );
 }

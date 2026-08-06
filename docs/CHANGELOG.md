@@ -138,3 +138,10 @@ Added floating time controls, hosting plans, owned migration, dynamic stack sele
 - Added six-section product workspaces, metric ranges, explainable coherence/capacity, project hiring, and infrastructure separation.
 - Added HR auto-hire, multi-product assignments, workload/morale recovery, investor negotiation status, business credit, emergency negative-cash save, time-based improvements, contract grace and partial payouts.
 - Added snapshot v10, prepared starter servers, remote-first office economics, RUB/USD/EUR display, partial RU/EN preference support, tests, and verifier.
+
+<!-- V10_OPTIMIZATION -->
+## v10_optimization
+
+- Optimized simulation projection lookup, immutable state queries, ticker drift handling, save coalescing, background snapshot encoding and UI rebuild scope.
+- Added atomic native snapshot backends in Swift/Kotlin with safe Dart fallback.
+- Added strict RU/EN presentation normalization and localization audit.

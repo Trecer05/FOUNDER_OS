@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../../../application/localization/app_text.dart';
+import '../../../application/localization/app_localizer.dart';
 
 class InfoHintButton extends StatelessWidget {
   const InfoHintButton({
@@ -23,7 +25,7 @@ class InfoHintButton extends StatelessWidget {
         visualDensity: VisualDensity.compact,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
-      tooltip: 'Подсказка: $title',
+      tooltip: trContext(context, 'Подсказка: $title'),
       onPressed: () => showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -31,13 +33,13 @@ class InfoHintButton extends StatelessWidget {
             Icons.info_outline_rounded,
             color: AppColors.primary,
           ),
-          title: Text(title),
+          title: AppText(title),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(body),
+                AppText(body),
                 if (bullets.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   ...bullets.map(
@@ -46,8 +48,8 @@ class InfoHintButton extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('•  '),
-                          Expanded(child: Text(item)),
+                          const AppText('•  '),
+                          Expanded(child: AppText(item)),
                         ],
                       ),
                     ),
@@ -59,7 +61,7 @@ class InfoHintButton extends StatelessWidget {
           actions: [
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Понятно'),
+              child: const AppText('Понятно'),
             ),
           ],
         ),

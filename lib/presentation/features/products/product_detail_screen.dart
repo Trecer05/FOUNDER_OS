@@ -12,7 +12,6 @@ import '../../../domain/entities/game_state.dart';
 import '../../../domain/entities/models.dart';
 import '../../../domain/entities/product_evolution_models.dart';
 import '../../../domain/explainability/staffing_deficit_resolver.dart';
-import '../../../domain/simulation/product_estimator.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/metric_card.dart';
@@ -21,6 +20,10 @@ import '../../shared/widgets/specialist_deficit_card.dart';
 import '../security/security_center_screen.dart';
 import '../operations/operations_screen.dart';
 import '../contracts/contracts_screen.dart';
+import '../../../domain/simulation/product_projection_cache.dart';
+import '../../../application/localization/app_text.dart';
+import '../../shared/widgets/scoped_listenable_builder.dart';
+import '../../../application/localization/app_localizer.dart';
 
 class ProductDetailScreen extends StatelessWidget {
   const ProductDetailScreen({
@@ -34,13 +37,15 @@ class ProductDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return ScopedListenableBuilder(
       listenable: controller,
       builder: (context, _) {
         final state = controller.state;
         final product = state.productById(productId);
         if (product == null) {
-          return const Scaffold(body: Center(child: Text('Продукт не найден')));
+          return const Scaffold(
+            body: Center(child: AppText('Продукт не найден')),
+          );
         }
         final competitor = GameCatalog.competitorFor(product.category);
         final framework = GameCatalog.frameworkById(product.frameworkId);
@@ -50,7 +55,7 @@ class ProductDetailScreen extends StatelessWidget {
         );
         final phase = state.developmentPhaseFor(product);
         final staffing = state.developmentStaffingFor(product.id);
-        final projection = ProductEstimator.estimate(
+        final projection = ProductProjectionCache.estimate(
           blueprintId: product.blueprintId,
           frameworkId: product.frameworkId,
           languageIds: product.languageIds,
@@ -74,7 +79,7 @@ class ProductDetailScreen extends StatelessWidget {
         final activeFeatureWork = state.activeFeatureDevelopmentFor(product.id);
 
         return Scaffold(
-          appBar: AppBar(title: Text(product.name)),
+          appBar: AppBar(title: AppText(product.name)),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
@@ -92,7 +97,7 @@ class ProductDetailScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      AppText(
                         'Разработка ${(product.developmentProgress * 100).toStringAsFixed(1)}%',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
@@ -101,14 +106,14 @@ class ProductDetailScreen extends StatelessWidget {
                         value: product.developmentProgress,
                       ),
                       const SizedBox(height: 12),
-                      Text(
+                      AppText(
                         phase.name,
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
                       const SizedBox(height: 4),
-                      Text(phase.description),
+                      AppText(phase.description),
                       const SizedBox(height: 10),
-                      Text(
+                      AppText(
                         staffing.status,
                         style: TextStyle(
                           color: staffing.efficiency >= 0.80
@@ -147,12 +152,12 @@ class ProductDetailScreen extends StatelessWidget {
                         percent(staffing.efficiency),
                       ),
                       const SizedBox(height: 8),
-                      Text(
+                      AppText(
                         'Сейчас критичны: ${phase.criticalRoles.map(roleName).join(', ')}.',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       if (staffing.movableEmployeeIds.isNotEmpty)
-                        Text(
+                        AppText(
                           'Можно временно выдернуть: ${staffing.movableEmployeeIds.map((id) => state.employeeById(id)?.name ?? id).join(', ')}.',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
@@ -177,7 +182,7 @@ class ProductDetailScreen extends StatelessWidget {
                             ),
                           ),
                           icon: const Icon(Icons.account_tree_outlined),
-                          label: const Text('Управлять проектной командой'),
+                          label: const AppText('Управлять проектной командой'),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -193,13 +198,13 @@ class ProductDetailScreen extends StatelessWidget {
                                 )
                               : null,
                           icon: const Icon(Icons.rocket_launch_outlined),
-                          label: const Text('Выпустить продукт'),
+                          label: const AppText('Выпустить продукт'),
                         ),
                       ),
                       if (product.allocatedCapacityPercent <= 0)
                         const Padding(
                           padding: EdgeInsets.only(top: 8),
-                          child: Text(
+                          child: AppText(
                             'Заблокировано: выделите серверную мощность.',
                             style: TextStyle(color: AppColors.red),
                           ),
@@ -433,7 +438,7 @@ class ProductDetailScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      AppText(
                         GameCatalog.featureById(
                           activeFeatureWork.featureId,
                         ).name,
@@ -444,11 +449,11 @@ class ProductDetailScreen extends StatelessWidget {
                         value: activeFeatureWork.progress,
                       ),
                       const SizedBox(height: 8),
-                      Text(
+                      AppText(
                         '${(activeFeatureWork.progress * 100).toStringAsFixed(1)}% • осталось ${state.featureDevelopmentRemainingHours(product.id).round()} командо-часов',
                       ),
                       const SizedBox(height: 4),
-                      Text(
+                      AppText(
                         'Скорость зависит от той же проектной команды: ${state.productDevelopmentCapacity(product.id).toStringAsFixed(2)} FTE.',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
@@ -466,7 +471,7 @@ class ProductDetailScreen extends StatelessWidget {
               const SizedBox(height: 10),
               if (availableFeatures.isEmpty)
                 const AppCard(
-                  child: Text(
+                  child: AppText(
                     'Крупные функции завершены. Следите за свежестью и продолжайте улучшать скорость, алгоритмы, дизайн, security и reliability.',
                   ),
                 )
@@ -507,9 +512,10 @@ class ProductDetailScreen extends StatelessWidget {
                   children: [
                     DropdownButtonFormField<MonetizationModel>(
                       key: ValueKey(product.monetization),
+                      isExpanded: true,
                       initialValue: product.monetization,
                       decoration: InputDecoration(
-                        labelText: 'Модель монетизации',
+                        labelText: trContext(context, 'Модель монетизации'),
                         helperText:
                             product.stage == ProductStage.live &&
                                 monetizationCooldownDays > 0
@@ -520,7 +526,7 @@ class ProductDetailScreen extends StatelessWidget {
                           .map(
                             (model) => DropdownMenuItem(
                               value: model,
-                              child: Text(monetizationName(model)),
+                              child: AppText(monetizationName(model)),
                             ),
                           )
                           .toList(growable: false),
@@ -550,7 +556,7 @@ class ProductDetailScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          AppText(
                             'Прогноз дохода / мес.',
                             style: Theme.of(context).textTheme.titleSmall,
                           ),
@@ -560,24 +566,24 @@ class ProductDetailScreen extends StatelessWidget {
                             runSpacing: 8,
                             children: [
                               Chip(
-                                label: Text(
+                                label: AppText(
                                   'Low ${money(revenueForecast.low)}',
                                 ),
                               ),
                               Chip(
-                                label: Text(
+                                label: AppText(
                                   'Base ${money(revenueForecast.expected)}',
                                 ),
                               ),
                               Chip(
-                                label: Text(
+                                label: AppText(
                                   'High ${money(revenueForecast.high)}',
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 6),
-                          Text(
+                          AppText(
                             '${revenueForecast.note} Фактический MRR сейчас: ${money(product.monthlyRevenue)}.',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
@@ -625,7 +631,7 @@ class ProductDetailScreen extends StatelessWidget {
                         ),
                       ),
                       icon: const Icon(Icons.handshake_outlined),
-                      label: const Text('Открыть контракты сайта'),
+                      label: const AppText('Открыть контракты сайта'),
                     ),
                   ),
                 ),
@@ -719,12 +725,12 @@ class ProductDetailScreen extends StatelessWidget {
                                 ),
                               ),
                               icon: const Icon(Icons.shield_outlined),
-                              label: const Text('Центр безопасности'),
+                              label: const AppText('Центр безопасности'),
                             ),
                           ),
                           const SizedBox(width: 8),
                           IconButton.outlined(
-                            tooltip: 'Red-team сценарий',
+                            tooltip: trContext(context, 'Red-team сценарий'),
                             onPressed: () => controller.dispatch(
                               TriggerSecurityIncident(product.id),
                             ),
@@ -767,12 +773,12 @@ class _ProductTeamRequirementsCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
+                child: AppText(
                   'Покрытие ${(coverage * 100).toStringAsFixed(0)}%',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              Text(
+              AppText(
                 '${state.employeesForProduct(product.id).length} в проекте',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -802,11 +808,11 @@ class _ProductTeamRequirementsCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        AppText(
                           '${roleName(requirement.role)}: $actual/${requirement.minimumCount}',
                           style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
-                        Text(
+                        AppText(
                           requirement.reason,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
@@ -845,7 +851,7 @@ class _FreshnessCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
+                child: AppText(
                   '${score.toStringAsFixed(0)} / 100',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: danger ? AppColors.red : AppColors.green,
@@ -853,13 +859,13 @@ class _FreshnessCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Text('${days.toStringAsFixed(1)} дн. без обновления'),
+              AppText('${days.toStringAsFixed(1)} дн. без обновления'),
             ],
           ),
           const SizedBox(height: 10),
           LinearProgressIndicator(value: score / 100),
           const SizedBox(height: 10),
-          Text(
+          AppText(
             'Последнее обновление: ${latest?.reason ?? 'создание продукта'}',
             style: Theme.of(context).textTheme.bodySmall,
           ),
@@ -900,12 +906,12 @@ class _AiUsageCard extends StatelessWidget {
               segments: const [
                 ButtonSegment(
                   value: AiDeploymentMode.publicMarket,
-                  label: Text('Рынок'),
+                  label: AppText('Рынок'),
                   icon: Icon(Icons.public_outlined),
                 ),
                 ButtonSegment(
                   value: AiDeploymentMode.corporate,
-                  label: Text('Корпоративная'),
+                  label: AppText('Корпоративная'),
                   icon: Icon(Icons.business_outlined),
                 ),
               ],
@@ -926,7 +932,7 @@ class _AiUsageCard extends StatelessWidget {
             ),
             if (targets.isNotEmpty) ...[
               const SizedBox(height: 10),
-              Text('Используют: ${targets.join(', ')}'),
+              AppText('Используют: ${targets.join(', ')}'),
             ],
           ],
         ),
@@ -944,14 +950,16 @@ class _AiUsageCard extends StatelessWidget {
         children: [
           DropdownButtonFormField<String>(
             initialValue: current?.id ?? '__none__',
-            decoration: const InputDecoration(labelText: 'Корпоративная AI'),
+            decoration: InputDecoration(
+              labelText: trContext(context, 'Корпоративная AI'),
+            ),
             items: [
               const DropdownMenuItem(
                 value: '__none__',
-                child: Text('Не использовать'),
+                child: AppText('Не использовать'),
               ),
               ...available.map(
-                (ai) => DropdownMenuItem(value: ai.id, child: Text(ai.name)),
+                (ai) => DropdownMenuItem(value: ai.id, child: AppText(ai.name)),
               ),
             ],
             onChanged: (value) {
@@ -969,12 +977,12 @@ class _AiUsageCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           if (available.isEmpty)
-            Text(
+            AppText(
               'Сначала выпустите AI-продукт и переведите его в корпоративный режим.',
               style: Theme.of(context).textTheme.bodySmall,
             )
           else
-            const Text(
+            const AppText(
               '+18% development capacity • +4 quality • 45 000 ₽/мес.',
             ),
         ],
@@ -1027,12 +1035,12 @@ class _SubscriptionPriceControlState extends State<_SubscriptionPriceControl> {
         Row(
           children: [
             Expanded(
-              child: Text(
+              child: AppText(
                 'Цена подписки',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
-            Text(
+            AppText(
               '${value.round()} ₽/мес.',
               style: const TextStyle(fontWeight: FontWeight.w900),
             ),
@@ -1061,7 +1069,7 @@ class _SubscriptionPriceControlState extends State<_SubscriptionPriceControl> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              AppText(
                 'Вероятный эффект изменения',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
@@ -1071,24 +1079,24 @@ class _SubscriptionPriceControlState extends State<_SubscriptionPriceControl> {
                 runSpacing: 7,
                 children: [
                   Chip(
-                    label: Text(
+                    label: AppText(
                       'MAU ${directPercent(forecast.expectedUserChangePercent * 100, fractionDigits: 1)}',
                     ),
                   ),
                   Chip(
-                    label: Text(
+                    label: AppText(
                       'Churn ${forecast.expectedChurnDelta >= 0 ? '+' : ''}${directPercent(forecast.expectedChurnDelta * 100, fractionDigits: 1)}',
                     ),
                   ),
                   Chip(
-                    label: Text(
+                    label: AppText(
                       'MRR ${revenueDelta >= 0 ? '+' : ''}${money(revenueDelta)}',
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 6),
-              Text(
+              AppText(
                 'Ценовой шок ${(forecast.sentimentShock * 100).toStringAsFixed(1)}%. ${forecast.note}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -1096,7 +1104,7 @@ class _SubscriptionPriceControlState extends State<_SubscriptionPriceControl> {
           ),
         ),
         const SizedBox(height: 6),
-        Text(
+        AppText(
           'Текущее отношение аудитории к последнему изменению цены: ${(widget.state.currentPriceSentiment(widget.product) * 100).toStringAsFixed(1)}%.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
@@ -1145,12 +1153,12 @@ class _AdvertisingCampaignCardState extends State<_AdvertisingCampaignCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        AppText(
           'Рекламные кампании',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 6),
-        Text(
+        AppText(
           'Вы выбираете агентство, канал и закупаемый объём. Результат ограничен качеством продукта, доверием и узнаваемостью.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
@@ -1170,7 +1178,7 @@ class _AdvertisingCampaignCardState extends State<_AdvertisingCampaignCard> {
                   color: AppColors.primary.withAlpha(12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
+                child: AppText(
                   '${ProductStrategyCatalog.channelById(campaign.channelId).name} • ${money(campaign.budget)} • ${remainingDays.toStringAsFixed(1)} дн. • прогноз ${campaign.projectedUsersLow}–${campaign.projectedUsersHigh} users',
                 ),
               ),
@@ -1182,11 +1190,13 @@ class _AdvertisingCampaignCardState extends State<_AdvertisingCampaignCard> {
           key: ValueKey('advertising-agency-$_agencyId'),
           initialValue: _agencyId,
           isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Рекламное агентство'),
+          decoration: InputDecoration(
+            labelText: trContext(context, 'Рекламное агентство'),
+          ),
           items: ProductStrategyCatalog.agencies
               .map(
                 (item) =>
-                    DropdownMenuItem(value: item.id, child: Text(item.name)),
+                    DropdownMenuItem(value: item.id, child: AppText(item.name)),
               )
               .toList(growable: false),
           onChanged: (value) {
@@ -1207,11 +1217,13 @@ class _AdvertisingCampaignCardState extends State<_AdvertisingCampaignCard> {
           key: ValueKey('advertising-channel-$_channelId'),
           initialValue: _channelId,
           isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Канал закупки'),
+          decoration: InputDecoration(
+            labelText: trContext(context, 'Канал закупки'),
+          ),
           items: ProductStrategyCatalog.channels
               .map(
                 (item) =>
-                    DropdownMenuItem(value: item.id, child: Text(item.name)),
+                    DropdownMenuItem(value: item.id, child: AppText(item.name)),
               )
               .toList(growable: false),
           onChanged: (value) {
@@ -1219,29 +1231,31 @@ class _AdvertisingCampaignCardState extends State<_AdvertisingCampaignCard> {
           },
         ),
         const SizedBox(height: 8),
-        Text('${agency.description} ${channel.description}'),
+        AppText('${agency.description} ${channel.description}'),
         const SizedBox(height: 8),
         Wrap(
           spacing: 7,
           runSpacing: 7,
           children: [
             Chip(
-              label: Text(
+              label: AppText(
                 'Качество агентства ${(agency.quality * 100).round()}%',
               ),
             ),
             Chip(
-              label: Text(
+              label: AppText(
                 'Точность прогноза ${(agency.forecastAccuracy * 100).round()}%',
               ),
             ),
-            Chip(label: Text('Комиссия ${(agency.feePercent * 100).round()}%')),
-            if (channel.baseCpm > 0)
-              Chip(label: Text('CPM ${money(channel.baseCpm)}')),
-            if (channel.baseCpc > 0)
-              Chip(label: Text('CPC ${money(channel.baseCpc)}')),
             Chip(
-              label: Text(
+              label: AppText('Комиссия ${(agency.feePercent * 100).round()}%'),
+            ),
+            if (channel.baseCpm > 0)
+              Chip(label: AppText('CPM ${money(channel.baseCpm)}')),
+            if (channel.baseCpc > 0)
+              Chip(label: AppText('CPC ${money(channel.baseCpc)}')),
+            Chip(
+              label: AppText(
                 channel.bestForCategories.contains(widget.product.category)
                     ? 'Канал подходит продукту'
                     : 'Слабое попадание в аудиторию',
@@ -1252,8 +1266,8 @@ class _AdvertisingCampaignCardState extends State<_AdvertisingCampaignCard> {
         const SizedBox(height: 8),
         Row(
           children: [
-            const Expanded(child: Text('Бюджет на 7 дней')),
-            Text(
+            const Expanded(child: AppText('Бюджет на 7 дней')),
+            AppText(
               money(normalizedBudget),
               style: const TextStyle(fontWeight: FontWeight.w900),
             ),
@@ -1279,7 +1293,7 @@ class _AdvertisingCampaignCardState extends State<_AdvertisingCampaignCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              AppText(
                 'Что будет закуплено',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
@@ -1289,22 +1303,27 @@ class _AdvertisingCampaignCardState extends State<_AdvertisingCampaignCard> {
                 runSpacing: 7,
                 children: [
                   Chip(
-                    label: Text(
+                    label: AppText(
                       '${compactNumber(forecast.impressions)} показов',
                     ),
                   ),
                   Chip(
-                    label: Text('${compactNumber(forecast.clicks)} переходов'),
+                    label: AppText(
+                      '${compactNumber(forecast.clicks)} переходов',
+                    ),
                   ),
                   Chip(
-                    label: Text(
+                    label: AppText(
                       '${forecast.usersLow}–${forecast.usersHigh} пользователей',
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 6),
-              Text(forecast.note, style: Theme.of(context).textTheme.bodySmall),
+              AppText(
+                forecast.note,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ],
           ),
         ),
@@ -1324,7 +1343,7 @@ class _AdvertisingCampaignCardState extends State<_AdvertisingCampaignCard> {
                   )
                 : null,
             icon: const Icon(Icons.campaign_outlined),
-            label: Text(
+            label: AppText(
               active.length >= 2
                   ? 'Уже две активные кампании'
                   : widget.state.cash < normalizedBudget
@@ -1366,35 +1385,35 @@ class _ContinuousImprovementCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
+                child: AppText(
                   option.name,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              Text('L$level → L${level + 1}'),
+              AppText('L$level → L${level + 1}'),
             ],
           ),
           const SizedBox(height: 5),
-          Text(option.description),
+          AppText(option.description),
           const SizedBox(height: 10),
           Wrap(
             spacing: 7,
             runSpacing: 7,
             children: [
-              Chip(label: Text(money(cost))),
-              Chip(label: Text('+${money(option.monthlyCostDelta)}/мес.')),
+              Chip(label: AppText(money(cost))),
+              Chip(label: AppText('+${money(option.monthlyCostDelta)}/мес.')),
               if (option.speedMultiplier != 1)
                 Chip(
-                  label: Text(
+                  label: AppText(
                     'Speed ×${option.speedMultiplier.toStringAsFixed(3)}',
                   ),
                 ),
               if (option.designDelta != 0)
-                Chip(label: Text('Design +${option.designDelta}')),
+                Chip(label: AppText('Design +${option.designDelta}')),
               if (option.securityDelta != 0)
-                Chip(label: Text('Security +${option.securityDelta}')),
+                Chip(label: AppText('Security +${option.securityDelta}')),
               if (option.qualityDelta != 0)
-                Chip(label: Text('Quality +${option.qualityDelta}')),
+                Chip(label: AppText('Quality +${option.qualityDelta}')),
             ],
           ),
           const SizedBox(height: 10),
@@ -1403,7 +1422,7 @@ class _ContinuousImprovementCard extends StatelessWidget {
             child: FilledButton.tonalIcon(
               onPressed: canAfford ? onApply : null,
               icon: const Icon(Icons.upgrade_outlined),
-              label: Text(
+              label: AppText(
                 !released
                     ? 'Доступно после релиза'
                     : canAfford
@@ -1454,12 +1473,12 @@ class _FeatureUpgradeCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AppText(
                       feature.name,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                    AppText(
                       feature.description,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
@@ -1467,7 +1486,10 @@ class _FeatureUpgradeCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Text('$hours ч.', style: Theme.of(context).textTheme.titleMedium),
+              AppText(
+                '$hours ч.',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -1478,13 +1500,13 @@ class _FeatureUpgradeCard extends StatelessWidget {
                 .map(
                   (effect) => Chip(
                     visualDensity: VisualDensity.compact,
-                    label: Text(effect),
+                    label: AppText(effect),
                   ),
                 )
                 .toList(growable: false),
           ),
           const SizedBox(height: 8),
-          Text(
+          AppText(
             'Прямой цены нет. Пока команда выполняет $hours рабочих часов, продолжают списываться зарплаты и инфраструктура.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
@@ -1495,7 +1517,7 @@ class _FeatureUpgradeCard extends StatelessWidget {
               key: Key('add-feature-${feature.id}'),
               onPressed: enabled ? onAdd : null,
               icon: const Icon(Icons.add_task_outlined),
-              label: Text(
+              label: AppText(
                 enabled
                     ? 'Начать разработку функции'
                     : 'Сначала завершите текущее обновление',
@@ -1524,16 +1546,16 @@ class _ComparisonHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Expanded(child: Text('Метрика')),
+        const Expanded(child: AppText('Метрика')),
         Expanded(
-          child: Text(
+          child: AppText(
             own,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
         Expanded(
-          child: Text(
+          child: AppText(
             competitor,
             textAlign: TextAlign.end,
             style: Theme.of(context).textTheme.bodySmall,
@@ -1567,9 +1589,9 @@ class _ComparisonRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 9),
           child: Row(
             children: [
-              Expanded(child: Text(label)),
+              Expanded(child: AppText(label)),
               Expanded(
-                child: Text(
+                child: AppText(
                   own,
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -1578,7 +1600,7 @@ class _ComparisonRow extends StatelessWidget {
                   ),
                 ),
               ),
-              Expanded(child: Text(competitor, textAlign: TextAlign.end)),
+              Expanded(child: AppText(competitor, textAlign: TextAlign.end)),
             ],
           ),
         ),
@@ -1603,10 +1625,10 @@ class _LabelValue extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: Text(label)),
+              Expanded(child: AppText(label)),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
+                child: AppText(
                   value,
                   textAlign: TextAlign.end,
                   style: Theme.of(context).textTheme.titleMedium,

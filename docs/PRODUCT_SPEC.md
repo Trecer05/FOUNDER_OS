@@ -288,3 +288,8 @@ Overview показывает по каждому продукту:
 ## Explainable project operations
 
 The player must see why a language/technology limit exists, what stack coherence and development capacity mean, which people are missing, and how active compute differs from prepared hardware. Project actions are grouped into six sections. HR can automatically staff a project at a 25% premium. Investor and credit processes expose their states. Contract deadlines include a short grace period and partial late payout.
+
+<!-- V10_OPTIMIZATION -->
+## Responsiveness and localization
+
+Gameplay behavior and balance are unchanged. Active simulation remains responsive with large product/team lists, saves are crash-safe, and RU/EN presentation must not mix accidental alphabets outside approved terminology.

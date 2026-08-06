@@ -16,6 +16,8 @@ import 'product_strategy_models.dart';
 import 'v9_models.dart';
 import 'v10_models.dart';
 
+part 'game_state_index.dart';
+
 const int currentSnapshotVersion = 10;
 
 enum GameSpeed {
@@ -213,37 +215,14 @@ class GameState {
       V9ContentCatalog.hostingById(selectedHostingPlanId);
   bool get usingOwnedInfrastructure => hostingPlan.kind == HostingKind.owned;
 
-  Product? productById(String id) {
-    for (final product in products) {
-      if (product.id == id) {
-        return product;
-      }
-    }
-    return null;
-  }
+  Product? productById(String id) => _index.productsById[id];
 
-  Candidate? candidateById(String id) {
-    for (final candidate in candidates) {
-      if (candidate.id == id) {
-        return candidate;
-      }
-    }
-    return null;
-  }
+  Candidate? candidateById(String id) => _index.candidatesById[id];
 
-  Employee? employeeById(String id) {
-    for (final employee in employees) {
-      if (employee.id == id) {
-        return employee;
-      }
-    }
-    return null;
-  }
+  Employee? employeeById(String id) => _index.employeesById[id];
 
   List<EmployeeAssignment> assignmentsForEmployee(String employeeId) =>
-      employeeAssignments
-          .where((item) => item.employeeId == employeeId)
-          .toList(growable: false);
+      _index.assignmentsByEmployee[employeeId] ?? const <EmployeeAssignment>[];
 
   EmployeeAssignment? assignmentForEmployee(String employeeId) {
     final matches = assignmentsForEmployee(employeeId);
@@ -253,15 +232,11 @@ class GameState {
   EmployeeAssignment? assignmentForEmployeeOnProduct(
     String employeeId,
     String productId,
-  ) {
-    for (final assignment in employeeAssignments) {
-      if (assignment.employeeId == employeeId &&
-          assignment.productId == productId) {
-        return assignment;
-      }
-    }
-    return null;
-  }
+  ) =>
+      _index.assignmentByEmployeeProduct[_GameStateIndex.pair(
+        employeeId,
+        productId,
+      )];
 
   double employeeAllocationForProduct(String employeeId, String productId) =>
       assignmentForEmployeeOnProduct(
@@ -270,11 +245,8 @@ class GameState {
       )?.allocationPercent ??
       0;
 
-  List<Employee> employeesForProduct(String productId) => employeeAssignments
-      .where((item) => item.productId == productId)
-      .map((item) => employeeById(item.employeeId))
-      .whereType<Employee>()
-      .toList(growable: false);
+  List<Employee> employeesForProduct(String productId) =>
+      _index.employeesByProduct[productId] ?? const <Employee>[];
 
   List<Employee> get unassignedEmployees => employees
       .where(
@@ -305,20 +277,14 @@ class GameState {
       .where((contract) => contract.status == ContractStatus.failed)
       .toList(growable: false);
 
-  ClientContract? contractById(String id) {
-    for (final contract in clientContracts) {
-      if (contract.id == id) {
-        return contract;
-      }
-    }
-    return null;
-  }
+  ClientContract? contractById(String id) => _index.contractsById[id];
 
   ContractEmployeeAssignment? contractAssignmentForEmployee(String employeeId) {
-    for (final assignment in contractEmployeeAssignments) {
-      if (assignment.employeeId == employeeId &&
-          contractById(assignment.contractId)?.status ==
-              ContractStatus.active) {
+    for (final assignment
+        in _index.contractAssignmentsByEmployee[employeeId] ??
+            const <ContractEmployeeAssignment>[]) {
+      if (_index.contractsById[assignment.contractId]?.status ==
+          ContractStatus.active) {
         return assignment;
       }
     }
@@ -326,11 +292,7 @@ class GameState {
   }
 
   List<Employee> employeesForContract(String contractId) =>
-      contractEmployeeAssignments
-          .where((item) => item.contractId == contractId)
-          .map((item) => employeeById(item.employeeId))
-          .whereType<Employee>()
-          .toList(growable: false);
+      _index.employeesByContract[contractId] ?? const <Employee>[];
 
   ContractTemplate contractTemplate(String templateId) =>
       ContractCatalog.byId(templateId);
@@ -400,15 +362,14 @@ class GameState {
             employee.quality * 0.14,
       );
 
-  List<String> securityControlIdsFor(String productId) => securityControls
-      .where((item) => item.productId == productId)
-      .map((item) => item.controlId)
-      .toList(growable: false);
+  List<String> securityControlIdsFor(String productId) =>
+      (_index.securityByProduct[productId] ?? const <ProductSecurityControl>[])
+          .map((item) => item.controlId)
+          .toList(growable: false);
 
   bool hasSecurityControl(String productId, String controlId) =>
-      securityControls.any(
-        (item) => item.productId == productId && item.controlId == controlId,
-      );
+      (_index.securityByProduct[productId] ?? const <ProductSecurityControl>[])
+          .any((item) => item.controlId == controlId);
 
   double productSecurityBonus(String productId) => securityControls
       .where((item) => item.productId == productId)
@@ -741,17 +702,12 @@ class GameState {
       productAiIntegrations.length *
       ProductEvolutionCatalog.corporateAiMonthlyCostPerIntegration;
 
-  int improvementLevel(String productId, ProductImprovementType type) {
-    var level = 0;
-    for (final record in productImprovements) {
-      if (record.productId == productId &&
-          record.type == type &&
-          record.level > level) {
-        level = record.level;
-      }
-    }
-    return level;
-  }
+  int improvementLevel(String productId, ProductImprovementType type) =>
+      _index.improvementLevelByProductType[_GameStateIndex.pair(
+        productId,
+        type.name,
+      )] ??
+      0;
 
   double improvementCost(String productId, ProductImprovementType type) {
     final option = ProductEvolutionCatalog.improvementByType(type);
@@ -820,41 +776,15 @@ class GameState {
     return records.isEmpty ? null : records.first;
   }
 
-  InvestorOffer? offerById(String id) {
-    for (final offer in investorOffers) {
-      if (offer.id == id) {
-        return offer;
-      }
-    }
-    return null;
-  }
+  InvestorOffer? offerById(String id) => _index.offersById[id];
 
-  InvestorAgreement? agreementById(String id) {
-    for (final agreement in investorAgreements) {
-      if (agreement.id == id) {
-        return agreement;
-      }
-    }
-    return null;
-  }
+  InvestorAgreement? agreementById(String id) => _index.agreementsById[id];
 
-  PortfolioHolding? holdingByCompanyId(String id) {
-    for (final holding in portfolioHoldings) {
-      if (holding.companyId == id) {
-        return holding;
-      }
-    }
-    return null;
-  }
+  PortfolioHolding? holdingByCompanyId(String id) =>
+      _index.holdingsByCompanyId[id];
 
-  int installedCount(String hardwareId) {
-    for (final installed in installedServers) {
-      if (installed.hardwareId == hardwareId) {
-        return installed.count;
-      }
-    }
-    return 0;
-  }
+  int installedCount(String hardwareId) =>
+      _index.installedCountByHardwareId[hardwareId] ?? 0;
 
   double get usedRackUnits => installedServers.fold<double>(0, (sum, item) {
     final hardware = GameCatalog.serverHardwareById(item.hardwareId);
@@ -975,8 +905,10 @@ class GameState {
       ProductStrategyCatalog.phaseFor(product.developmentProgress);
 
   ProductFeatureDevelopment? activeFeatureDevelopmentFor(String productId) {
-    for (final work in productFeatureDevelopments) {
-      if (work.productId == productId && work.progress < 1) {
+    for (final work
+        in _index.featureWorkByProduct[productId] ??
+            const <ProductFeatureDevelopment>[]) {
+      if (work.progress < 1) {
         return work;
       }
     }
@@ -992,12 +924,8 @@ class GameState {
   }
 
   List<AdvertisingCampaign> activeCampaignsFor(String productId) =>
-      advertisingCampaigns
-          .where(
-            (item) =>
-                item.productId == productId &&
-                item.status == AdvertisingCampaignStatus.active,
-          )
+      (_index.campaignsByProduct[productId] ?? const <AdvertisingCampaign>[])
+          .where((item) => item.status == AdvertisingCampaignStatus.active)
           .toList(growable: false);
 
   ProductPriceChange? latestPriceChangeFor(String productId) {
@@ -1195,9 +1123,7 @@ class GameState {
   double get founderPortfolioValue => valuation * founderOwnershipPercent / 100;
 
   List<ProductMetricPoint> metricHistoryFor(String productId) =>
-      productMetricHistory
-          .where((item) => item.productId == productId)
-          .toList(growable: false);
+      _index.metricHistoryByProduct[productId] ?? const <ProductMetricPoint>[];
 
   ProductMonetizationChange? latestMonetizationChange(String productId) {
     ProductMonetizationChange? latest;

@@ -1,14 +1,15 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
+import '../../../application/localization/app_localizer.dart';
+import '../../../application/localization/app_text.dart';
 import '../../../application/settings/display_preferences.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/game_state.dart';
 import '../../../domain/entities/models.dart';
 import 'formatters.dart';
+import './scoped_listenable_builder.dart';
 
 class GlobalTimeControlBar extends StatelessWidget {
   const GlobalTimeControlBar({required this.controller, super.key});
@@ -17,115 +18,117 @@ class GlobalTimeControlBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: Listenable.merge([controller, DisplayPreferences.instance]),
+    return ScopedListenableBuilder(
+      listenable: Listenable.merge(<Listenable>[
+        controller,
+        DisplayPreferences.instance,
+      ]),
       builder: (context, _) {
         final state = controller.state;
         final blocked =
             state.criticalEvent != CriticalEventType.none || state.gameOver;
-        return Semantics(
-          key: const Key('global-time-floating'),
-          container: true,
-          label: 'Глобальное управление временем и деньгами',
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520, minHeight: 48),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(22),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: AppColors.surface.withAlpha(226),
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: Colors.white.withAlpha(170)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withAlpha(18),
-                        blurRadius: 16,
-                        offset: const Offset(0, 5),
+        return RepaintBoundary(
+          child: Semantics(
+            key: const Key('global-time-floating'),
+            container: true,
+            label: tr('Глобальное управление временем и деньгами'),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520, minHeight: 48),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.surface.withAlpha(238),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: Colors.white.withAlpha(170)),
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: Colors.black.withAlpha(18),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 5,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      _GlassIconButton(
+                        key: const Key('global-time-toggle'),
+                        enabled: !blocked,
+                        selected: !state.paused,
+                        semanticLabel: tr(
+                          state.paused ? 'Продолжить' : 'Пауза',
+                        ),
+                        icon: state.paused
+                            ? Icons.play_arrow_rounded
+                            : Icons.pause_rounded,
+                        onPressed: () =>
+                            controller.dispatch(const TogglePause()),
+                      ),
+                      const SizedBox(width: 4),
+                      _SpeedButton(
+                        key: const Key('global-speed-x1'),
+                        label: '1×',
+                        selected: state.speed == GameSpeed.x1,
+                        enabled: !blocked,
+                        onTap: () => controller.dispatch(
+                          const SetGameSpeed(GameSpeed.x1),
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      _SpeedButton(
+                        key: const Key('global-speed-x2'),
+                        label: '2×',
+                        selected: state.speed == GameSpeed.x2,
+                        enabled: !blocked,
+                        onTap: () => controller.dispatch(
+                          const SetGameSpeed(GameSpeed.x2),
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      _SpeedButton(
+                        key: const Key('global-speed-x4'),
+                        label: '4×',
+                        selected: state.speed == GameSpeed.x4,
+                        enabled: !blocked,
+                        onTap: () => controller.dispatch(
+                          const SetGameSpeed(GameSpeed.x4),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: _StatusPill(
+                          key: const Key('global-current-time'),
+                          semanticLabel: tr(
+                            'День ${state.day}, время ${state.formattedTime}',
+                          ),
+                          text: 'Д${state.day} ${state.formattedTime}',
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: _StatusPill(
+                          key: const Key('global-current-cash'),
+                          semanticLabel: tr(
+                            'Деньги компании ${money(state.cash)}',
+                          ),
+                          text: money(state.cash),
+                          warning: state.cash < 0,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      _GlassIconButton(
+                        key: const Key('global-skip-night'),
+                        enabled: !blocked,
+                        selected: false,
+                        semanticLabel: tr('Пропустить ночь до 08:00'),
+                        icon: Icons.nightlight_round,
+                        onPressed: () => controller.dispatch(const SkipNight()),
                       ),
                     ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 5,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _GlassIconButton(
-                          key: const Key('global-time-toggle'),
-                          enabled: !blocked,
-                          selected: !state.paused,
-                          semanticLabel: state.paused ? 'Продолжить' : 'Пауза',
-                          icon: state.paused
-                              ? Icons.play_arrow_rounded
-                              : Icons.pause_rounded,
-                          onPressed: () =>
-                              controller.dispatch(const TogglePause()),
-                        ),
-                        const SizedBox(width: 4),
-                        _SpeedButton(
-                          key: const Key('global-speed-x1'),
-                          label: '1x',
-                          selected: state.speed == GameSpeed.x1,
-                          enabled: !blocked,
-                          onTap: () => controller.dispatch(
-                            const SetGameSpeed(GameSpeed.x1),
-                          ),
-                        ),
-                        const SizedBox(width: 3),
-                        _SpeedButton(
-                          key: const Key('global-speed-x2'),
-                          label: '2x',
-                          selected: state.speed == GameSpeed.x2,
-                          enabled: !blocked,
-                          onTap: () => controller.dispatch(
-                            const SetGameSpeed(GameSpeed.x2),
-                          ),
-                        ),
-                        const SizedBox(width: 3),
-                        _SpeedButton(
-                          key: const Key('global-speed-x4'),
-                          label: '4x',
-                          selected: state.speed == GameSpeed.x4,
-                          enabled: !blocked,
-                          onTap: () => controller.dispatch(
-                            const SetGameSpeed(GameSpeed.x4),
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Flexible(
-                          child: _StatusPill(
-                            key: const Key('global-current-time'),
-                            semanticLabel:
-                                'День ${state.day}, время ${state.formattedTime}',
-                            text: 'Д${state.day} ${state.formattedTime}',
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: _StatusPill(
-                            key: const Key('global-current-cash'),
-                            semanticLabel:
-                                'Деньги компании ${money(state.cash)}',
-                            text: money(state.cash),
-                            warning: state.cash < 0,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        _GlassIconButton(
-                          key: const Key('global-skip-night'),
-                          enabled: !blocked,
-                          selected: false,
-                          semanticLabel: 'Пропустить ночь до 08:00',
-                          icon: Icons.nightlight_round,
-                          onPressed: () =>
-                              controller.dispatch(const SkipNight()),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
               ),
@@ -164,7 +167,7 @@ class _StatusPill extends StatelessWidget {
         ),
         child: FittedBox(
           fit: BoxFit.scaleDown,
-          child: Text(
+          child: AppText(
             text,
             maxLines: 1,
             style: TextStyle(
@@ -242,7 +245,7 @@ class _SpeedButton extends StatelessWidget {
       button: true,
       selected: selected,
       enabled: enabled,
-      label: 'Скорость $label',
+      label: tr('Скорость $label'),
       child: Material(
         color: selected
             ? AppColors.primary.withAlpha(28)
@@ -255,7 +258,7 @@ class _SpeedButton extends StatelessWidget {
             width: 32,
             height: 38,
             child: Center(
-              child: Text(
+              child: AppText(
                 label,
                 style: TextStyle(
                   color: !enabled

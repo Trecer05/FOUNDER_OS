@@ -5,6 +5,8 @@ import '../../../application/controllers/game_controller.dart';
 import '../../../domain/entities/models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../../application/localization/app_text.dart';
+import '../../shared/widgets/scoped_listenable_builder.dart';
 
 class NewsScreen extends StatefulWidget {
   const NewsScreen({required this.controller, super.key});
@@ -20,7 +22,7 @@ class _NewsScreenState extends State<NewsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return ScopedListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) {
         final state = widget.controller.state;
@@ -29,7 +31,7 @@ class _NewsScreenState extends State<NewsScreen> {
             .toList(growable: false);
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Новости рынка')),
+          appBar: AppBar(title: const AppText('Новости рынка')),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
@@ -44,7 +46,7 @@ class _NewsScreenState extends State<NewsScreen> {
                 child: Row(
                   children: [
                     ChoiceChip(
-                      label: const Text('Все'),
+                      label: const AppText('Все'),
                       selected: _kind == null,
                       onSelected: (_) => setState(() => _kind = null),
                     ),
@@ -53,7 +55,7 @@ class _NewsScreenState extends State<NewsScreen> {
                       (kind) => Padding(
                         padding: const EdgeInsets.only(right: 7),
                         child: ChoiceChip(
-                          label: Text(_kindName(kind)),
+                          label: AppText(_kindName(kind)),
                           selected: _kind == kind,
                           onSelected: (_) => setState(() => _kind = kind),
                         ),
@@ -64,7 +66,9 @@ class _NewsScreenState extends State<NewsScreen> {
               ),
               const SizedBox(height: 14),
               if (news.isEmpty)
-                const AppCard(child: Text('По выбранному фильтру событий нет.'))
+                const AppCard(
+                  child: AppText('По выбранному фильтру событий нет.'),
+                )
               else
                 ...news.map(
                   (item) => Padding(
@@ -89,7 +93,7 @@ class _NewsScreenState extends State<NewsScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Expanded(
-                                      child: Text(
+                                      child: AppText(
                                         item.title,
                                         style: Theme.of(
                                           context,
@@ -105,9 +109,9 @@ class _NewsScreenState extends State<NewsScreen> {
                                   ],
                                 ),
                                 const SizedBox(height: 5),
-                                Text(item.body),
+                                AppText(item.body),
                                 const SizedBox(height: 8),
-                                Text(
+                                AppText(
                                   'День ${item.simulationMinutes ~/ 1440 + 1} • ${_time(item.simulationMinutes)}',
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),

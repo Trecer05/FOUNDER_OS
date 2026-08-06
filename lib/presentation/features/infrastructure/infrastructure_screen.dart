@@ -8,6 +8,7 @@ import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/hosting_plans_panel.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../../application/localization/app_text.dart';
 
 enum _InfraTab { hosting, offices, rooms, hardware, allocation }
 
@@ -42,27 +43,27 @@ class _InfrastructureScreenState extends State<InfrastructureScreen> {
             segments: const [
               ButtonSegment(
                 value: _InfraTab.hosting,
-                label: Text('Hosting'),
+                label: AppText('Hosting'),
                 icon: Icon(Icons.cloud_outlined),
               ),
               ButtonSegment(
                 value: _InfraTab.offices,
-                label: Text('Офисы'),
+                label: AppText('Офисы'),
                 icon: Icon(Icons.business_outlined),
               ),
               ButtonSegment(
                 value: _InfraTab.rooms,
-                label: Text('Серверные'),
+                label: AppText('Серверные'),
                 icon: Icon(Icons.meeting_room_outlined),
               ),
               ButtonSegment(
                 value: _InfraTab.hardware,
-                label: Text('Серверы'),
+                label: AppText('Серверы'),
                 icon: Icon(Icons.dns_outlined),
               ),
               ButtonSegment(
                 value: _InfraTab.allocation,
-                label: Text('Мощности'),
+                label: AppText('Мощности'),
                 icon: Icon(Icons.pie_chart_outline),
               ),
             ],
@@ -178,11 +179,11 @@ class _OfficesList extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            AppText(
                               office.name,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            Text(
+                            AppText(
                               '${office.group} • ${money(state.onSiteEmployeeCount == 0 ? 0 : office.monthlyRent)}/мес. фактически',
                             ),
                           ],
@@ -195,12 +196,12 @@ class _OfficesList extends StatelessWidget {
                           onPressed: canRent
                               ? () => controller.dispatch(RentOffice(office.id))
                               : null,
-                          child: const Text('Арендовать'),
+                          child: const AppText('Арендовать'),
                         ),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Text(office.description),
+                  AppText(office.description),
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 7,
@@ -221,7 +222,7 @@ class _OfficesList extends StatelessWidget {
                   if (!current && !canRent)
                     const Padding(
                       padding: EdgeInsets.only(top: 9),
-                      child: Text(
+                      child: AppText(
                         'Блокировка: не хватает денег или мест для текущей команды.',
                         style: TextStyle(color: AppColors.red),
                       ),
@@ -271,11 +272,11 @@ class _ServerRoomsList extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            AppText(
                               room.name,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            Text(
+                            AppText(
                               '${room.group} • ${money(room.monthlyRent)}/мес.',
                             ),
                           ],
@@ -289,12 +290,12 @@ class _ServerRoomsList extends StatelessWidget {
                               ? () =>
                                     controller.dispatch(RentServerRoom(room.id))
                               : null,
-                          child: const Text('Арендовать'),
+                          child: const AppText('Арендовать'),
                         ),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Text(room.description),
+                  AppText(room.description),
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 7,
@@ -311,7 +312,7 @@ class _ServerRoomsList extends StatelessWidget {
                   if (!current && !canRent)
                     const Padding(
                       padding: EdgeInsets.only(top: 9),
-                      child: Text(
+                      child: AppText(
                         'Блокировка: текущее железо не помещается или не хватает депозита.',
                         style: TextStyle(color: AppColors.red),
                       ),
@@ -363,11 +364,11 @@ class _HardwareList extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            AppText(
                               hardware.name,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            Text('${hardware.group} • установлено $count'),
+                            AppText('${hardware.group} • установлено $count'),
                           ],
                         ),
                       ),
@@ -390,7 +391,7 @@ class _HardwareList extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text(hardware.description),
+                  AppText(hardware.description),
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 7,
@@ -411,7 +412,7 @@ class _HardwareList extends StatelessWidget {
                   if (!canInstall)
                     const Padding(
                       padding: EdgeInsets.only(top: 9),
-                      child: Text(
+                      child: AppText(
                         'Установка заблокирована: проверьте деньги, U, power и cooling.',
                         style: TextStyle(color: AppColors.red),
                       ),
@@ -442,7 +443,7 @@ class _AllocationList extends StatelessWidget {
     final state = controller.state;
     if (state.products.isEmpty) {
       return const AppCard(
-        child: Text('Создайте продукт, чтобы распределять мощности.'),
+        child: AppText('Создайте продукт, чтобы распределять мощности.'),
       );
     }
     return Column(
@@ -494,17 +495,17 @@ class _AllocationList extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            AppText(
                               product.name,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            Text(
+                            AppText(
                               '${categoryName(product.category)} • load ${percent(load, fractionDigits: 1)}',
                             ),
                           ],
                         ),
                       ),
-                      Text(
+                      AppText(
                         '${value.round()}%',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
@@ -533,11 +534,11 @@ class _AllocationList extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(
+                        child: AppText(
                           'Доступно: ${state.allocatedComputeFor(product.id).round()} units',
                         ),
                       ),
-                      Text(
+                      AppText(
                         'Нужно: ${state.productComputeDemand(product).round()} units',
                       ),
                     ],
@@ -563,7 +564,7 @@ class _CurrentChip extends StatelessWidget {
         color: AppColors.green.withAlpha(22),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: const Text(
+      child: const AppText(
         'Текущий',
         style: TextStyle(color: AppColors.green, fontWeight: FontWeight.w800),
       ),
@@ -584,7 +585,7 @@ class _ValueChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
       ),
-      child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+      child: AppText(label, style: Theme.of(context).textTheme.bodySmall),
     );
   }
 }
@@ -603,8 +604,8 @@ class _InfoRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             children: [
-              Expanded(child: Text(label)),
-              Text(value, style: Theme.of(context).textTheme.titleMedium),
+              Expanded(child: AppText(label)),
+              AppText(value, style: Theme.of(context).textTheme.titleMedium),
             ],
           ),
         ),

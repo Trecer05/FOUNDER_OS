@@ -57,3 +57,10 @@
 - Time and cash are persistent global status pills with explicit normal/warning colors and no text decoration.
 - Product cards use stable category accents with sufficient contrast and blueprint labels.
 - Long metric charts are isolated with `RepaintBoundary`; section changes use short 160 ms transitions.
+
+<!-- V10_OPTIMIZATION -->
+## Performance and locale rules
+
+- Rebuild only state-dependent fragments; stable navigation and section rails remain outside tick listeners.
+- Avoid backdrop blur in persistent overlays.
+- User-facing text uses AppText/tr; direct Text/RichText in presentation is rejected by audit.

@@ -9,6 +9,9 @@ import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/metric_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../../application/localization/app_text.dart';
+import '../../shared/widgets/scoped_listenable_builder.dart';
+import '../../../application/localization/app_localizer.dart';
 
 class SecurityCenterScreen extends StatefulWidget {
   const SecurityCenterScreen({required this.controller, super.key});
@@ -24,7 +27,7 @@ class _SecurityCenterScreenState extends State<SecurityCenterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return ScopedListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) {
         final state = widget.controller.state;
@@ -42,7 +45,7 @@ class _SecurityCenterScreenState extends State<SecurityCenterScreen> {
             : state.productById(selectedId);
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Центр безопасности')),
+          appBar: AppBar(title: const AppText('Центр безопасности')),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
@@ -54,19 +57,21 @@ class _SecurityCenterScreenState extends State<SecurityCenterScreen> {
               const SizedBox(height: 12),
               if (available.isEmpty)
                 const AppCard(
-                  child: Text(
+                  child: AppText(
                     'Создайте продукт, чтобы настроить безопасность.',
                   ),
                 )
               else ...[
                 DropdownButtonFormField<String>(
                   initialValue: selectedId,
-                  decoration: const InputDecoration(labelText: 'Продукт'),
+                  decoration: InputDecoration(
+                    labelText: trContext(context, 'Продукт'),
+                  ),
                   items: available
                       .map(
                         (item) => DropdownMenuItem(
                           value: item.id,
-                          child: Text(item.name),
+                          child: AppText(item.name),
                         ),
                       )
                       .toList(growable: false),
@@ -153,7 +158,7 @@ class _RiskOverview extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
+                child: AppText(
                   latest == null
                       ? 'Аудит ещё не проводился.'
                       : 'Последний аудит: риск ${latest.riskPercent.toStringAsFixed(1)}%, findings ${latest.findingsCount}.',
@@ -165,7 +170,7 @@ class _RiskOverview extends StatelessWidget {
                     ? () => controller.dispatch(RunSecurityAudit(product.id))
                     : null,
                 icon: const Icon(Icons.fact_check_outlined),
-                label: const Text('Аудит 75 тыс.'),
+                label: const AppText('Аудит 75 тыс.'),
               ),
             ],
           ),
@@ -198,7 +203,7 @@ class _SecurityControlCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
+                child: AppText(
                   control.name,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
@@ -206,12 +211,12 @@ class _SecurityControlCard extends StatelessWidget {
               if (installed)
                 const Chip(
                   avatar: Icon(Icons.check_circle, size: 16),
-                  label: Text('Внедрено'),
+                  label: AppText('Внедрено'),
                 ),
             ],
           ),
           const SizedBox(height: 4),
-          Text(control.description),
+          AppText(control.description),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -237,7 +242,7 @@ class _SecurityControlCard extends StatelessWidget {
                         ),
                       )
                     : null,
-                child: const Text('Внедрить'),
+                child: const AppText('Внедрить'),
               ),
             ),
           ],
@@ -261,7 +266,7 @@ class _Tag extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
       ),
-      child: Text(text),
+      child: AppText(text),
     );
   }
 }

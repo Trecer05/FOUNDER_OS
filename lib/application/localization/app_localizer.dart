@@ -10,8 +10,8 @@ import 'glossary_english.dart';
 /// pairs through [DisplayPreferences.text].
 ///
 /// The adapter has two strict guarantees:
-/// - RU presentation normalizes accidental English product jargon unless it is
-///   an approved abbreviation or glossary term.
+/// - RU presentation translates only authored UI phrases. Unknown Latin copy,
+///   proper names, technical roles, units and promo codes remain untouched.
 /// - EN presentation contains no Cyrillic fallback. Known copy is translated;
 ///   unknown proper/content names are transliterated rather than leaking a
 ///   second alphabet into the English interface.
@@ -49,6 +49,10 @@ abstract final class AppLocalizer {
     'fte',
     'gpu',
     'hr',
+    'frontend',
+    'backend',
+    'product manager',
+    'people partner',
     'ml',
     'latency',
     'ltv',
@@ -56,7 +60,6 @@ abstract final class AppLocalizer {
     'mrr',
     'onboarding',
     'overstaffing',
-    'payroll',
     'profit',
     'ram',
     'retention',
@@ -102,7 +105,6 @@ abstract final class AppLocalizer {
     'Cash': 'Деньги',
     'Framework': 'Фреймворк',
     'Hosting': 'Хостинг',
-    'Compute': 'Вычислительная мощность',
     'Development capacity': 'Скорость разработки',
     'Stack coherence': 'Совместимость стека',
     'Coherence': 'Совместимость',
@@ -114,9 +116,6 @@ abstract final class AppLocalizer {
     'Cold start': 'Холодный запуск',
     'Vendor lock-in': 'Зависимость от поставщика',
     'Provider lock-in': 'Зависимость от провайдера',
-    'Backend': 'Серверная разработка',
-    'Frontend': 'Интерфейсная разработка',
-    'Product Manager': 'Менеджер продукта',
     'Mobile': 'Мобильная разработка',
     'AI/ML': 'AI/ML',
     'Ai Ml': 'AI/ML',
@@ -129,7 +128,6 @@ abstract final class AppLocalizer {
     'Growth': 'Рост',
     'Sales': 'Продажи',
     'Support': 'Поддержка',
-    'People Partner': 'Специалист по персоналу',
     'Company website': 'Сайт компании',
     'AI assistant': 'AI-ассистент',
     'Cloud platform': 'Облачная платформа',
@@ -204,6 +202,7 @@ abstract final class AppLocalizer {
     'developer platform': 'платформа для разработчиков',
     'framework requires': 'фреймворк требует',
     'cash': 'деньги',
+    'payroll': 'зарплаты',
     'product': 'продукт',
     'team': 'команда',
     'overview': 'обзор',
@@ -561,8 +560,11 @@ abstract final class AppLocalizer {
     var result = source;
     final phrases = _ruPhrases.keys.toList()
       ..sort((a, b) => b.length.compareTo(a.length));
+    const safeInlineTerms = <String>{'cash', 'workload', 'morale', 'payroll'};
     for (final phrase in phrases) {
-      if (_isApprovedTerm(phrase)) {
+      final isMultiWord = phrase.contains(' ') || phrase.contains('-');
+      if ((!isMultiWord && !safeInlineTerms.contains(phrase)) ||
+          _isApprovedTerm(phrase)) {
         continue;
       }
       result = result.replaceAllMapped(
@@ -570,7 +572,7 @@ abstract final class AppLocalizer {
         (match) => _preserveLeadingCase(match.group(0)!, _ruPhrases[phrase]!),
       );
     }
-    return _preserveLeadingCase(source, _cyrillizeUnknownEnglish(result));
+    return _preserveLeadingCase(source, result);
   }
 
   static String toEnglish(String source) =>
@@ -629,99 +631,6 @@ abstract final class AppLocalizer {
     }
 
     return valueFirst.toUpperCase() + value.substring(1);
-  }
-
-  static String _cyrillizeUnknownEnglish(String value) {
-    return value.replaceAllMapped(RegExp(r'[A-Za-z][A-Za-z-]*'), (match) {
-      final word = match.group(0)!;
-      final lower = word.toLowerCase();
-      final looksLikeProperName =
-          word.length > 1 &&
-          word[0] == word[0].toUpperCase() &&
-          word.substring(1) == word.substring(1).toLowerCase();
-      if (_isApprovedTerm(lower) ||
-          looksLikeProperName ||
-          (word.length <= 8 && word == word.toUpperCase())) {
-        return word;
-      }
-      return _latinToCyrillic(word);
-    });
-  }
-
-  static String _latinToCyrillic(String source) {
-    const sequences = <String, String>{
-      'shch': 'щ',
-      'sch': 'щ',
-      'tch': 'ч',
-      'zh': 'ж',
-      'kh': 'х',
-      'ts': 'ц',
-      'ch': 'ч',
-      'sh': 'ш',
-      'ya': 'я',
-      'yu': 'ю',
-      'yo': 'ё',
-      'ye': 'е',
-      'ph': 'ф',
-      'th': 'т',
-      'ck': 'к',
-      'qu': 'кв',
-      'wh': 'в',
-      'ee': 'и',
-      'oo': 'у',
-    };
-    const letters = <String, String>{
-      'a': 'а',
-      'b': 'б',
-      'c': 'к',
-      'd': 'д',
-      'e': 'е',
-      'f': 'ф',
-      'g': 'г',
-      'h': 'х',
-      'i': 'и',
-      'j': 'дж',
-      'k': 'к',
-      'l': 'л',
-      'm': 'м',
-      'n': 'н',
-      'o': 'о',
-      'p': 'п',
-      'q': 'к',
-      'r': 'р',
-      's': 'с',
-      't': 'т',
-      'u': 'у',
-      'v': 'в',
-      'w': 'в',
-      'x': 'кс',
-      'y': 'й',
-      'z': 'з',
-    };
-    final lower = source.toLowerCase();
-    final buffer = StringBuffer();
-    var index = 0;
-    final ordered = sequences.keys.toList()
-      ..sort((a, b) => b.length.compareTo(a.length));
-    while (index < lower.length) {
-      String? replacement;
-      var consumed = 1;
-      for (final sequence in ordered) {
-        if (lower.startsWith(sequence, index)) {
-          replacement = sequences[sequence];
-          consumed = sequence.length;
-          break;
-        }
-      }
-      replacement ??= letters[lower[index]] ?? lower[index];
-      buffer.write(replacement);
-      index += consumed;
-    }
-    final result = buffer.toString();
-    if (source.isNotEmpty && source[0] == source[0].toUpperCase()) {
-      return result[0].toUpperCase() + result.substring(1);
-    }
-    return result;
   }
 
   static String _cached(

@@ -22,6 +22,7 @@ class AppText extends StatelessWidget {
     this.textWidthBasis,
     this.textHeightBehavior,
     this.selectionColor,
+    this.translate = true,
   }) : textSpan = null;
 
   const AppText.rich(
@@ -41,6 +42,7 @@ class AppText extends StatelessWidget {
     this.textWidthBasis,
     this.textHeightBehavior,
     this.selectionColor,
+    this.translate = true,
   }) : data = null;
 
   final String? data;
@@ -59,6 +61,7 @@ class AppText extends StatelessWidget {
   final TextWidthBasis? textWidthBasis;
   final TextHeightBehavior? textHeightBehavior;
   final Color? selectionColor;
+  final bool translate;
 
   @override
   Widget build(BuildContext context) {
@@ -71,9 +74,14 @@ class AppText extends StatelessWidget {
         (ambientLocale?.languageCode == preferredCode
             ? ambientLocale!
             : Locale(preferredCode));
+    final resolvedSemanticsLabel = semanticsLabel == null
+        ? null
+        : translate
+        ? AppLocalizer.translate(semanticsLabel!, resolvedLocale)
+        : semanticsLabel;
     if (textSpan != null) {
       return Text.rich(
-        _translateSpan(textSpan!, resolvedLocale),
+        translate ? _translateSpan(textSpan!, resolvedLocale) : textSpan!,
         style: style,
         strutStyle: strutStyle,
         textAlign: textAlign,
@@ -83,9 +91,7 @@ class AppText extends StatelessWidget {
         overflow: overflow,
         textScaler: textScaler,
         maxLines: maxLines,
-        semanticsLabel: semanticsLabel == null
-            ? null
-            : AppLocalizer.translate(semanticsLabel!, resolvedLocale),
+        semanticsLabel: resolvedSemanticsLabel,
         semanticsIdentifier: semanticsIdentifier,
         textWidthBasis: textWidthBasis,
         textHeightBehavior: textHeightBehavior,
@@ -93,7 +99,9 @@ class AppText extends StatelessWidget {
       );
     }
     return Text(
-      AppLocalizer.translate(data ?? '', resolvedLocale),
+      translate
+          ? AppLocalizer.translate(data ?? '', resolvedLocale)
+          : data ?? '',
       style: style,
       strutStyle: strutStyle,
       textAlign: textAlign,
@@ -103,9 +111,7 @@ class AppText extends StatelessWidget {
       overflow: overflow,
       textScaler: textScaler,
       maxLines: maxLines,
-      semanticsLabel: semanticsLabel == null
-          ? null
-          : AppLocalizer.translate(semanticsLabel!, resolvedLocale),
+      semanticsLabel: resolvedSemanticsLabel,
       semanticsIdentifier: semanticsIdentifier,
       textWidthBasis: textWidthBasis,
       textHeightBehavior: textHeightBehavior,

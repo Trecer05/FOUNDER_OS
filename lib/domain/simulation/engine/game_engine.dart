@@ -773,7 +773,7 @@ class GameEngine {
             amount: -amount,
             category: FinanceTransactionCategory.payroll,
             description:
-                'Payroll • ${employee.name} • период Д${payableStart ~/ 1440 + 1}–Д${periodEnd ~/ 1440 + 1}',
+                'Зарплата • ${employee.name} • период Д${payableStart ~/ 1440 + 1}–Д${periodEnd ~/ 1440 + 1}',
           );
         })
         .where((item) => item.amount.abs() > 0.01)
@@ -2187,7 +2187,7 @@ class GameEngine {
             simulationMinutes: state.simulationMinutes,
             amount: -signingBonus,
             category: FinanceTransactionCategory.payroll,
-            description: 'Signing bonus • ${candidate.name}',
+            description: 'Бонус при найме • ${candidate.name}',
           ),
           ...state.financeTransactions,
         ].take(120).toList(growable: false),
@@ -2202,6 +2202,13 @@ class GameEngine {
     String productId,
   ) {
     if (state.productById(productId) == null) return state;
+    final candidate = state.candidateById(candidateId);
+    if (candidate?.isHr ?? false) {
+      return _withFeed(
+        state,
+        'HR нанимается в разделе «Команда» и не назначается как специалист продукта.',
+      );
+    }
     final hired = _hireCandidateInternal(state, candidateId);
     if (hired.employeeById(candidateId) == null) return hired;
     return _assignEmployee(hired, candidateId, productId);
@@ -2210,10 +2217,13 @@ class GameEngine {
   GameState _autoHireProjectTeam(GameState state, String productId) {
     final product = state.productById(productId);
     if (product == null) return state;
-    if (!state.employees.any((employee) => employee.isHr)) {
+    final hiredHr = state.employees
+        .where((employee) => employee.isHr)
+        .toList(growable: false);
+    if (hiredHr.isEmpty) {
       return _withFeed(
         state,
-        '${product.name}: автоматический подбор заблокирован — сначала наймите HR / People Partner.',
+        '${product.name}: автоматический подбор заблокирован — сначала наймите HR / People Partner в разделе «Команда».',
       );
     }
     var next = state;
@@ -2460,7 +2470,7 @@ class GameEngine {
             simulationMinutes: state.simulationMinutes,
             amount: -cost,
             category: FinanceTransactionCategory.payroll,
-            description: 'Wellbeing bonus • ${employee.name}',
+            description: 'Корпоративный бонус • ${employee.name}',
           ),
           ...state.financeTransactions,
         ].take(120).toList(growable: false),
@@ -2781,8 +2791,18 @@ class GameEngine {
       state.copyWith(
         installedServers: installed,
         cash: state.cash - hardware.purchaseCost,
+        financeTransactions: <FinanceTransaction>[
+          FinanceTransaction(
+            id: 'server_${hardware.id}_${state.simulationMinutes}_${current + 1}',
+            simulationMinutes: state.simulationMinutes,
+            amount: -hardware.purchaseCost,
+            category: FinanceTransactionCategory.infrastructure,
+            description: 'Покупка сервера • ${hardware.name}',
+          ),
+          ...state.financeTransactions,
+        ].take(120).toList(growable: false),
       ),
-      '${hardware.name} установлен: +${hardware.computeUnits.round()} compute units.',
+      '${hardware.name} установлен: +${hardware.computeUnits.round()} CU.',
     );
   }
 

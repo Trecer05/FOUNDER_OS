@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:founder_os/application/localization/app_localizer.dart';
 
 void main() {
-  test('Russian UI normalizes accidental English implementation jargon', () {
+  test('Russian UI translates authored phrases without damaging tech copy', () {
     final result = AppLocalizer.toRussian(
       'Cash · Development capacity · Stack coherence · provider lock-in',
     );
@@ -12,21 +12,30 @@ void main() {
     expect(result.toLowerCase(), isNot(contains('provider lock-in')));
   });
 
-  test('Russian role and product labels use localized names', () {
-    expect(AppLocalizer.toRussian('Product Manager'), 'Менеджер продукта');
-    expect(
-      AppLocalizer.toRussian('Security Engineer'),
-      'Инженер по безопасности',
-    );
-    expect(AppLocalizer.toRussian('Company website'), 'Сайт компании');
-    expect(AppLocalizer.toRussian('Cloud platform'), 'Облачная платформа');
+  test('Russian UI preserves technical roles units and promo codes', () {
+    for (final value in <String>[
+      'Frontend',
+      'Backend',
+      'Product Manager',
+      'HR / People Partner',
+      'Compute 45 CU',
+      '8 U · 6.0 kW · 1 Gbps',
+      'FOUNDER-RICH',
+      'FOUNDER-BROKE',
+      'FreeLane Performance',
+    ]) {
+      expect(AppLocalizer.toRussian(value), value, reason: value);
+    }
   });
 
-  test('Russian fallback contains no accidental lowercase Latin copy', () {
-    final result = AppLocalizer.toRussian(
-      'maximum remote performance unknownword',
-    );
-    expect(RegExp(r'[a-z]').hasMatch(result), isFalse);
+  test('unknown Latin copy is never converted into pseudo Cyrillic', () {
+    const source = 'unknownProvider customMetric alphaBuild';
+    expect(AppLocalizer.toRussian(source), source);
+  });
+
+  test('Russian product labels still use authored translations', () {
+    expect(AppLocalizer.toRussian('Company website'), 'Сайт компании');
+    expect(AppLocalizer.toRussian('Cloud platform'), 'Облачная платформа');
   });
 
   test('founder handbook definitions use authored English copy', () {

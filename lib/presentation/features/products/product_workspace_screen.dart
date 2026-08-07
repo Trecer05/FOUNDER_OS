@@ -356,22 +356,25 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
     final deficits = StaffingDeficitResolver.forProduct(state, product);
     final hasHr = state.employees.any((employee) => employee.isHr);
     final requiredRoles = deficits.map((item) => item.roleId).toSet();
-    final candidates = state.candidates.toList(growable: false)
-      ..sort((left, right) {
-        final leftFit = requiredRoles.contains(left.role.name) ? 1 : 0;
-        final rightFit = requiredRoles.contains(right.role.name) ? 1 : 0;
-        if (leftFit != rightFit) return rightFit.compareTo(leftFit);
-        final leftLanguages = left.languageIds
-            .where(product.languageIds.contains)
-            .length;
-        final rightLanguages = right.languageIds
-            .where(product.languageIds.contains)
-            .length;
-        if (leftLanguages != rightLanguages) {
-          return rightLanguages.compareTo(leftLanguages);
-        }
-        return right.skill.compareTo(left.skill);
-      });
+    final candidates =
+        state.candidates
+            .where((candidate) => !candidate.isHr)
+            .toList(growable: false)
+          ..sort((left, right) {
+            final leftFit = requiredRoles.contains(left.role.name) ? 1 : 0;
+            final rightFit = requiredRoles.contains(right.role.name) ? 1 : 0;
+            if (leftFit != rightFit) return rightFit.compareTo(leftFit);
+            final leftLanguages = left.languageIds
+                .where(product.languageIds.contains)
+                .length;
+            final rightLanguages = right.languageIds
+                .where(product.languageIds.contains)
+                .length;
+            if (leftLanguages != rightLanguages) {
+              return rightLanguages.compareTo(leftLanguages);
+            }
+            return right.skill.compareTo(left.skill);
+          });
     return _list([
       SectionHeader(
         title: 'Команда проекта',
@@ -577,6 +580,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
           children: [
             DropdownButtonFormField<String>(
               initialValue: _agencyId,
+              isExpanded: true,
               decoration: InputDecoration(
                 labelText: trContext(context, 'Агентство'),
               ),
@@ -584,7 +588,12 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                   .map(
                     (item) => DropdownMenuItem(
                       value: item.id,
-                      child: AppText(item.name),
+                      child: AppText(
+                        item.name,
+                        translate: false,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   )
                   .toList(growable: false),
@@ -593,6 +602,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               initialValue: _channelId,
+              isExpanded: true,
               decoration: InputDecoration(
                 labelText: trContext(context, 'Канал'),
               ),
@@ -603,7 +613,12 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                       .map(
                         (item) => DropdownMenuItem(
                           value: item.id,
-                          child: AppText(item.name),
+                          child: AppText(
+                            item.name,
+                            translate: false,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       )
                       .toList(growable: false),
@@ -758,7 +773,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             _row('Активный hosting', state.hostingPlan.name),
             _row(
               'Активная мощность',
-              state.totalComputeUnits.toStringAsFixed(0),
+              '${state.totalComputeUnits.toStringAsFixed(0)} CU',
             ),
             _row('Подготовлено серверов', prepared.toStringAsFixed(0)),
             _row('Выделено продукту', allocated.toStringAsFixed(1)),
@@ -792,7 +807,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: AppText(
-                  '${prepared.toStringAsFixed(0)} compute units куплено, но пока не участвует в расчёте: активен арендный hosting.',
+                  '${prepared.toStringAsFixed(0)} CU куплено, но пока не участвует в расчёте: активен арендный hosting.',
                 ),
               ),
             ],

@@ -11,7 +11,7 @@ void main() {
   const engine = GameEngine();
 
   test(
-    'version 10 snapshot round-trips strategy, AI, evolution and operations',
+    'version 11 snapshot round-trips strategy, AI, evolution and operations',
     () {
       var state = _fundedInitial().copyWith(cash: 10000000);
       state = engine.reduce(
@@ -112,7 +112,7 @@ void main() {
   );
 
   test(
-    'legacy snapshot migrates to version 10 with controlled reset of model',
+    'legacy snapshot migrates to version 11 with controlled reset of model',
     () {
       final legacy = jsonEncode(<String, Object?>{
         'snapshotVersion': 2,

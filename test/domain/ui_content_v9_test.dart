@@ -17,13 +17,13 @@ import 'package:founder_os/domain/validation/v9_content_validator.dart';
 void main() {
   const engine = GameEngine();
 
-  test('snapshot v10 migrates v9 and preserves RNG', () {
+  test('snapshot v11 migrates v9 and preserves RNG', () {
     final original = GameState.initial().copyWith(rngSeed: 77, rngCounter: 19);
     final json = original.toJson()..['snapshotVersion'] = 9;
     json.remove('productMetricHistory');
     final migrated = GameState.decode(jsonEncode(json));
 
-    expect(migrated.snapshotVersion, 10);
+    expect(migrated.snapshotVersion, currentSnapshotVersion);
     expect(migrated.selectedHostingPlanId, 'shared_launch');
     expect(migrated.rngSeed, 77);
     expect(migrated.rngCounter, 19);
@@ -129,7 +129,7 @@ void main() {
     expect(hired.employees.single.hiredAtMinutes, initial.simulationMinutes);
     expect(
       hired.financeTransactions.first.description,
-      contains('Signing bonus'),
+      contains('Бонус при найме'),
     );
   });
 

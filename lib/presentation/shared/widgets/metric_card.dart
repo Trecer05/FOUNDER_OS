@@ -15,6 +15,7 @@ class MetricCard extends StatelessWidget {
     this.accent,
     this.hint,
     this.showHint = true,
+    this.onTap,
     super.key,
   });
 
@@ -26,6 +27,7 @@ class MetricCard extends StatelessWidget {
   final Color? accent;
   final String? hint;
   final bool showHint;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +41,7 @@ class MetricCard extends StatelessWidget {
     final resolvedHint = showHint ? (hint ?? _metricHint(label)) : null;
     return AppCard(
       showHint: false,
+      onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,

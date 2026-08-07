@@ -28,6 +28,7 @@ class FinanceScreen extends StatefulWidget {
 
 class _FinanceScreenState extends State<FinanceScreen> {
   _FinanceSeries _series = _FinanceSeries.cash;
+  bool _dailyProfit = false;
   final TextEditingController _promoController = TextEditingController();
 
   @override
@@ -50,10 +51,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
           0,
           (sum, item) => sum + state.productImprovementMonthlyCost(item.id),
         );
-        final infra =
-            state.monthlyOfficeCost +
-            state.monthlyServerRoomCost +
-            state.monthlyHardwareCost;
         final history = state.financeHistory.isEmpty
             ? <FinanceHistoryPoint>[
                 FinanceHistoryPoint(
@@ -102,9 +99,15 @@ class _FinanceScreenState extends State<FinanceScreen> {
                     positive: false,
                   ),
                   MetricCard(
-                    label: 'Прибыль / мес.',
-                    value: money(state.monthlyProfit),
+                    key: const Key('finance-profit-period-toggle'),
+                    label: _dailyProfit ? 'Прибыль / день' : 'Прибыль / мес.',
+                    value: money(
+                      _dailyProfit
+                          ? state.monthlyProfit / 30
+                          : state.monthlyProfit,
+                    ),
                     positive: state.monthlyProfit >= 0,
+                    onTap: () => setState(() => _dailyProfit = !_dailyProfit),
                   ),
                   MetricCard(
                     label: 'Runway',
@@ -222,7 +225,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       textCapitalization: TextCapitalization.characters,
                       decoration: InputDecoration(
                         labelText: trContext(context, 'Промокод'),
-                        hintText: trContext(context, 'FOUNDER-RICH'),
+                        hintText: 'FOUNDER-RICH',
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -241,9 +244,17 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const AppText('FOUNDER-RICH — добавить 5 млн ₽.'),
-                    const AppText(
-                      'FOUNDER-BROKE — установить баланс −500 тыс. ₽.',
+                    const Wrap(
+                      children: [
+                        AppText('FOUNDER-RICH', translate: false),
+                        AppText(' — добавить 5 млн ₽.'),
+                      ],
+                    ),
+                    const Wrap(
+                      children: [
+                        AppText('FOUNDER-BROKE', translate: false),
+                        AppText(' — установить баланс −500 тыс. ₽.'),
+                      ],
                     ),
                   ],
                 ),
@@ -318,17 +329,24 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 child: Column(
                   children: [
                     _BreakdownBar(
-                      label: 'Payroll',
+                      label: 'Зарплаты',
                       value: state.monthlyPayroll,
                       total: state.monthlyCosts,
                     ),
                     _BreakdownBar(
-                      label: 'Офис и инфраструктура',
-                      value: infra,
+                      label: 'Офис',
+                      value: state.monthlyOfficeCost,
                       total: state.monthlyCosts,
                     ),
                     _BreakdownBar(
-                      label: 'Продукты и маркетинг',
+                      label: 'Хостинг и серверы',
+                      value:
+                          state.monthlyServerRoomCost +
+                          state.monthlyHardwareCost,
+                      total: state.monthlyCosts,
+                    ),
+                    _BreakdownBar(
+                      label: 'Продуктовые сервисы',
                       value: productTech,
                       total: state.monthlyCosts,
                     ),
@@ -343,17 +361,17 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       total: state.monthlyCosts,
                     ),
                     _BreakdownBar(
-                      label: 'Security',
+                      label: 'Безопасность',
                       value: state.monthlySecurityCost,
                       total: state.monthlyCosts,
                     ),
                     _BreakdownBar(
-                      label: 'Инвесторы',
+                      label: 'Выплаты инвесторам',
                       value: state.investorPayouts,
                       total: state.monthlyCosts,
                     ),
                     _BreakdownBar(
-                      label: 'Платежи по кредиту',
+                      label: 'Кредит',
                       value: state.monthlyLoanPayment,
                       total: state.monthlyCosts,
                       last: true,

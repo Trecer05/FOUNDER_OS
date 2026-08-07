@@ -38,14 +38,14 @@ void main() {
   });
 
   test(
-    'remote rented start has no office bill and keeps servers in reserve',
+    'remote rented start has no office bill or purchased physical servers',
     () {
       final state = GameState.initial();
 
       expect(state.monthlyOfficeCost, 0);
       expect(state.usingOwnedInfrastructure, isFalse);
-      expect(state.installedServers, isNotEmpty);
-      expect(state.preparedComputeUnits, greaterThan(0));
+      expect(state.installedServers, isEmpty);
+      expect(state.preparedComputeUnits, 0);
       expect(state.totalComputeUnits, state.hostingPlan.computeUnits);
     },
   );
@@ -219,7 +219,7 @@ void main() {
     },
   );
 
-  test('v10 metric history survives snapshot round trip', () {
+  test('v11 metric history survives snapshot round trip', () {
     final state = GameState.initial().copyWith(
       productMetricHistory: const <ProductMetricPoint>[
         ProductMetricPoint(
@@ -238,7 +238,7 @@ void main() {
     );
     final restored = GameState.decode(jsonEncode(state.toJson()));
 
-    expect(restored.snapshotVersion, 10);
+    expect(restored.snapshotVersion, currentSnapshotVersion);
     expect(restored.productMetricHistory, hasLength(1));
     expect(restored.productMetricHistory.single.requiredCompute, 4);
   });

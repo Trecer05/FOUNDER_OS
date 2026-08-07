@@ -7,6 +7,7 @@ import '../../../domain/commands/game_action.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/hosting_plans_panel.dart';
+import '../../shared/widgets/responsive_info_row.dart';
 import '../../shared/widgets/section_header.dart';
 import '../../../application/localization/app_text.dart';
 
@@ -34,7 +35,7 @@ class _InfrastructureScreenState extends State<InfrastructureScreen> {
         SectionHeader(
           title: 'Инфраструктура',
           subtitle:
-              'Активно ${state.totalComputeUnits.toStringAsFixed(0)} compute • подготовлено ${state.preparedComputeUnits.toStringAsFixed(0)} • офис ${money(state.monthlyOfficeCost)}/мес.',
+              'Активно ${state.totalComputeUnits.toStringAsFixed(0)} CU • подготовлено ${state.preparedComputeUnits.toStringAsFixed(0)} CU • офис ${money(state.monthlyOfficeCost)}/мес.',
         ),
         const SizedBox(height: 12),
         SingleChildScrollView(
@@ -88,50 +89,50 @@ class _InfrastructureScreenState extends State<InfrastructureScreen> {
           const SizedBox(height: 18),
           const SectionHeader(
             title: 'Текущая конфигурация',
-            subtitle:
-                'Физические ограничения считаются в U, кВт, Gbps и compute units.',
+            subtitle: 'Физические ограничения считаются в U, kW, Gbps и CU.',
           ),
           const SizedBox(height: 10),
           AppCard(
             child: Column(
               children: [
-                _InfoRow('Офис', state.office.name),
-                _InfoRow(
+                ResponsiveInfoRow(
+                  'Офис',
+                  '${state.office.name} • аренда ${money(state.office.monthlyRent)}/мес. • списание ${money(state.monthlyOfficeCost)}/мес.',
+                ),
+                ResponsiveInfoRow(
                   'Сотрудники',
                   '${state.employees.length} / ${state.office.capacity}',
                 ),
-                _InfoRow('Hosting', state.hostingPlan.name),
-                _InfoRow(
+                ResponsiveInfoRow('Hosting', state.hostingPlan.name),
+                ResponsiveInfoRow(
                   'Серверная',
-                  state.usingOwnedInfrastructure
-                      ? state.serverRoom.name
-                      : '${state.serverRoom.name} • подготовка к миграции',
+                  '${state.serverRoom.name} • аренда ${money(state.serverRoom.monthlyRent)}/мес. • ${state.usingOwnedInfrastructure ? 'активна' : 'подготовка к миграции'}',
                 ),
-                _InfoRow(
+                ResponsiveInfoRow(
                   'Rack',
                   '${state.usedRackUnits.toStringAsFixed(0)} / ${state.serverRoom.rackUnits} U',
                 ),
-                _InfoRow(
+                ResponsiveInfoRow(
                   'Power',
-                  '${state.usedPowerKw.toStringAsFixed(1)} / ${state.serverRoom.powerKw.toStringAsFixed(1)} кВт',
+                  '${state.usedPowerKw.toStringAsFixed(1)} / ${state.serverRoom.powerKw.toStringAsFixed(1)} kW',
                 ),
-                _InfoRow(
+                ResponsiveInfoRow(
                   'Cooling',
-                  '${state.usedCoolingKw.toStringAsFixed(1)} / ${state.serverRoom.coolingKw.toStringAsFixed(1)} кВт',
+                  '${state.usedCoolingKw.toStringAsFixed(1)} / ${state.serverRoom.coolingKw.toStringAsFixed(1)} kW',
                 ),
-                _InfoRow(
+                ResponsiveInfoRow(
                   'Network',
                   '${state.totalNetworkGbps.toStringAsFixed(1)} Gbps',
                 ),
-                _InfoRow(
-                  'Активный compute',
-                  '${state.totalComputeUnits.round()} units',
+                ResponsiveInfoRow(
+                  'Активный Compute',
+                  '${state.totalComputeUnits.round()} CU',
                 ),
-                _InfoRow(
+                ResponsiveInfoRow(
                   'Серверы в резерве',
-                  '${state.preparedComputeUnits.round()} units • ${state.usingOwnedInfrastructure ? 'активны' : 'не учитываются до миграции'}',
+                  '${state.preparedComputeUnits.round()} CU • ${state.usingOwnedInfrastructure ? 'активны' : 'не учитываются до миграции'}',
                 ),
-                _InfoRow(
+                ResponsiveInfoRow(
                   'Общая загрузка',
                   percent(state.serverLoad, fractionDigits: 1),
                   last: true,
@@ -165,7 +166,7 @@ class _OfficesList extends StatelessWidget {
         ...GameCatalog.offices.map((office) {
           final current = office.id == state.selectedOfficeId;
           final canRent =
-              office.capacity >= state.employees.length &&
+              office.capacity >= state.onSiteEmployeeCount &&
               state.cash >= office.deposit;
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
@@ -184,8 +185,13 @@ class _OfficesList extends StatelessWidget {
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             AppText(
-                              '${office.group} • ${money(state.onSiteEmployeeCount == 0 ? 0 : office.monthlyRent)}/мес. фактически',
+                              '${office.group} • аренда ${money(office.monthlyRent)}/мес.',
                             ),
+                            if (state.onSiteEmployeeCount == 0)
+                              AppText(
+                                'Сейчас списание 0 ₽/мес.: вся команда работает remote.',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
                           ],
                         ),
                       ),
@@ -302,8 +308,8 @@ class _ServerRoomsList extends StatelessWidget {
                     runSpacing: 7,
                     children: [
                       _ValueChip('${room.rackUnits} U'),
-                      _ValueChip('Cooling ${room.coolingKw} кВт'),
-                      _ValueChip('Power ${room.powerKw} кВт'),
+                      _ValueChip('Cooling ${room.coolingKw} kW'),
+                      _ValueChip('Power ${room.powerKw} kW'),
                       _ValueChip('${room.networkGbps} Gbps'),
                       _ValueChip('Security ${room.physicalSecurityScore}/100'),
                       _ValueChip('Депозит ${money(room.deposit)}'),
@@ -397,10 +403,10 @@ class _HardwareList extends StatelessWidget {
                     spacing: 7,
                     runSpacing: 7,
                     children: [
-                      _ValueChip('${hardware.computeUnits.round()} compute'),
+                      _ValueChip('${hardware.computeUnits.round()} CU'),
                       _ValueChip('${hardware.rackUnits} U'),
-                      _ValueChip('${hardware.powerKw} кВт power'),
-                      _ValueChip('${hardware.heatKw} кВт heat'),
+                      _ValueChip('Power ${hardware.powerKw} kW'),
+                      _ValueChip('Heat ${hardware.heatKw} kW'),
                       _ValueChip('${hardware.networkGbps} Gbps'),
                       _ValueChip(
                         'SLA ${percent(hardware.hardwareReliability, fractionDigits: 2)}',
@@ -467,11 +473,11 @@ class _AllocationList extends StatelessWidget {
                     : AppColors.red,
               ),
               const SizedBox(height: 8),
-              _InfoRow(
-                'Всего compute',
-                '${state.totalComputeUnits.round()} units',
+              ResponsiveInfoRow(
+                'Всего Compute',
+                '${state.totalComputeUnits.round()} CU',
               ),
-              _InfoRow(
+              ResponsiveInfoRow(
                 'Свободно',
                 directPercent(100 - state.totalAllocatedPercent),
                 last: true,
@@ -535,11 +541,11 @@ class _AllocationList extends StatelessWidget {
                     children: [
                       Expanded(
                         child: AppText(
-                          'Доступно: ${state.allocatedComputeFor(product.id).round()} units',
+                          'Доступно: ${state.allocatedComputeFor(product.id).round()} CU',
                         ),
                       ),
                       AppText(
-                        'Нужно: ${state.productComputeDemand(product).round()} units',
+                        'Нужно: ${state.productComputeDemand(product).round()} CU',
                       ),
                     ],
                   ),
@@ -586,31 +592,6 @@ class _ValueChip extends StatelessWidget {
         border: Border.all(color: AppColors.border),
       ),
       child: AppText(label, style: Theme.of(context).textTheme.bodySmall),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow(this.label, this.value, {this.last = false});
-  final String label;
-  final String value;
-  final bool last;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: [
-              Expanded(child: AppText(label)),
-              AppText(value, style: Theme.of(context).textTheme.titleMedium),
-            ],
-          ),
-        ),
-        if (!last) const Divider(),
-      ],
     );
   }
 }

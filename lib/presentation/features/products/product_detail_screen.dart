@@ -655,11 +655,11 @@ class ProductDetailScreen extends StatelessWidget {
                     ),
                     _LabelValue(
                       'Доступно compute',
-                      '${state.allocatedComputeFor(product.id).round()} units',
+                      '${state.allocatedComputeFor(product.id).round()} CU',
                     ),
                     _LabelValue(
                       'Требуется compute',
-                      '${state.productComputeDemand(product).round()} units',
+                      '${state.productComputeDemand(product).round()} CU',
                     ),
                     _LabelValue(
                       'Загрузка выделения',
@@ -1195,8 +1195,15 @@ class _AdvertisingCampaignCardState extends State<_AdvertisingCampaignCard> {
           ),
           items: ProductStrategyCatalog.agencies
               .map(
-                (item) =>
-                    DropdownMenuItem(value: item.id, child: AppText(item.name)),
+                (item) => DropdownMenuItem(
+                  value: item.id,
+                  child: AppText(
+                    item.name,
+                    translate: false,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               )
               .toList(growable: false),
           onChanged: (value) {
@@ -1222,8 +1229,15 @@ class _AdvertisingCampaignCardState extends State<_AdvertisingCampaignCard> {
           ),
           items: ProductStrategyCatalog.channels
               .map(
-                (item) =>
-                    DropdownMenuItem(value: item.id, child: AppText(item.name)),
+                (item) => DropdownMenuItem(
+                  value: item.id,
+                  child: AppText(
+                    item.name,
+                    translate: false,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               )
               .toList(growable: false),
           onChanged: (value) {

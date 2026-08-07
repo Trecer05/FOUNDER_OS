@@ -45,3 +45,9 @@ app.*.map.json
 /android/app/release
 
 .founder_v*_backup_*/
+build/
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+android/.gradle/
+.gradle/

@@ -125,3 +125,12 @@ Automated verification command: `bash tools/verify_ux_economy_v10.sh`. Physical-
 ## v10_optimization
 
 Status: **implemented, verification pending**. Automated verifier includes 95 existing tests plus optimization/localization tests and iOS/Android builds. Physical-device profiling remains required.
+
+<!-- V11_STABILIZATION -->
+## v11 stabilization
+
+Status: **implemented, verification pending**.
+
+Covered: physical-device localization regression, technical vocabulary, office pricing, responsive infrastructure/advertising layout, starter-server migration, visible HR hiring and auto-hire gate, hosting capacity explanation, profit period toggle and finance labels.
+
+Verification: `bash tools/verify_v11_stabilization.sh`, followed by physical iPhone UAT. Do not mark verified from compilation alone.

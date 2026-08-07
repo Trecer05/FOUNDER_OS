@@ -50,12 +50,28 @@ class HostingPlansPanel extends StatelessWidget {
                           children: [
                             AppText(
                               plan.name,
+                              translate: false,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             const SizedBox(height: 2),
-                            AppText(
-                              '${plan.provider} • ${owned ? 'CAPEX' : '${money(plan.monthlyCost)}/мес.'}',
-                              style: Theme.of(context).textTheme.bodySmall,
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: AppText(
+                                    plan.provider,
+                                    translate: false,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                ),
+                                AppText(
+                                  ' • ${owned ? 'CAPEX' : '${money(plan.monthlyCost)}/мес.'}',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -83,13 +99,15 @@ class HostingPlansPanel extends StatelessWidget {
                     spacing: 7,
                     runSpacing: 7,
                     children: [
-                      _Chip('${plan.computeUnits.round()} compute'),
+                      _Chip('${plan.computeUnits.round()} CU'),
                       _Chip('${plan.storageGb.round()} GB storage'),
                       _Chip(
                         '${plan.bandwidthTb.toStringAsFixed(1)} TB bandwidth',
                       ),
                       _Chip('SLA ${percent(plan.sla, fractionDigits: 2)}'),
-                      _Chip('≈ ${plan.approximateUsers} users'),
+                      _Chip(
+                        'Ориентир: до ${compactNumber(plan.approximateUsers)} активных пользователей',
+                      ),
                       _Chip('Scale ${(plan.scalability * 100).round()}/100'),
                       if (plan.setupCost > 0)
                         _Chip('Setup ${money(plan.setupCost)}'),

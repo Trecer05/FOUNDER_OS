@@ -152,3 +152,12 @@ Checkbox в assignment sheet меняет только локальный выб
 - Swift/Kotlin are limited to atomic snapshot I/O and platform diagnostics.
 - Derived indexes are GC-safe and excluded from snapshots.
 - Historic presentation strings pass through one localization adapter until fully extracted into generated resources.
+
+<!-- V11_STABILIZATION -->
+## v11 stabilization decisions
+
+- RU localization is explicit: unknown Latin text is preserved, never transliterated into pseudo-Cyrillic.
+- Technical roles, units, provider/product names and promo codes may remain English in RU UI.
+- Fresh games own no physical servers. Hardware appears only after a paid player action.
+- HR remains a dedicated `isHr` capability for snapshot compatibility, but receives a separate visible hiring/filter path and cannot be assigned as a product specialist.
+- Auto-hire is validated in UI and again in `GameEngine`.

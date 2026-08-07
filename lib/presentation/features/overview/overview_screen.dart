@@ -39,11 +39,7 @@ class OverviewScreen extends StatelessWidget {
           childAspectRatio: 1.45,
           children: [
             MetricCard(label: 'Cash', value: money(state.cash)),
-            MetricCard(
-              label: 'Прибыль / мес.',
-              value: money(state.monthlyProfit),
-              positive: state.monthlyProfit >= 0,
-            ),
+            _ProfitMetricCard(monthlyProfit: state.monthlyProfit),
             MetricCard(
               label: 'Доля основателя',
               value: directPercent(
@@ -83,8 +79,8 @@ class OverviewScreen extends StatelessWidget {
                     '${state.onSiteEmployeeCount}/${state.office.capacity} в офисе • ${state.remoteEmployeeCount} remote',
               ),
               _SummaryRow(
-                label: 'Compute capacity',
-                value: '${state.totalComputeUnits.round()} units',
+                label: 'Compute',
+                value: '${state.totalComputeUnits.round()} CU',
               ),
               _SummaryRow(
                 label: 'Выделено продуктам',
@@ -243,6 +239,31 @@ class OverviewScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ProfitMetricCard extends StatefulWidget {
+  const _ProfitMetricCard({required this.monthlyProfit});
+
+  final double monthlyProfit;
+
+  @override
+  State<_ProfitMetricCard> createState() => _ProfitMetricCardState();
+}
+
+class _ProfitMetricCardState extends State<_ProfitMetricCard> {
+  bool _daily = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = _daily ? widget.monthlyProfit / 30 : widget.monthlyProfit;
+    return MetricCard(
+      key: const Key('overview-profit-period-toggle'),
+      label: _daily ? 'Прибыль / день' : 'Прибыль / мес.',
+      value: money(value),
+      positive: value >= 0,
+      onTap: () => setState(() => _daily = !_daily),
     );
   }
 }

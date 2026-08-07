@@ -18,7 +18,7 @@ import 'v10_models.dart';
 
 part 'game_state_index.dart';
 
-const int currentSnapshotVersion = 10;
+const int currentSnapshotVersion = 11;
 
 enum GameSpeed {
   x1(1),
@@ -113,9 +113,7 @@ class GameState {
     selectedOfficeId: 'garage',
     selectedServerRoomId: 'closet',
     selectedHostingPlanId: 'shared_launch',
-    installedServers: const <InstalledServer>[
-      InstalledServer(hardwareId: 'edge_s1', count: 2),
-    ],
+    installedServers: const <InstalledServer>[],
     investorOffers: const <InvestorOffer>[],
     investorAgreements: const <InvestorAgreement>[],
     founderOwnershipPercent: 100,
@@ -1588,12 +1586,42 @@ class GameState {
       feed: (json['feed']! as List).cast<String>(),
     );
     var migrated = state;
-    if (version < 10 && migrated.installedServers.isEmpty) {
+    final hasLegacyStarterHardware =
+        version <= 10 &&
+        migrated.selectedHostingPlanId != 'owned' &&
+        migrated.installedCount('edge_s1') >= 2;
+    if (hasLegacyStarterHardware) {
       migrated = migrated.copyWith(
-        installedServers: const <InstalledServer>[
-          InstalledServer(hardwareId: 'edge_s1', count: 2),
-        ],
+        installedServers: migrated.installedServers
+            .expand((server) {
+              if (server.hardwareId != 'edge_s1') {
+                return <InstalledServer>[server];
+              }
+              final paidCount = server.count - 2;
+              return paidCount > 0
+                  ? <InstalledServer>[
+                      InstalledServer(
+                        hardwareId: server.hardwareId,
+                        count: paidCount,
+                      ),
+                    ]
+                  : const <InstalledServer>[];
+            })
+            .toList(growable: false),
       );
+    }
+    if (version <= 10) {
+      final hrIds = migrated.employees
+          .where((employee) => employee.isHr)
+          .map((employee) => employee.id)
+          .toSet();
+      if (hrIds.isNotEmpty) {
+        migrated = migrated.copyWith(
+          employeeAssignments: migrated.employeeAssignments
+              .where((assignment) => !hrIds.contains(assignment.employeeId))
+              .toList(growable: false),
+        );
+      }
     }
     if (version < currentSnapshotVersion && migrated.productUpdates.isEmpty) {
       return migrated.copyWith(

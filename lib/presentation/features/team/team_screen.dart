@@ -31,6 +31,7 @@ class _TeamScreenState extends State<TeamScreen> {
   EmployeeRole? _role;
   _CandidateSort _sort = _CandidateSort.skill;
   bool _remoteOnly = false;
+  bool _hrOnly = false;
 
   @override
   void dispose() {
@@ -45,7 +46,9 @@ class _TeamScreenState extends State<TeamScreen> {
     final candidates =
         state.candidates
             .where((candidate) {
-              final roleMatch = _role == null || candidate.role == _role;
+              final roleMatch = _hrOnly
+                  ? candidate.isHr
+                  : _role == null || candidate.role == _role;
               final languageMatch = candidate.languageIds.any(
                 (id) => GameCatalog.languageById(
                   id,
@@ -69,7 +72,7 @@ class _TeamScreenState extends State<TeamScreen> {
         SectionHeader(
           title: 'Команда',
           subtitle:
-              '${state.onSiteEmployeeCount}/${state.office.capacity} в офисе • ${state.remoteEmployeeCount} remote • payroll ${money(state.monthlyPayroll)}/мес.',
+              '${state.onSiteEmployeeCount}/${state.office.capacity} в офисе • ${state.remoteEmployeeCount} remote • зарплаты ${money(state.monthlyPayroll)}/мес.',
           hintTitle: 'Как читать команду',
           hintBody:
               'Общие значения сверху — средние показатели всех нанятых сотрудников. Назначать и нанимать людей можно прямо из рабочей области проекта.',
@@ -78,6 +81,58 @@ class _TeamScreenState extends State<TeamScreen> {
             'Quality и reliability влияют на результат и стабильность.',
             'Morale и loyalty помогают удерживать сильных сотрудников.',
           ],
+        ),
+        const SizedBox(height: 12),
+        AppCard(
+          key: const Key('team-hr-status'),
+          hintTitle: 'HR / People Partner',
+          hintBody:
+              'Только нанятый HR открывает автоматический подбор команды. HR не считается Product Manager и не закрывает продуктовые дефициты.',
+          child: Builder(
+            builder: (context) {
+              final hiredHr = state.employees
+                  .where((item) => item.isHr)
+                  .toList();
+              final hrCandidates = state.candidates
+                  .where((item) => item.isHr)
+                  .toList();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppText(
+                    'HR / People Partner',
+                    translate: false,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  AppText(
+                    hiredHr.isNotEmpty
+                        ? 'Нанят: ${hiredHr.map((item) => item.name).join(', ')}. Автоподбор доступен.'
+                        : 'HR не нанят. Автоподбор проектов заблокирован.',
+                  ),
+                  if (hiredHr.isEmpty && hrCandidates.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        key: const Key('hire-visible-hr'),
+                        onPressed:
+                            state.cash >= hrCandidates.first.salary * 0.15
+                            ? () => widget.controller.dispatch(
+                                HireCandidate(hrCandidates.first.id),
+                              )
+                            : null,
+                        icon: const Icon(Icons.person_add_alt_1),
+                        label: AppText(
+                          'Нанять ${hrCandidates.first.name} • ${money(hrCandidates.first.salary)}/мес.',
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
         ),
         const SizedBox(height: 12),
         AppCard(
@@ -142,8 +197,20 @@ class _TeamScreenState extends State<TeamScreen> {
               children: [
                 ChoiceChip(
                   label: const AppText('Все роли'),
-                  selected: _role == null,
-                  onSelected: (_) => setState(() => _role = null),
+                  selected: _role == null && !_hrOnly,
+                  onSelected: (_) => setState(() {
+                    _role = null;
+                    _hrOnly = false;
+                  }),
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const AppText('HR', translate: false),
+                  selected: _hrOnly,
+                  onSelected: (_) => setState(() {
+                    _role = null;
+                    _hrOnly = true;
+                  }),
                 ),
                 const SizedBox(width: 8),
                 ...EmployeeRole.values.map(
@@ -152,7 +219,10 @@ class _TeamScreenState extends State<TeamScreen> {
                     child: ChoiceChip(
                       label: AppText(roleName(role)),
                       selected: _role == role,
-                      onSelected: (_) => setState(() => _role = role),
+                      onSelected: (_) => setState(() {
+                        _role = role;
+                        _hrOnly = false;
+                      }),
                     ),
                   ),
                 ),

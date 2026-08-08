@@ -4,9 +4,9 @@ abstract final class OperationsCatalog {
   static const List<SecurityControlOption> securityControls = [
     SecurityControlOption(
       id: 'secure_sdlc',
-      name: 'Secure SDLC',
+      name: 'Безопасный SDLC',
       description:
-          'Threat modeling, обязательный code review и чек-листы безопасности перед релизом.',
+          'Моделирование угроз, обязательная проверка кода и чек-листы безопасности перед релизом.',
       setupCost: 90000,
       monthlyCost: 18000,
       securityDelta: 7,
@@ -15,9 +15,9 @@ abstract final class OperationsCatalog {
     ),
     SecurityControlOption(
       id: 'sast_dependency',
-      name: 'SAST + dependency scanning',
+      name: 'SAST + сканирование зависимостей',
       description:
-          'Автоматический поиск уязвимостей кода и зависимостей в каждом build.',
+          'Автоматический поиск уязвимостей кода и зависимостей в каждой сборке.',
       setupCost: 150000,
       monthlyCost: 42000,
       securityDelta: 11,
@@ -26,7 +26,7 @@ abstract final class OperationsCatalog {
     ),
     SecurityControlOption(
       id: 'waf_ddos',
-      name: 'WAF и DDoS protection',
+      name: 'WAF и защита от DDoS',
       description:
           'Фильтрация атак на периметре и защита публичных API от перегрузки.',
       setupCost: 220000,
@@ -39,7 +39,7 @@ abstract final class OperationsCatalog {
       id: 'kms_encryption',
       name: 'KMS и шифрование данных',
       description:
-          'Раздельные ключи, rotation и encryption at rest для пользовательских данных.',
+          'Раздельные ключи, ротация и шифрование данных при хранении для пользовательских данных.',
       setupCost: 310000,
       monthlyCost: 78000,
       securityDelta: 15,
@@ -48,9 +48,9 @@ abstract final class OperationsCatalog {
     ),
     SecurityControlOption(
       id: 'backup_dr',
-      name: 'Backups и disaster recovery',
+      name: 'Резервные копии и аварийное восстановление',
       description:
-          'Проверяемые резервные копии, отдельный recovery-контур и план восстановления.',
+          'Проверяемые резервные копии, отдельный контур восстановления и план восстановления.',
       setupCost: 360000,
       monthlyCost: 110000,
       securityDelta: 5,
@@ -59,7 +59,7 @@ abstract final class OperationsCatalog {
     ),
     SecurityControlOption(
       id: 'soc_response',
-      name: 'SOC и incident response',
+      name: 'SOC и реагирование на инциденты',
       description:
           'Мониторинг 24/7, централизованные логи и готовый сценарий локализации атаки.',
       setupCost: 620000,
@@ -100,9 +100,10 @@ abstract final class OperationsCatalog {
     ),
     TrainingProgramOption(
       id: 'security',
-      name: 'Application Security',
+      name: 'Безопасность приложений',
       focus: TrainingFocus.security,
-      description: 'Secure coding, threat modeling и реакция на инциденты.',
+      description:
+          'Безопасная разработка, моделирование угроз и реакция на инциденты.',
       cost: 110000,
       skillDelta: 4,
       speedDelta: 0,

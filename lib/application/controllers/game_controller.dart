@@ -175,10 +175,36 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> reset() async {
+    if (_disposed) {
+      return;
+    }
+
+    if (_startClock) {
+      _stopTicker();
+    }
+    // Drain every old autosave before clearing storage. After this point no
+    // snapshot from the previous company is allowed to win a race.
     await saveNow();
+    _pendingSnapshot = null;
     await _snapshotStore.clear();
-    dispatch(const ResetGame(), save: false);
-    await saveNow();
+
+    _state = GameState.initial();
+    _storageError = null;
+    _lastAutosavedFourHourBlock = _state.simulationMinutes ~/ (4 * 60);
+    _activeClock.reset();
+    _consumedClockSeconds = 0;
+    notifyListeners();
+
+    try {
+      await _snapshotStore.save(_state);
+    } on Object catch (error) {
+      _storageError = 'Не удалось сохранить новую компанию: $error';
+      notifyListeners();
+    }
+
+    if (_startClock && !_disposed) {
+      _startTicker();
+    }
   }
 
   @override

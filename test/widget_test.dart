@@ -5,6 +5,7 @@ import 'package:founder_os/application/controllers/game_controller.dart';
 import 'package:founder_os/domain/commands/game_action.dart';
 import 'package:founder_os/domain/entities/game_state.dart';
 import 'package:founder_os/domain/entities/models.dart';
+import 'package:founder_os/domain/entities/v12_models.dart';
 import 'package:founder_os/domain/simulation/engine/game_engine.dart';
 import 'package:founder_os/persistence/storage/snapshot_store.dart';
 import 'package:founder_os/presentation/features/contracts/contracts_screen.dart';
@@ -29,10 +30,13 @@ Future<GameController> _pumpApp(WidgetTester tester) async {
   await tester.binding.setSurfaceSize(const Size(430, 932));
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
-  final controller = GameController(
-    snapshotStore: _MemorySnapshotStore(),
-    startClock: false,
-  );
+  final store = _MemorySnapshotStore()
+    ..value = GameState.initial().copyWith(
+      onboardingCompleted: true,
+      companyProfile: const FounderCompanyProfile.legacy(),
+    );
+
+  final controller = GameController(snapshotStore: store, startClock: false);
   addTearDown(controller.dispose);
 
   await controller.initialize();
@@ -189,7 +193,11 @@ void main() {
   ) async {
     const engine = GameEngine();
     var state = engine.reduce(
-      GameState.initial().copyWith(cash: 10000000, onboardingCompleted: true),
+      GameState.initial().copyWith(
+        cash: 10000000,
+        onboardingCompleted: true,
+        companyProfile: const FounderCompanyProfile.legacy(),
+      ),
       const CreateConfiguredProduct(
         name: 'Zero Start',
         blueprintId: 'team_saas',
@@ -296,6 +304,8 @@ void main() {
       320,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(accept);
+    await tester.pumpAndSettle();
     await tester.tap(accept);
     await tester.pumpAndSettle();
 

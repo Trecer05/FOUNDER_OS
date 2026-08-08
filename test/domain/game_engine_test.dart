@@ -37,7 +37,7 @@ void main() {
   });
 
   test('candidate hiring respects numeric office capacity', () {
-    var state = _fundedInitial();
+    var state = _fundedInitial().copyWith(selectedOfficeId: 'garage');
     state = engine.reduce(state, const HireCandidate('c_timur'));
     state = engine.reduce(state, const HireCandidate('c_ilya'));
     state = engine.reduce(state, const HireCandidate('c_maksim'));
@@ -52,7 +52,10 @@ void main() {
   test(
     'ecosystem supports many links, rejects duplicates and keeps products',
     () {
-      var state = _fundedInitial().copyWith(cash: 10000000);
+      var state = _fundedInitial().copyWith(
+        cash: 10000000,
+        selectedOfficeId: 'garage',
+      );
       state = engine.reduce(
         state,
         _configuredProduct(
@@ -343,7 +346,10 @@ void main() {
   });
 
   test('acquired product migration requires prepared compute capacity', () {
-    var state = _fundedInitial().copyWith(cash: 30000000);
+    var state = _fundedInitial().copyWith(
+      cash: 30000000,
+      selectedOfficeId: 'garage',
+    );
     state = engine.reduce(
       state,
       _configuredProduct(
@@ -469,54 +475,57 @@ void main() {
     expect(attacked.monthlyRevenue, greaterThan(0));
   });
 
-  test('employee assignment splits capacity across several products', () {
-    var state = _fundedInitial().copyWith(cash: 10000000);
-    state = engine.reduce(
-      state,
-      _configuredProduct(
-        name: 'Nova',
-        blueprintId: 'ai_assistant',
-        frameworkId: 'fastapi_react',
-        featureIds: const <String>['chat_history', 'file_analysis'],
-      ),
-    );
-    state = engine.reduce(
-      state,
-      _configuredProduct(
-        name: 'Orbit',
-        blueprintId: 'cloud_platform',
-        frameworkId: 'go_microservices',
-        featureIds: const <String>['autoscaling', 'monitoring'],
-      ),
-    );
-    state = engine.reduce(state, const HireCandidate('c_anna'));
-    final firstId = state.products[0].id;
-    final secondId = state.products[1].id;
+  test(
+    'employee parallel assignment applies seventy percent on two products',
+    () {
+      var state = _fundedInitial().copyWith(cash: 10000000);
+      state = engine.reduce(
+        state,
+        _configuredProduct(
+          name: 'Nova',
+          blueprintId: 'ai_assistant',
+          frameworkId: 'fastapi_react',
+          featureIds: const <String>['chat_history', 'file_analysis'],
+        ),
+      );
+      state = engine.reduce(
+        state,
+        _configuredProduct(
+          name: 'Orbit',
+          blueprintId: 'cloud_platform',
+          frameworkId: 'go_microservices',
+          featureIds: const <String>['autoscaling', 'monitoring'],
+        ),
+      );
+      state = engine.reduce(state, const HireCandidate('c_anna'));
+      final firstId = state.products[0].id;
+      final secondId = state.products[1].id;
 
-    final founderOnlyCapacity = state.productDevelopmentCapacity(firstId);
-    expect(founderOnlyCapacity, greaterThan(0));
-    state = engine.reduce(
-      state,
-      AssignEmployeeToProduct(employeeId: 'c_anna', productId: firstId),
-    );
+      final founderOnlyCapacity = state.productDevelopmentCapacity(firstId);
+      expect(founderOnlyCapacity, greaterThan(0));
+      state = engine.reduce(
+        state,
+        AssignEmployeeToProduct(employeeId: 'c_anna', productId: firstId),
+      );
 
-    expect(state.employeesForProduct(firstId), hasLength(1));
-    expect(
-      state.productDevelopmentCapacity(firstId),
-      greaterThan(founderOnlyCapacity),
-    );
-    expect(state.employeesForProduct(secondId), isEmpty);
+      expect(state.employeesForProduct(firstId), hasLength(1));
+      expect(
+        state.productDevelopmentCapacity(firstId),
+        greaterThan(founderOnlyCapacity),
+      );
+      expect(state.employeesForProduct(secondId), isEmpty);
 
-    state = engine.reduce(
-      state,
-      AssignEmployeeToProduct(employeeId: 'c_anna', productId: secondId),
-    );
-    expect(state.employeesForProduct(firstId), hasLength(1));
-    expect(state.employeesForProduct(secondId), hasLength(1));
-    expect(state.assignmentsForEmployee('c_anna'), hasLength(2));
-    expect(state.employeeAllocationForProduct('c_anna', firstId), 50);
-    expect(state.employeeAllocationForProduct('c_anna', secondId), 50);
-  });
+      state = engine.reduce(
+        state,
+        AssignEmployeeToProduct(employeeId: 'c_anna', productId: secondId),
+      );
+      expect(state.employeesForProduct(firstId), hasLength(1));
+      expect(state.employeesForProduct(secondId), hasLength(1));
+      expect(state.assignmentsForEmployee('c_anna'), hasLength(2));
+      expect(state.employeeAllocationForProduct('c_anna', firstId), 70);
+      expect(state.employeeAllocationForProduct('c_anna', secondId), 70);
+    },
+  );
 
   test('training and raise change exact employee metrics and payroll', () {
     var state = _fundedInitial().copyWith(cash: 10000000);
@@ -581,7 +590,10 @@ void main() {
   });
 
   test('product role requirements expose deterministic coverage', () {
-    var state = _fundedInitial().copyWith(cash: 10000000);
+    var state = _fundedInitial().copyWith(
+      cash: 10000000,
+      selectedOfficeId: 'garage',
+    );
     state = engine.reduce(
       state,
       _configuredProduct(

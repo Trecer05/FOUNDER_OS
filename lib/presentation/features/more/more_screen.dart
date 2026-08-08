@@ -20,6 +20,7 @@ import '../market/market_screen.dart';
 import '../news/news_screen.dart';
 import '../../../application/localization/app_text.dart';
 import '../../shared/widgets/scoped_listenable_builder.dart';
+import '../../shared/widgets/founder_profile_panel.dart';
 import '../../../application/localization/app_localizer.dart';
 
 class MoreScreen extends StatelessWidget {
@@ -38,6 +39,8 @@ class MoreScreen extends StatelessWidget {
           subtitle:
               'Экосистема, капитал, внешний портфель, сделки и новости вынесены в отдельные разделы.',
         ),
+        const SizedBox(height: 12),
+        FounderProfilePanel(state: state),
         const SizedBox(height: 12),
         _MenuCard(
           icon: Icons.school_outlined,
@@ -144,7 +147,7 @@ class MoreScreen extends StatelessWidget {
         const SizedBox(height: 18),
         const SectionHeader(
           title: 'Язык и валюта',
-          subtitle: 'Меняет отображение денег и ключевых новых экранов.',
+          subtitle: 'Переключает язык всего интерфейса и отображение денег.',
         ),
         const SizedBox(height: 10),
         AppCard(

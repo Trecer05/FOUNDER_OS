@@ -1,6 +1,7 @@
 import '../entities/game_state.dart';
 import '../entities/models.dart';
 import '../entities/product_evolution_models.dart';
+import '../entities/v12_models.dart';
 
 sealed class GameAction {
   const GameAction();
@@ -12,6 +13,36 @@ class CompleteOnboarding extends GameAction {
 
 class RestartOnboarding extends GameAction {
   const RestartOnboarding();
+}
+
+class ConfigureCompany extends GameAction {
+  const ConfigureCompany({
+    required this.companyName,
+    required this.founderName,
+    required this.logoId,
+    required this.startingBudget,
+    required this.background,
+    required this.skills,
+  });
+
+  final String companyName;
+  final String founderName;
+  final String logoId;
+  final double startingBudget;
+  final FounderBackground background;
+  final Map<FounderSkill, int> skills;
+}
+
+class CompleteDevelopmentChallenge extends GameAction {
+  const CompleteDevelopmentChallenge({
+    required this.productId,
+    required this.stage,
+    required this.correct,
+  });
+
+  final String productId;
+  final FounderDevelopmentStage stage;
+  final bool correct;
 }
 
 class AdvanceTime extends GameAction {

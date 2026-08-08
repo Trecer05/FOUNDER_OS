@@ -29,7 +29,7 @@ void main() {
     );
     expect(
       state.employeeAllocationForProduct(employee.id, 'fixture_product'),
-      60,
+      100,
     );
 
     final changed = state.copyWith(

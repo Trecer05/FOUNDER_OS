@@ -161,3 +161,24 @@ Checkbox в assignment sheet меняет только локальный выб
 - Fresh games own no physical servers. Hardware appears only after a paid player action.
 - HR remains a dedicated `isHr` capability for snapshot compatibility, but receives a separate visible hiring/filter path and cannot be assigned as a product specialist.
 - Auto-hire is validated in UI and again in `GameEngine`.
+
+## v12 — Founder is a real worker, company starts remote-first
+- CEO contribution is deterministic and participates in product development without becoming a fake Employee record.
+- Founder work is divided across active development products to prevent free parallel full-time work.
+- Office rent is charged when an office is rented; `remote_first` is the only zero-rent zero-seat start.
+- HR automation fills exact minimum role requirements and never hires spare headcount.
+- Development content is deterministic from seed/product/day so reloads do not reshuffle the visible work.
+- Critical persistence/timing remain in existing Swift/Kotlin native bridges; simulation rules stay shared in Dart to preserve iOS/Android determinism.
+
+## v12.1 — Physical UAT overrides automated assumptions
+- A green widget suite is not sufficient when reset keeps the same dashboard State alive; company setup must be re-triggered by state transition, not only initState.
+- Product creation review prioritizes player decisions and budget estimates over internal resolver explanations.
+- Development stages must be discoverable from primary product/project surfaces, not only a deep detail screen.
+- Russian mode translates user-facing business/product metrics while preserving explicit technical identifiers such as Frontend, Backend, FTE, CU, framework/provider/language names where useful.
+
+## v12.2 pre-TestFlight
+- A new company is a full simulation reset; display preferences remain outside the snapshot.
+- CEO is an automatic non-payroll project participant and is never duplicated as an Employee.
+- Parallel assignment limit is four active works per employee; per-work efficiency is 100%, 70%, 55%, 40% for 1..4 works.
+- Client contracts auto-assign matching least-loaded employees, while manual reassignment remains available.
+- Technical mini-game appears at most once per product; correct answer grants +30% of the current stage span.

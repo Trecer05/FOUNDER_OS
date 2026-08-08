@@ -4,16 +4,20 @@ import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/models.dart';
+import '../../../domain/entities/v12_game_state_extensions.dart';
 import '../../shared/widgets/formatters.dart';
 import '../infrastructure/infrastructure_screen.dart';
 import '../more/more_screen.dart';
 import '../overview/overview_screen.dart';
 import '../products/products_screen.dart';
+import '../products/project_challenge_dialog.dart';
 import '../team/team_screen.dart';
 import '../tutorial/founder_tutorial_dialog.dart';
+import '../onboarding/company_setup_dialog.dart';
 import '../../../application/localization/app_localizer.dart';
 import '../../../application/localization/app_text.dart';
 import '../../shared/widgets/scoped_listenable_builder.dart';
+import '../../shared/widgets/company_logo.dart';
 
 class FounderDashboard extends StatefulWidget {
   const FounderDashboard({required this.controller, super.key});
@@ -28,6 +32,7 @@ class _FounderDashboardState extends State<FounderDashboard> {
   int _tab = 0;
   CriticalEventType _shownEvent = CriticalEventType.none;
   bool _tutorialShowing = false;
+  bool _projectChallengeShowing = false;
   late final List<Widget Function()> _screenBuilders;
 
   @override
@@ -41,29 +46,53 @@ class _FounderDashboardState extends State<FounderDashboard> {
       () => MoreScreen(controller: widget.controller),
     ];
     widget.controller.addListener(_handleControllerUpdate);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowTutorial());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _maybeShowTutorial();
+      if (mounted) {
+        await _maybeShowProjectChallenge();
+      }
+    });
   }
 
   Future<void> _maybeShowTutorial() async {
     if (!mounted || _tutorialShowing) {
       return;
     }
-    final state = widget.controller.state;
-    if (state.onboardingCompleted) {
+
+    var state = widget.controller.state;
+    if (state.companyProfile.configured && state.onboardingCompleted) {
       return;
     }
-    final genuinelyNewGame =
-        state.day == 1 &&
-        state.products.isEmpty &&
-        state.employees.isEmpty &&
-        state.clientContracts.isEmpty;
-    if (!genuinelyNewGame) {
-      widget.controller.dispatch(const CompleteOnboarding(), playSound: false);
-      return;
-    }
+
     _tutorialShowing = true;
-    await showFounderTutorial(context, widget.controller);
-    _tutorialShowing = false;
+    try {
+      if (!state.companyProfile.configured) {
+        await showCompanySetup(context, widget.controller);
+        if (!mounted) return;
+        state = widget.controller.state;
+      }
+
+      if (state.onboardingCompleted) {
+        return;
+      }
+
+      final genuinelyNewGame =
+          state.day == 1 &&
+          state.products.isEmpty &&
+          state.employees.isEmpty &&
+          state.clientContracts.isEmpty;
+      if (!genuinelyNewGame) {
+        widget.controller.dispatch(
+          const CompleteOnboarding(),
+          playSound: false,
+        );
+        return;
+      }
+
+      await showFounderTutorial(context, widget.controller);
+    } finally {
+      _tutorialShowing = false;
+    }
   }
 
   @override
@@ -76,7 +105,22 @@ class _FounderDashboardState extends State<FounderDashboard> {
     if (!mounted) {
       return;
     }
-    final event = widget.controller.state.criticalEvent;
+    final state = widget.controller.state;
+    if (!state.companyProfile.configured) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _maybeShowTutorial();
+        }
+      });
+    } else if (!_tutorialShowing && !_projectChallengeShowing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _maybeShowProjectChallenge();
+        }
+      });
+    }
+
+    final event = state.criticalEvent;
     if (event == CriticalEventType.none) {
       _shownEvent = CriticalEventType.none;
       return;
@@ -90,6 +134,29 @@ class _FounderDashboardState extends State<FounderDashboard> {
         _showCriticalEvent();
       }
     });
+  }
+
+  Future<void> _maybeShowProjectChallenge() async {
+    if (!mounted ||
+        _tutorialShowing ||
+        _projectChallengeShowing ||
+        widget.controller.state.criticalEvent != CriticalEventType.none) {
+      return;
+    }
+    final product = widget.controller.state.pendingProjectChallengeProduct;
+    if (product == null) {
+      return;
+    }
+    _projectChallengeShowing = true;
+    try {
+      await showProjectDevelopmentChallenge(
+        context,
+        widget.controller,
+        product,
+      );
+    } finally {
+      _projectChallengeShowing = false;
+    }
   }
 
   Future<void> _showCriticalEvent() async {
@@ -151,9 +218,32 @@ class _FounderDashboardState extends State<FounderDashboard> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const AppText(
-                  'FOUNDER.OS',
-                  style: TextStyle(fontWeight: FontWeight.w900),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final showLogo = constraints.maxWidth >= 72;
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (showLogo) ...[
+                          CompanyLogo(
+                            logoId: state.companyProfile.logoId,
+                            size: 24,
+                            borderRadius: 7,
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Flexible(
+                          child: AppText(
+                            state.companyProfile.companyName,
+                            translate: false,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 AppText(
                   'День ${state.day} • ${state.formattedTime}',

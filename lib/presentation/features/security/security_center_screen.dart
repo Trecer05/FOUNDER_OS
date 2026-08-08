@@ -50,9 +50,9 @@ class _SecurityCenterScreenState extends State<SecurityCenterScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
               const SectionHeader(
-                title: 'Security operations',
+                title: 'Управление безопасностью',
                 subtitle:
-                    'Риск рассчитывается из категории, масштаба, security score, загрузки инфраструктуры и внедрённых контролей.',
+                    'Риск рассчитывается из категории, масштаба, уровня безопасности, загрузки инфраструктуры и внедрённых контролей.',
               ),
               const SizedBox(height: 12),
               if (available.isEmpty)
@@ -88,7 +88,7 @@ class _SecurityCenterScreenState extends State<SecurityCenterScreen> {
                   const SectionHeader(
                     title: 'Контроли',
                     subtitle:
-                        'Каждый контроль имеет setup cost, ежемесячную стоимость и точный коэффициент снижения вероятности инцидента.',
+                        'Каждый контроль имеет разовую стоимость внедрения, ежемесячную стоимость и точный коэффициент снижения вероятности инцидента.',
                   ),
                   const SizedBox(height: 10),
                   ...OperationsCatalog.securityControls.map(
@@ -142,13 +142,13 @@ class _RiskOverview extends StatelessWidget {
                 positive: risk < 0.18,
               ),
               MetricCard(
-                label: 'Security',
+                label: 'Уровень безопасности',
                 value: '${product.securityScore.round()}/100',
                 positive: product.securityScore >= 75,
               ),
               MetricCard(label: 'Контролей', value: '$installed'),
               MetricCard(
-                label: 'Incident multiplier',
+                label: 'Коэффициент риска',
                 value: '${multiplier.toStringAsFixed(2)}×',
                 positive: multiplier <= 0.6,
               ),
@@ -161,7 +161,7 @@ class _RiskOverview extends StatelessWidget {
                 child: AppText(
                   latest == null
                       ? 'Аудит ещё не проводился.'
-                      : 'Последний аудит: риск ${latest.riskPercent.toStringAsFixed(1)}%, findings ${latest.findingsCount}.',
+                      : 'Последний аудит: риск ${latest.riskPercent.toStringAsFixed(1)}%, замечаний ${latest.findingsCount}.',
                 ),
               ),
               FilledButton.icon(
@@ -222,9 +222,9 @@ class _SecurityControlCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _Tag('Setup ${money(control.setupCost)}'),
+              _Tag('Разово ${money(control.setupCost)}'),
               _Tag('${money(control.monthlyCost)}/мес.'),
-              _Tag('+${control.securityDelta.round()} security'),
+              _Tag('+${control.securityDelta.round()} к безопасности'),
               _Tag('${control.incidentMultiplier.toStringAsFixed(2)}× риск'),
             ],
           ),

@@ -15,10 +15,11 @@ import 'product_evolution_models.dart';
 import 'product_strategy_models.dart';
 import 'v9_models.dart';
 import 'v10_models.dart';
+import 'v12_models.dart';
 
 part 'game_state_index.dart';
 
-const int currentSnapshotVersion = 11;
+const int currentSnapshotVersion = 12;
 
 enum GameSpeed {
   x1(1),
@@ -36,6 +37,7 @@ class GameState {
     required this.speed,
     required this.paused,
     required this.cash,
+    this.companyProfile = const FounderCompanyProfile.unconfigured(),
     required this.products,
     required this.candidates,
     required this.employees,
@@ -86,6 +88,7 @@ class GameState {
     speed: GameSpeed.x1,
     paused: true,
     cash: 450000,
+    companyProfile: FounderCompanyProfile.unconfigured(),
     products: const <Product>[],
     candidates: List<Candidate>.unmodifiable(GameCatalog.initialCandidates),
     employees: const <Employee>[],
@@ -110,7 +113,7 @@ class GameState {
     creditOffered: false,
     liquidityGraceUsed: false,
     ecosystemLinks: const <EcosystemLink>[],
-    selectedOfficeId: 'garage',
+    selectedOfficeId: 'remote_first',
     selectedServerRoomId: 'closet',
     selectedHostingPlanId: 'shared_launch',
     installedServers: const <InstalledServer>[],
@@ -156,6 +159,7 @@ class GameState {
   final GameSpeed speed;
   final bool paused;
   final double cash;
+  final FounderCompanyProfile companyProfile;
   final List<Product> products;
   final List<Candidate> candidates;
   final List<Employee> employees;
@@ -236,12 +240,37 @@ class GameState {
         productId,
       )];
 
-  double employeeAllocationForProduct(String employeeId, String productId) =>
-      assignmentForEmployeeOnProduct(
-        employeeId,
-        productId,
-      )?.allocationPercent ??
-      0;
+  int activeAssignmentCountForEmployee(String employeeId) {
+    final productCount = assignmentsForEmployee(employeeId).length;
+    final contractCount =
+        (_index.contractAssignmentsByEmployee[employeeId] ??
+                const <ContractEmployeeAssignment>[])
+            .where(
+              (item) =>
+                  _index.contractsById[item.contractId]?.status ==
+                  ContractStatus.active,
+            )
+            .length;
+    return productCount + contractCount;
+  }
+
+  double parallelEfficiencyForEmployee(String employeeId) =>
+      switch (activeAssignmentCountForEmployee(employeeId)) {
+        <= 1 => 1.0,
+        2 => 0.70,
+        3 => 0.55,
+        _ => 0.40,
+      };
+
+  bool canAssignEmployeeToMoreWork(String employeeId) =>
+      activeAssignmentCountForEmployee(employeeId) < 4;
+
+  double employeeAllocationForProduct(String employeeId, String productId) {
+    if (assignmentForEmployeeOnProduct(employeeId, productId) == null) {
+      return 0;
+    }
+    return parallelEfficiencyForEmployee(employeeId) * 100;
+  }
 
   List<Employee> employeesForProduct(String productId) =>
       _index.employeesByProduct[productId] ?? const <Employee>[];
@@ -302,12 +331,17 @@ class GameState {
     if (template.requiredRoles.isEmpty) {
       return 1;
     }
-    final availableRoles = unassignedEmployees
-        .map((employee) => employee.role)
-        .toList(growable: false);
-    final covered = template.requiredRoles
-        .where((role) => availableRoles.contains(role))
-        .length;
+    final available = employees
+        .where((employee) => canAssignEmployeeToMoreWork(employee.id))
+        .toList(growable: true);
+    var covered = 0;
+    for (final role in template.requiredRoles) {
+      final index = available.indexWhere((employee) => employee.role == role);
+      if (index >= 0) {
+        covered += 1;
+        available.removeAt(index);
+      }
+    }
     return covered / template.requiredRoles.length;
   }
 
@@ -339,26 +373,28 @@ class GameState {
       return founderBase;
     }
     return founderBase +
-        team.fold<double>(
-          0,
-          (sum, employee) =>
-              sum +
-              employee.skill * 0.28 +
-              employee.speed * 0.24 +
-              employee.quality * 0.14,
-        );
+        team.fold<double>(0, (sum, employee) {
+          final efficiency = parallelEfficiencyForEmployee(employee.id);
+          return sum +
+              (employee.skill * 0.28 +
+                      employee.speed * 0.24 +
+                      employee.quality * 0.14) *
+                  efficiency;
+        });
   }
 
   double get contractDevelopmentCapacity =>
       8 +
-      unassignedEmployees.fold<double>(
-        0,
-        (sum, employee) =>
-            sum +
-            employee.skill * 0.28 +
-            employee.speed * 0.24 +
-            employee.quality * 0.14,
-      );
+      employees
+          .where((employee) => canAssignEmployeeToMoreWork(employee.id))
+          .fold<double>(0, (sum, employee) {
+            final efficiency = parallelEfficiencyForEmployee(employee.id);
+            return sum +
+                (employee.skill * 0.28 +
+                        employee.speed * 0.24 +
+                        employee.quality * 0.14) *
+                    efficiency;
+          });
 
   List<String> securityControlIdsFor(String productId) =>
       (_index.securityByProduct[productId] ?? const <ProductSecurityControl>[])
@@ -530,7 +566,9 @@ class GameState {
     final phase = developmentPhaseFor(product);
     final aiMultiplier = 1 + productAiDevelopmentBoost(productId);
     if (team.isEmpty) {
-      return 0.12 * staffing.efficiency * aiMultiplier;
+      return companyProfile.configured
+          ? 0
+          : 0.12 * staffing.efficiency * aiMultiplier;
     }
 
     const engineeringRoles = <EmployeeRole>{
@@ -1012,11 +1050,13 @@ class GameState {
                 product.reliability * 0.20)
             .clamp(0.10, 1.0)
             .toDouble();
+    final founderGrowthMultiplier = companyProfile.growthEfficiencyMultiplier;
     final conversion =
         (0.015 + agency.quality * 0.035 + channel.trustWeight * 0.018) *
         maturity *
         qualityFactor *
-        categoryFit;
+        categoryFit *
+        founderGrowthMultiplier;
     final expected = (clicks * conversion).round();
     final spread = (1 - agency.forecastAccuracy) * 0.75 + 0.18;
     return AdvertisingForecast(
@@ -1038,18 +1078,22 @@ class GameState {
   double get monthlyPayroll =>
       employees.fold<double>(0, (sum, item) => sum + item.salary);
 
-  double get monthlyHardwareCost => usingOwnedInfrastructure
-      ? installedServers.fold<double>(0, (sum, item) {
-          final hardware = GameCatalog.serverHardwareById(item.hardwareId);
-          return sum + hardware.monthlyCost * item.count;
-        })
-      : hostingPlan.monthlyCost;
+  double get monthlyHardwareCost {
+    final base = usingOwnedInfrastructure
+        ? installedServers.fold<double>(0, (sum, item) {
+            final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+            return sum + hardware.monthlyCost * item.count;
+          })
+        : hostingPlan.monthlyCost;
+    return base * companyProfile.officeRentMultiplier;
+  }
 
-  double get monthlyServerRoomCost =>
-      usingOwnedInfrastructure ? serverRoom.monthlyRent : 0;
+  double get monthlyServerRoomCost => usingOwnedInfrastructure
+      ? serverRoom.monthlyRent * companyProfile.officeRentMultiplier
+      : 0;
 
   double get monthlyOfficeCost =>
-      onSiteEmployeeCount == 0 ? 0 : office.monthlyRent;
+      office.monthlyRent * companyProfile.officeRentMultiplier;
 
   double get monthlyProductRevenue =>
       products.fold<double>(0, (sum, item) => sum + item.monthlyRevenue);
@@ -1226,6 +1270,7 @@ class GameState {
     GameSpeed? speed,
     bool? paused,
     double? cash,
+    FounderCompanyProfile? companyProfile,
     List<Product>? products,
     List<Candidate>? candidates,
     List<Employee>? employees,
@@ -1278,6 +1323,7 @@ class GameState {
       speed: speed ?? this.speed,
       paused: paused ?? this.paused,
       cash: cash ?? this.cash,
+      companyProfile: companyProfile ?? this.companyProfile,
       products: List<Product>.unmodifiable(products ?? this.products),
       candidates: List<Candidate>.unmodifiable(candidates ?? this.candidates),
       employees: List<Employee>.unmodifiable(employees ?? this.employees),
@@ -1380,6 +1426,7 @@ class GameState {
     'speed': speed.name,
     'paused': paused,
     'cash': cash,
+    'companyProfile': companyProfile.toJson(),
     'products': products.map((item) => item.toJson()).toList(),
     'candidates': candidates.map((item) => item.toJson()).toList(),
     'employees': employees.map((item) => item.toJson()).toList(),
@@ -1470,6 +1517,11 @@ class GameState {
       speed: GameSpeed.values.byName(json['speed']! as String),
       paused: json['paused']! as bool,
       cash: (json['cash']! as num).toDouble(),
+      companyProfile: json['companyProfile'] is Map
+          ? FounderCompanyProfile.fromJson(
+              (json['companyProfile']! as Map).cast<String, Object?>(),
+            )
+          : FounderCompanyProfile.legacy(),
       products: _decodeList(json['products'], Product.fromJson),
       candidates: _decodeList(json['candidates'], Candidate.fromJson),
       employees: _decodeList(json['employees'], Employee.fromJson),
@@ -1610,6 +1662,11 @@ class GameState {
             .toList(growable: false),
       );
     }
+    if (version <= 11 &&
+        migrated.selectedOfficeId == 'garage' &&
+        migrated.onSiteEmployeeCount == 0) {
+      migrated = migrated.copyWith(selectedOfficeId: 'remote_first');
+    }
     if (version <= 10) {
       final hrIds = migrated.employees
           .where((employee) => employee.isHr)
@@ -1650,6 +1707,7 @@ class GameState {
       speed: speed.isEmpty ? GameSpeed.x1 : speed.first,
       paused: json['paused'] as bool? ?? true,
       cash: (json['cash'] as num?)?.toDouble() ?? initial.cash,
+      companyProfile: FounderCompanyProfile.legacy(),
       miniGamesEnabled: json['miniGamesEnabled'] as bool? ?? true,
       feed: <String>[
         'Сохранение версии $version перенесено в новую экономическую модель.',

@@ -134,3 +134,21 @@ Status: **implemented, verification pending**.
 Covered: physical-device localization regression, technical vocabulary, office pricing, responsive infrastructure/advertising layout, starter-server migration, visible HR hiring and auto-hire gate, hosting capacity explanation, profit period toggle and finance labels.
 
 Verification: `bash tools/verify_v11_stabilization.sh`, followed by physical iPhone UAT. Do not mark verified from compilation alone.
+
+## v12 Founder Expansion
+- Company setup: название, стартовый бюджет, 25 transparent logos.
+- Playable CEO: background + 12 skill points + development/economic bonuses.
+- Remote-first start: новая компания не арендует офис.
+- Product pipeline: проектирование → дизайн → разработка → отладка с live content.
+- HR auto-hire: только минимально необходимые роли, без запасного headcount.
+- Product improvement recovery: malformed legacy work no longer throws `Bad state: No element`.
+- Localization: expanded explicit RU/EN lexicon; technical identifiers stay intact.
+
+## v12.1 Physical UAT hotfix
+- New game/reset reliably reopens company + CEO setup instead of staying on a legacy profile.
+- Product review now shows selected languages/technologies, estimated development cost from required-role market salaries, required development compute, and readable mobile summary rows.
+- Four-stage development rail is visible in Products, Project Center, Workspace, and Product Details, including completed live products.
+- Russian UI cleanup covers Capacity/Security/Incident/Setup, product metrics, market-leader comparison, and security control names/descriptions.
+
+## v12.2 pre-TestFlight
+Implemented pending verification on physical iPhone: atomic clean reset, CEO total FTE UI, max-four parallel staffing with progressive efficiency, contract team sufficiency/auto-assignment, released-stage cleanup, project-review/card polish, progressive design mockup, once-per-project challenge overlay.

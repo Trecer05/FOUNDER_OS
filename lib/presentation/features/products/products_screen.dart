@@ -7,6 +7,7 @@ import '../../../domain/entities/models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../shared/widgets/development_stage_progress_rail.dart';
 import 'create_product_screen.dart';
 import 'product_workspace_screen.dart';
 import '../../../application/localization/app_text.dart';
@@ -165,7 +166,7 @@ class _ProductCard extends StatelessWidget {
     return AppCard(
       hintTitle: 'Карточка ${product.name}',
       hintBody:
-          'Freshness падает без обновлений. Team показывает покрытие обязательных ролей. Load выше 100% означает, что продукту не хватает выделенной мощности.',
+          'Свежесть падает без обновлений. Команда показывает покрытие обязательных ролей. Загрузка выше 100% означает, что продукту не хватает выделенной мощности.',
       onTap: () {
         Navigator.of(context).push<void>(
           MaterialPageRoute(
@@ -207,24 +208,24 @@ class _ProductCard extends StatelessWidget {
           ),
           if (product.stage == ProductStage.development) ...[
             const SizedBox(height: 13),
-            LinearProgressIndicator(value: product.developmentProgress),
-            const SizedBox(height: 6),
-            AppText(
-              'Готовность ${(product.developmentProgress * 100).toStringAsFixed(1)}%',
-              style: Theme.of(context).textTheme.bodySmall,
+            DevelopmentStageProgressRail(
+              state: state,
+              product: product,
+              compact: true,
             ),
-          ] else ...[
+          ],
+          if (product.stage != ProductStage.development) ...[
             const SizedBox(height: 13),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                _MetricPill('Users', compactNumber(product.users)),
+                _MetricPill('Пользователи', compactNumber(product.users)),
                 _MetricPill('MRR', money(product.monthlyRevenue)),
-                _MetricPill('Rating', product.rating.toStringAsFixed(1)),
-                _MetricPill('Load', percent(load, fractionDigits: 0)),
-                _MetricPill('Fresh', '${freshness.toStringAsFixed(0)}/100'),
-                _MetricPill('Team', percent(roleCoverage)),
+                _MetricPill('Рейтинг', product.rating.toStringAsFixed(1)),
+                _MetricPill('Загрузка', percent(load, fractionDigits: 0)),
+                _MetricPill('Свежесть', '${freshness.toStringAsFixed(0)}/100'),
+                _MetricPill('Команда', percent(roleCoverage)),
               ],
             ),
           ],
@@ -254,6 +255,7 @@ class _MetricPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      constraints: const BoxConstraints(minWidth: 118),
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: AppColors.surfaceMuted,

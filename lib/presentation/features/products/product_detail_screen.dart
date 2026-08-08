@@ -11,19 +11,41 @@ import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/game_state.dart';
 import '../../../domain/entities/models.dart';
 import '../../../domain/entities/product_evolution_models.dart';
+import '../../../domain/entities/v12_game_state_extensions.dart';
 import '../../../domain/explainability/staffing_deficit_resolver.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/metric_card.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../shared/widgets/development_stage_progress_rail.dart';
 import '../../shared/widgets/specialist_deficit_card.dart';
 import '../security/security_center_screen.dart';
 import '../operations/operations_screen.dart';
 import '../contracts/contracts_screen.dart';
+import 'product_development_experience.dart';
 import '../../../domain/simulation/product_projection_cache.dart';
 import '../../../application/localization/app_text.dart';
 import '../../shared/widgets/scoped_listenable_builder.dart';
 import '../../../application/localization/app_localizer.dart';
+
+String _safeActiveWorkTitle(String featureId) {
+  if (featureId.startsWith('__improvement_')) {
+    final payload = featureId.substring('__improvement_'.length);
+    final separator = payload.lastIndexOf('_');
+    if (separator > 0) {
+      final typeName = payload.substring(0, separator);
+      final level = int.tryParse(payload.substring(separator + 1));
+      for (final option in ProductEvolutionCatalog.improvements) {
+        if (option.type.name == typeName) {
+          return level == null ? option.name : '${option.name} · L$level';
+        }
+      }
+    }
+    return 'Техническое улучшение';
+  }
+  final matches = GameCatalog.features.where((item) => item.id == featureId);
+  return matches.isEmpty ? 'Устаревшая функция' : matches.first.name;
+}
 
 class ProductDetailScreen extends StatelessWidget {
   const ProductDetailScreen({
@@ -77,6 +99,9 @@ class ProductDetailScreen extends StatelessWidget {
             )
             .toList(growable: false);
         final activeFeatureWork = state.activeFeatureDevelopmentFor(product.id);
+        final activeFeatureWorkTitle = activeFeatureWork == null
+            ? null
+            : _safeActiveWorkTitle(activeFeatureWork.featureId);
 
         return Scaffold(
           appBar: AppBar(title: AppText(product.name)),
@@ -89,6 +114,15 @@ class ProductDetailScreen extends StatelessWidget {
                     '${categoryName(product.category)} • ${stageName(product.stage)} • ${framework.name}',
               ),
               const SizedBox(height: 12),
+              if (product.stage == ProductStage.development) ...[
+                AppCard(
+                  child: DevelopmentStageProgressRail(
+                    state: state,
+                    product: product,
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               if (product.stage == ProductStage.development) ...[
                 AppCard(
                   hintTitle: 'Разработка продукта',
@@ -167,8 +201,8 @@ class ProductDetailScreen extends StatelessWidget {
                         '${state.employeesForProduct(product.id).length}',
                       ),
                       _LabelValue(
-                        'Development capacity',
-                        '${state.productDevelopmentCapacity(product.id).toStringAsFixed(2)} FTE',
+                        'Мощность разработки',
+                        '${state.totalDevelopmentCapacityFor(product).toStringAsFixed(2)} FTE',
                         last: true,
                       ),
                       const SizedBox(height: 10),
@@ -212,6 +246,11 @@ class ProductDetailScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(height: 12),
+                ProductDevelopmentExperience(
+                  controller: controller,
+                  product: product,
+                ),
                 const SizedBox(height: 18),
               ],
               SectionHeader(
@@ -220,7 +259,7 @@ class ProductDetailScreen extends StatelessWidget {
                     'Для каждого типа продукта нужны конкретные роли. Нехватка специальностей замедляет разработку и снижает качество исполнения.',
                 hintTitle: 'Почему важны специальности',
                 hintBody:
-                    'Development capacity учитывает не только средние навыки, но и покрытие обязательных ролей. Один сильный backend-разработчик не заменяет security, design или QA.',
+                    'Мощность разработки учитывает не только средние навыки, но и покрытие обязательных ролей. Один сильный Backend-разработчик не заменяет безопасность, дизайн или QA.',
               ),
               const SizedBox(height: 10),
               _ProductTeamRequirementsCard(state: state, product: product),
@@ -238,7 +277,7 @@ class ProductDetailScreen extends StatelessWidget {
                 childAspectRatio: 1.45,
                 children: [
                   MetricCard(
-                    label: 'Users',
+                    label: 'Пользователи',
                     value: compactNumber(product.users),
                   ),
                   MetricCard(
@@ -247,20 +286,20 @@ class ProductDetailScreen extends StatelessWidget {
                         '${compactNumber(product.dau)} / ${compactNumber(product.mau)}',
                   ),
                   MetricCard(
-                    label: 'Activation',
+                    label: 'Активация',
                     value: percent(product.activationRate, fractionDigits: 1),
                   ),
                   MetricCard(
-                    label: 'Retention 30d',
+                    label: 'Удержание 30 дн.',
                     value: percent(product.retention30d, fractionDigits: 1),
                   ),
                   MetricCard(
-                    label: 'Churn',
+                    label: 'Отток',
                     value: percent(product.churnRate, fractionDigits: 1),
                     positive: product.churnRate <= 0.08,
                   ),
                   MetricCard(
-                    label: 'Rating',
+                    label: 'Рейтинг',
                     value: product.rating.toStringAsFixed(2),
                     positive: product.rating >= 4,
                   ),
@@ -279,7 +318,7 @@ class ProductDetailScreen extends StatelessWidget {
               SectionHeader(
                 title: 'Свежесть продукта',
                 subtitle:
-                    'Без обновлений органический рост, retention и рейтинг постепенно снижаются.',
+                    'Без обновлений органический рост, удержание и рейтинг постепенно снижаются.',
                 hintTitle: 'Как работает устаревание',
                 hintBody:
                     'Первые 21 игровой день после обновления продукт считается свежим. Затем штраф растёт постепенно. Любая крупная функция или техническое улучшение обновляет дату свежести.',
@@ -305,26 +344,26 @@ class ProductDetailScreen extends StatelessWidget {
                     ),
                     const Divider(),
                     _ComparisonRow(
-                      label: 'Latency',
+                      label: 'Задержка',
                       own: '${product.speedMs.round()} ms',
                       competitor: '${competitor.speedMs.round()} ms',
                       ownBetter: product.speedMs < competitor.speedMs,
                     ),
                     _ComparisonRow(
-                      label: 'Design',
+                      label: 'Дизайн',
                       own: '${product.designScore.round()}',
                       competitor: '${competitor.designScore.round()}',
                       ownBetter: product.designScore > competitor.designScore,
                     ),
                     _ComparisonRow(
-                      label: 'Security',
+                      label: 'Безопасность',
                       own: '${product.securityScore.round()}',
                       competitor: '${competitor.securityScore.round()}',
                       ownBetter:
                           product.securityScore > competitor.securityScore,
                     ),
                     _ComparisonRow(
-                      label: 'Reliability',
+                      label: 'Надёжность',
                       own: percent(product.reliability, fractionDigits: 2),
                       competitor: percent(
                         competitor.reliability,
@@ -355,7 +394,7 @@ class ProductDetailScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _LabelValue('Framework', framework.name),
+                    _LabelValue('Фреймворк', framework.name),
                     _LabelValue(
                       'Языки',
                       product.languageIds
@@ -387,10 +426,10 @@ class ProductDetailScreen extends StatelessWidget {
                 title: 'Собственная AI',
                 subtitle: product.category == ProductCategory.aiAssistant
                     ? 'Выберите: публичный рынок или внутренняя корпоративная AI.'
-                    : 'Корпоративная AI ускоряет разработку и немного повышает качество, но требует compute и OPEX.',
+                    : 'Корпоративная AI ускоряет разработку и немного повышает качество, но требует вычислительной мощности и операционных расходов.',
                 hintTitle: 'Публичная и корпоративная AI',
                 hintBody:
-                    'Публичная AI конкурирует за пользователей и приносит выручку. Корпоративная AI не продаётся на рынке: её можно подключать к другим продуктам для +18% development capacity и +4 quality.',
+                    'Публичная AI конкурирует за пользователей и приносит выручку. Корпоративная AI не продаётся на рынке: её можно подключать к другим продуктам для +18% к мощности разработки и +4 quality.',
                 hintBullets: const [
                   'Одна корпоративная AI может обслуживать несколько продуктов.',
                   'Каждое подключение стоит 45 000 ₽ в месяц.',
@@ -439,9 +478,7 @@ class ProductDetailScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       AppText(
-                        GameCatalog.featureById(
-                          activeFeatureWork.featureId,
-                        ).name,
+                        activeFeatureWorkTitle ?? 'Техническое улучшение',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 8),
@@ -454,7 +491,7 @@ class ProductDetailScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       AppText(
-                        'Скорость зависит от той же проектной команды: ${state.productDevelopmentCapacity(product.id).toStringAsFixed(2)} FTE.',
+                        'Скорость: ${(state.productDevelopmentCapacity(product.id) + state.founderFeatureWorkCapacityFor(product)).toStringAsFixed(2)} FTE с учётом CEO.',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
@@ -983,7 +1020,7 @@ class _AiUsageCard extends StatelessWidget {
             )
           else
             const AppText(
-              '+18% development capacity • +4 quality • 45 000 ₽/мес.',
+              '+18% к мощности разработки • +4 quality • 45 000 ₽/мес.',
             ),
         ],
       ),

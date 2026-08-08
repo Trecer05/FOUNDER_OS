@@ -36,7 +36,7 @@ class ContractsScreen extends StatelessWidget {
                     'Каждый заказ теперь ведётся как отдельный проект со своей командой, сроком и карточкой.',
                 hintTitle: 'Как работают контракты',
                 hintBody:
-                    'После принятия откройте карточку заказа и назначьте сотрудников. Один человек работает только над одним продуктом или контрактом.',
+                    'После принятия игра автоматически подбирает людей по ролям. Сотрудник может участвовать максимум в 4 работах, но эффективность снижается.',
                 hintBullets: [
                   'Одновременно можно вести до трёх контрактов.',
                   'Аванс приходит сразу, остаток — после сдачи.',
@@ -84,8 +84,9 @@ class ContractsScreen extends StatelessWidget {
                     value: '${state.activeContracts.length} / 3',
                   ),
                   MetricCard(
-                    label: 'Свободные люди',
-                    value: '${state.unassignedEmployees.length}',
+                    label: 'Можно подключить',
+                    value:
+                        '${state.employees.where((item) => state.canAssignEmployeeToMoreWork(item.id)).length}',
                   ),
                   MetricCard(
                     label: 'Завершено',
@@ -215,6 +216,11 @@ class _ActiveContractCard extends StatelessWidget {
             children: [
               Chip(label: AppText('Команда ${team.length}')),
               Chip(label: AppText('Роли ${(coverage * 100).round()}%')),
+              Chip(
+                label: AppText(
+                  coverage >= 1 ? 'Команды хватает' : 'Не хватает команды',
+                ),
+              ),
               Chip(label: AppText(money(contract.reward))),
             ],
           ),
@@ -243,7 +249,7 @@ class _ContractOfferCard extends StatelessWidget {
     return AppCard(
       hintTitle: template.name,
       hintBody:
-          'До принятия покрытие ролей показывает доступных свободных сотрудников. После принятия назначение выполняется в карточке контракта.',
+          'До принятия видно, хватает ли текущей команды. После принятия игра автоматически назначит наименее загруженных подходящих сотрудников.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -280,6 +286,13 @@ class _ContractOfferCard extends StatelessWidget {
               Chip(
                 label: AppText(
                   'Доступные роли ${(availableCoverage * 100).round()}%',
+                ),
+              ),
+              Chip(
+                label: AppText(
+                  availableCoverage >= 1
+                      ? 'Команды хватает'
+                      : 'Не хватает команды',
                 ),
               ),
             ],

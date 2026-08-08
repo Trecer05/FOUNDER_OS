@@ -48,10 +48,10 @@ class TechnologySelectorPanel extends StatelessWidget {
         SectionHeader(
           title: 'Технологии и инфраструктура',
           subtitle:
-              'Выбрано ${limit.selected}. Разрешено ${limit.allowed}. Большой стек повышает часы, tech debt, OPEX и сложность найма.',
+              'Выбрано ${limit.selected}. Разрешено ${limit.allowed}. Большой стек повышает часы, технический долг, операционные расходы и сложность найма.',
           hintTitle: 'Почему лимит динамический',
           hintBody:
-              'Лимит зависит от масштаба продукта, framework, roadmap, сложности сопровождения и возможностей инженерной команды.',
+              'Лимит зависит от масштаба продукта, фреймворка, плана развития, сложности сопровождения и возможностей инженерной команды.',
         ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
@@ -139,11 +139,11 @@ class TechnologySelectorPanel extends StatelessWidget {
                             'Часы +${impact.developmentHoursDelta.round()}',
                           ),
                           _ImpactChip(
-                            'Tech debt +${(impact.technicalDebtDelta * 100).round()}',
+                            'Техдолг +${(impact.technicalDebtDelta * 100).round()}',
                             warning: true,
                           ),
                           _ImpactChip(
-                            'Infra ${money(impact.infrastructureCostDelta)}/мес.',
+                            'Инфраструктура ${money(impact.infrastructureCostDelta)}/мес.',
                             warning: impact.infrastructureCostDelta > 20000,
                           ),
                           _ImpactChip(
@@ -151,11 +151,11 @@ class TechnologySelectorPanel extends StatelessWidget {
                             warning: impact.hiringDifficultyDelta >= 0.2,
                           ),
                           _ImpactChip(
-                            'Support +${(impact.supportDifficultyDelta * 100).round()}%',
+                            'Поддержка +${(impact.supportDifficultyDelta * 100).round()}%',
                             warning: true,
                           ),
                           _ImpactChip(
-                            'Stability ${impact.stabilityDelta >= 0 ? '+' : ''}${(impact.stabilityDelta * 100).toStringAsFixed(1)} п.п.',
+                            'Стабильность ${impact.stabilityDelta >= 0 ? '+' : ''}${(impact.stabilityDelta * 100).toStringAsFixed(1)} п.п.',
                           ),
                         ],
                       ),
@@ -211,7 +211,7 @@ class TechnologySelectorPanel extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const AppText(
-                'Чтобы увеличить реальную способность сопровождать стек: упростите framework/roadmap или наймите сильную инженерную команду. Выбор сверх лимита запрещён движком.',
+                'Чтобы увеличить реальную способность сопровождать стек: упростите фреймворк или план развития либо наймите сильную инженерную команду. Выбор сверх лимита запрещён движком.',
               ),
             ],
           ),

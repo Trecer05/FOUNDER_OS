@@ -6,6 +6,7 @@ import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
 import '../../../domain/catalog/game_catalog.dart';
 import '../../../domain/catalog/product_strategy_catalog.dart';
+import '../../../domain/catalog/product_evolution_catalog.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/models.dart';
 import '../../../domain/entities/product_strategy_models.dart';
@@ -42,7 +43,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
 
   static const _stepTitles = <String>[
     'Масштаб продукта',
-    'Название и framework',
+    'Название и фреймворк',
     'Языки',
     'Технологии',
     'Функции',
@@ -208,17 +209,17 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         _nameController.text.trim().isEmpty
             ? 'Введите название проекта.'
             : !_strategy.allowedFrameworkIds.contains(_frameworkId)
-            ? 'Выберите framework из списка этого проекта.'
+            ? 'Выберите фреймворк из списка этого проекта.'
             : null,
       2 =>
         _languageIds.isEmpty
             ? 'Выберите хотя бы один язык.'
             : _languageIds.length > _languageLimit.allowed
-            ? 'Можно выбрать максимум ${_languageLimit.allowed}: лимит рассчитан из масштаба и framework.'
+            ? 'Можно выбрать максимум ${_languageLimit.allowed}: лимит рассчитан из масштаба и фреймворка.'
             : frameworkProfile.requiredLanguageIds
                   .where((id) => !_languageIds.contains(id))
                   .isNotEmpty
-            ? 'Добавьте обязательные языки выбранного framework.'
+            ? 'Добавьте обязательные языки выбранного фреймворка.'
             : null,
       3 =>
         _technologyIds.length > _technologyLimit.allowed
@@ -393,7 +394,9 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                       _InfoChip(
                         'Команда ${strategy.minimumTeamSize}–${strategy.maximumEfficientTeamSize}',
                       ),
-                      _InfoChip('Setup ${money(strategy.setupCost)}'),
+                      _InfoChip(
+                        'Разовая настройка ${money(strategy.setupCost)}',
+                      ),
                       if (strategy.requiredInvestorCount > 0)
                         _InfoChip(
                           '${investorsReady ? '✓' : 'Нужно'} инвесторов: ${strategy.requiredInvestorCount}',
@@ -426,7 +429,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         ),
         const SizedBox(height: 16),
         const SectionHeader(
-          title: 'Framework',
+          title: 'Фреймворк',
           subtitle:
               'Выбор меняет сроки, стоимость эксплуатации и набор обязательных языков.',
         ),
@@ -510,7 +513,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         SectionHeader(
           title: 'Языки проекта',
           subtitle:
-              'Можно выбрать ${_languageLimit.allowed}. База ${_languageLimit.base}, framework ${_languageLimit.frameworkAdjustment >= 0 ? '+' : ''}${_languageLimit.frameworkAdjustment}, обязательных ${_languageLimit.requiredLanguages}.',
+              'Можно выбрать ${_languageLimit.allowed}. База ${_languageLimit.base}, фреймворк ${_languageLimit.frameworkAdjustment >= 0 ? '+' : ''}${_languageLimit.frameworkAdjustment}, обязательных ${_languageLimit.requiredLanguages}.',
           hintTitle: 'Почему есть лимит языков',
           hintBody: _languageLimit.reasons.join(' '),
         ),
@@ -705,6 +708,69 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
     );
   }
 
+  List<String> get _selectedLanguageNames => _languageIds
+      .map((id) => GameCatalog.languageById(id).name)
+      .toList(growable: false);
+
+  List<String> get _selectedTechnologyNames => _technologyIds
+      .map((id) => GameCatalog.technologyById(id).name)
+      .toList(growable: false);
+
+  int get _requiredHeadcount => ProductEvolutionCatalog.roleRequirements(
+    _blueprint.category,
+  ).fold<int>(0, (sum, item) => sum + item.minimumCount);
+
+  String get _requiredTeamSummary {
+    final requirements = ProductEvolutionCatalog.roleRequirements(
+      _blueprint.category,
+    );
+    if (requirements.isEmpty) {
+      return 'Без обязательных ролей';
+    }
+    return requirements
+        .map((item) => '${item.minimumCount}× ${roleName(item.role)}')
+        .join(' • ');
+  }
+
+  double _averageCandidateSalary(EmployeeRole role) {
+    final roleSalaries = widget.controller.state.candidates
+        .where((candidate) => candidate.role == role && !candidate.isHr)
+        .map((candidate) => candidate.salary)
+        .toList(growable: false);
+    if (roleSalaries.isNotEmpty) {
+      return roleSalaries.reduce((a, b) => a + b) / roleSalaries.length;
+    }
+    final allSalaries = widget.controller.state.candidates
+        .where((candidate) => !candidate.isHr)
+        .map((candidate) => candidate.salary)
+        .toList(growable: false);
+    if (allSalaries.isEmpty) {
+      return 0;
+    }
+    return allSalaries.reduce((a, b) => a + b) / allSalaries.length;
+  }
+
+  double _estimatedDevelopmentMonths(ProductProjection projection) {
+    final headcount = math.max(1, _requiredHeadcount);
+    final months = projection.developmentHours / (headcount * 8 * 22);
+    return math.max(0.25, months).toDouble();
+  }
+
+  double _estimatedDevelopmentPayroll(ProductProjection projection) {
+    final requirements = ProductEvolutionCatalog.roleRequirements(
+      _blueprint.category,
+    );
+    final monthlyPayroll = requirements.fold<double>(
+      0,
+      (sum, item) =>
+          sum + _averageCandidateSalary(item.role) * item.minimumCount,
+    );
+    return monthlyPayroll * _estimatedDevelopmentMonths(projection);
+  }
+
+  double _estimatedDevelopmentCompute(ProductProjection projection) =>
+      math.max(1, 28 * projection.computeMultiplier).toDouble();
+
   Widget _summaryStep(BuildContext context, ProductProjection projection) {
     final optimisticDays =
         projection.developmentHours /
@@ -717,6 +783,12 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
     final missingFrameworkLanguages = frameworkProfile.requiredLanguageIds
         .where((id) => !_languageIds.contains(id))
         .toList(growable: false);
+    final languageNames = _selectedLanguageNames;
+    final technologyNames = _selectedTechnologyNames;
+    final estimatedMonths = _estimatedDevelopmentMonths(projection);
+    final estimatedPayroll = _estimatedDevelopmentPayroll(projection);
+    final estimatedCompute = _estimatedDevelopmentCompute(projection);
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
       children: [
@@ -731,18 +803,32 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         AppCard(
           child: Column(
             children: [
-              _SummaryRow('Setup сейчас', money(projection.developmentCost)),
               _SummaryRow(
-                'Зарплаты и инфраструктура',
-                'списываются во времени',
+                'Разовая настройка',
+                money(projection.developmentCost),
+                supporting: 'Списывается один раз при запуске проекта.',
+              ),
+              _SummaryRow(
+                'Ориентировочная стоимость разработки',
+                '≈ ${money(estimatedPayroll)}',
+                supporting:
+                    'По средним зарплатам $_requiredHeadcount требуемых специалистов • ≈ ${estimatedMonths.toStringAsFixed(1)} мес.',
+              ),
+              _SummaryRow(
+                'Мощность инфраструктуры',
+                '≈ ${estimatedCompute.ceil()} CU на разработке',
+                supporting:
+                    'После релиза потребность растёт вместе с пользователями • множитель стека ×${projection.computeMultiplier.toStringAsFixed(2)}.',
               ),
               _SummaryRow(
                 'Объём',
                 '${projection.developmentHours.round()} рабочих часов',
               ),
               _SummaryRow(
-                'Оптимистичный срок',
-                '${optimisticDays.ceil()} рабочих дней при команде ${_strategy.optimalTeamSize}',
+                'Ориентир срока',
+                '≈ ${optimisticDays.ceil()} рабочих дней',
+                supporting:
+                    'При эффективной команде из ${_strategy.optimalTeamSize} специалистов.',
               ),
               _SummaryRow(
                 'Совместимость стека',
@@ -754,16 +840,19 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
               ),
               _SummaryRow(
                 'Языки',
-                '${_languageIds.length}/${_languageLimit.allowed} • ${_languageLimit.reasons.join(' ')}',
+                languageNames.isEmpty ? 'Не выбраны' : languageNames.join(', '),
+                supporting:
+                    'Выбрано ${_languageIds.length} из допустимых ${_languageLimit.allowed}.',
               ),
               _SummaryRow(
                 'Технологии',
-                '${_technologyIds.length}/${_technologyLimit.allowed} • динамический лимит',
+                technologyNames.isEmpty
+                    ? 'Не выбраны'
+                    : technologyNames.join(', '),
+                supporting:
+                    'Выбрано ${_technologyIds.length} из допустимых ${_technologyLimit.allowed}.',
               ),
-              _SummaryRow(
-                'Команда',
-                '${_strategy.minimumTeamSize} минимум • ${_strategy.optimalTeamSize} оптимум',
-              ),
+              _SummaryRow('Нужные специалисты', _requiredTeamSummary),
               _SummaryRow(
                 'Инвесторы',
                 '$currentInvestors/${_strategy.requiredInvestorCount}',
@@ -800,7 +889,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
           const SizedBox(height: 12),
           AppCard(
             child: AppText(
-              'Нельзя создать: framework требует ${missingFrameworkLanguages.map((id) => GameCatalog.languageById(id).name).join(', ')}.',
+              'Нельзя создать: фреймворк требует ${missingFrameworkLanguages.map((id) => GameCatalog.languageById(id).name).join(', ')}.',
             ),
           ),
         ],
@@ -808,7 +897,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
           const SizedBox(height: 12),
           AppCard(
             child: AppText(
-              'Недостаточно денег на setup: доступно ${money(widget.controller.state.cash)}.',
+              'Недостаточно денег на разовую настройку: доступно ${money(widget.controller.state.cash)}.',
             ),
           ),
         ],
@@ -922,34 +1011,52 @@ class _ProsCons extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow(this.label, this.value, {this.last = false});
+  const _SummaryRow(
+    this.label,
+    this.value, {
+    this.supporting,
+    this.last = false,
+  });
+
   final String label;
   final String value;
+  final String? supporting;
   final bool last;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: AppText(label)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: AppText(
-                  value,
-                  textAlign: TextAlign.end,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-            ],
+    return Container(
+      width: double.infinity,
+      margin: EdgeInsets.only(bottom: last ? 0 : 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppText(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColors.textMuted,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-        ),
-        if (!last) const Divider(),
-      ],
+          const SizedBox(height: 6),
+          AppText(
+            value,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          if (supporting != null) ...[
+            const SizedBox(height: 5),
+            AppText(supporting!, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ],
+      ),
     );
   }
 }

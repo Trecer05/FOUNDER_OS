@@ -50,41 +50,44 @@ void main() {
     },
   );
 
-  test('employee can participate in two products with split allocation', () {
-    var state = _twoProducts();
-    final employee = state.candidateById('c_timur')!.toEmployee();
-    state = state.copyWith(
-      employees: <Employee>[employee],
-      candidates: state.candidates
-          .where((candidate) => candidate.id != employee.id)
-          .toList(growable: false),
-    );
+  test(
+    'employee can participate in two products at seventy percent efficiency',
+    () {
+      var state = _twoProducts();
+      final employee = state.candidateById('c_timur')!.toEmployee();
+      state = state.copyWith(
+        employees: <Employee>[employee],
+        candidates: state.candidates
+            .where((candidate) => candidate.id != employee.id)
+            .toList(growable: false),
+      );
 
-    state = engine.reduce(
-      state,
-      AssignEmployeeToProduct(
-        employeeId: employee.id,
-        productId: state.products[0].id,
-      ),
-    );
-    state = engine.reduce(
-      state,
-      AssignEmployeeToProduct(
-        employeeId: employee.id,
-        productId: state.products[1].id,
-      ),
-    );
+      state = engine.reduce(
+        state,
+        AssignEmployeeToProduct(
+          employeeId: employee.id,
+          productId: state.products[0].id,
+        ),
+      );
+      state = engine.reduce(
+        state,
+        AssignEmployeeToProduct(
+          employeeId: employee.id,
+          productId: state.products[1].id,
+        ),
+      );
 
-    expect(state.assignmentsForEmployee(employee.id), hasLength(2));
-    expect(
-      state.employeeAllocationForProduct(employee.id, state.products[0].id),
-      closeTo(50, 0.01),
-    );
-    expect(
-      state.employeeAllocationForProduct(employee.id, state.products[1].id),
-      closeTo(50, 0.01),
-    );
-  });
+      expect(state.assignmentsForEmployee(employee.id), hasLength(2));
+      expect(
+        state.employeeAllocationForProduct(employee.id, state.products[0].id),
+        closeTo(70, 0.01),
+      );
+      expect(
+        state.employeeAllocationForProduct(employee.id, state.products[1].id),
+        closeTo(70, 0.01),
+      );
+    },
+  );
 
   test('HR auto-hire assigns specialists and applies premium salaries', () {
     var state = _oneProduct();

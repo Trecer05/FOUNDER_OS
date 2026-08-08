@@ -1246,6 +1246,20 @@ abstract final class GameCatalog {
 
   static const List<OfficeOption> offices = <OfficeOption>[
     OfficeOption(
+      id: 'remote_first',
+      name: 'Без офиса · Remote-first',
+      group: 'Старт',
+      description:
+          'Полностью удалённая компания. Аренды и депозита нет, но on-site сотрудников нанимать нельзя.',
+      monthlyRent: 0,
+      deposit: 0,
+      capacity: 0,
+      comfortScore: 50,
+      communicationEfficiency: 0.95,
+      hiringBoostPercent: 0,
+      prestigeScore: 8,
+    ),
+    OfficeOption(
       id: 'garage',
       name: 'Домашний гараж',
       group: 'Старт',

@@ -5,6 +5,7 @@ import 'package:founder_os/application/controllers/game_controller.dart';
 import 'package:founder_os/domain/commands/game_action.dart';
 import 'package:founder_os/domain/entities/game_state.dart';
 import 'package:founder_os/domain/entities/models.dart';
+import 'package:founder_os/domain/entities/v12_models.dart';
 import 'package:founder_os/domain/simulation/engine/game_engine.dart';
 import 'package:founder_os/persistence/storage/snapshot_store.dart';
 import 'package:founder_os/presentation/features/contracts/contract_detail_screen.dart';
@@ -45,6 +46,7 @@ void main() {
       ..value = GameState.initial().copyWith(
         simulationMinutes: 6 * 1440 + 8 * 60,
         onboardingCompleted: false,
+        companyProfile: const FounderCompanyProfile.legacy(),
       );
     final controller = GameController(snapshotStore: store, startClock: false);
     addTearDown(controller.dispose);
@@ -148,6 +150,15 @@ Future<GameController> _controllerWithContract() async {
     ],
   );
   state = engine.reduce(state, const AcceptClientContract('landing_launch'));
+  // Auto-assignment is covered by v12.2 domain tests. This fixture clears it
+  // so the sheet test can still isolate multi-selection-before-save behavior.
+  state = engine.reduce(
+    state,
+    SetContractTeam(
+      contractId: state.activeContracts.single.id,
+      employeeIds: const <String>[],
+    ),
+  );
   final store = _MemorySnapshotStore()..value = state;
   final controller = GameController(snapshotStore: store, startClock: false);
   await controller.initialize();

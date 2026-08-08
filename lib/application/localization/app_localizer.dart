@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 
 import '../settings/display_preferences.dart';
 import 'glossary_english.dart';
+import 'v12_localization_lexicon.dart';
 
 /// Runtime localization adapter used while historic UI strings are extracted
 /// from the domain/content catalog. New UI should still pass explicit RU/EN
@@ -113,6 +114,41 @@ abstract final class AppLocalizer {
     'Skill': 'Навык',
     'Security score': 'Уровень безопасности',
     'Signing bonus': 'Бонус при найме',
+    'Hiring': 'Бонус к найму',
+    'Runway': 'Запас денег',
+    'Valuation': 'Оценка компании',
+    'Burn': 'Темп расходов',
+    'Burn rate': 'Темп расходов',
+    'Revenue share': 'Доля выручки',
+    'Cap table': 'Структура владения',
+    'Profit': 'Прибыль',
+    'Revenue': 'Выручка',
+    'Equity': 'Доля',
+    'Dilution': 'Размытие доли',
+    'Onboarding': 'Вводное обучение',
+    'Overstaffing': 'Лишний найм',
+    'Capacity': 'Мощность разработки',
+    'Security': 'Безопасность',
+    'Incident multiplier': 'Коэффициент риска',
+    'Setup': 'Разовая настройка',
+    'Users': 'Пользователи',
+    'Rating': 'Рейтинг',
+    'Load': 'Загрузка',
+    'Fresh': 'Свежесть',
+    'Activation': 'Активация',
+    'Retention': 'Удержание',
+    'Retention 30d': 'Удержание 30 дн.',
+    'Churn': 'Отток',
+    'Latency': 'Задержка',
+    'Design': 'Дизайн',
+    'Reliability': 'Надёжность',
+    'Security operations': 'Управление безопасностью',
+    'Secure SDLC': 'Безопасный SDLC',
+    'SAST + dependency scanning': 'SAST + сканирование зависимостей',
+    'WAF и DDoS protection': 'WAF и защита от DDoS',
+    'Backups и disaster recovery': 'Резервные копии и аварийное восстановление',
+    'SOC и incident response': 'SOC и реагирование на инциденты',
+    'Application Security': 'Безопасность приложений',
     'Cold start': 'Холодный запуск',
     'Vendor lock-in': 'Зависимость от поставщика',
     'Provider lock-in': 'Зависимость от провайдера',
@@ -203,6 +239,18 @@ abstract final class AppLocalizer {
     'framework requires': 'фреймворк требует',
     'cash': 'деньги',
     'payroll': 'зарплаты',
+    'runway': 'запас денег',
+    'valuation': 'оценка компании',
+    'burn rate': 'темп расходов',
+    'burn': 'расходы',
+    'revenue share': 'доля выручки',
+    'cap table': 'структура владения',
+    'profit': 'прибыль',
+    'revenue': 'выручка',
+    'equity': 'доля',
+    'dilution': 'размытие доли',
+    'onboarding': 'вводное обучение',
+    'overstaffing': 'лишний найм',
     'product': 'продукт',
     'team': 'команда',
     'overview': 'обзор',
@@ -560,11 +608,39 @@ abstract final class AppLocalizer {
     var result = source;
     final phrases = _ruPhrases.keys.toList()
       ..sort((a, b) => b.length.compareTo(a.length));
-    const safeInlineTerms = <String>{'cash', 'workload', 'morale', 'payroll'};
+    const safeInlineTerms = <String>{
+      'cash',
+      'workload',
+      'morale',
+      'payroll',
+      'runway',
+      'valuation',
+      'burn',
+      'burn rate',
+      'revenue',
+      'profit',
+      'equity',
+      'dilution',
+      'onboarding',
+      'overstaffing',
+    };
+    const translateEvenIfApproved = <String>{
+      'runway',
+      'valuation',
+      'burn',
+      'burn rate',
+      'revenue',
+      'profit',
+      'equity',
+      'dilution',
+      'onboarding',
+      'overstaffing',
+    };
     for (final phrase in phrases) {
       final isMultiWord = phrase.contains(' ') || phrase.contains('-');
       if ((!isMultiWord && !safeInlineTerms.contains(phrase)) ||
-          _isApprovedTerm(phrase)) {
+          (_isApprovedTerm(phrase) &&
+              !translateEvenIfApproved.contains(phrase))) {
         continue;
       }
       result = result.replaceAllMapped(
@@ -590,13 +666,36 @@ abstract final class AppLocalizer {
     if (exact != null) {
       return exact;
     }
+    final v12Exact = V12LocalizationLexicon.exact[source];
+    if (v12Exact != null) {
+      return v12Exact;
+    }
     var result = source;
+    final v12Phrases = V12LocalizationLexicon.phrases.keys.toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+    for (final phrase in v12Phrases) {
+      result = result.replaceAll(
+        RegExp(RegExp.escape(phrase), caseSensitive: false),
+        V12LocalizationLexicon.phrases[phrase]!,
+      );
+    }
     final phrases = _enPhrases.keys.toList()
       ..sort((a, b) => b.length.compareTo(a.length));
     for (final phrase in phrases) {
       result = result.replaceAll(
         RegExp(RegExp.escape(phrase), caseSensitive: false),
         _enPhrases[phrase]!,
+      );
+    }
+    final v12Words = V12LocalizationLexicon.words.entries.toList()
+      ..sort((a, b) => b.key.length.compareTo(a.key.length));
+    for (final entry in v12Words) {
+      result = result.replaceAllMapped(
+        RegExp(
+          '(^|[^А-Яа-яЁё])${RegExp.escape(entry.key)}(?=[^А-Яа-яЁё]|\$)',
+          caseSensitive: false,
+        ),
+        (match) => '${match.group(1) ?? ''}${entry.value}',
       );
     }
     final words = _enWords.entries.toList()

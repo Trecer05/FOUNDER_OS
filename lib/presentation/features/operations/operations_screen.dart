@@ -7,9 +7,11 @@ import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/business_models.dart';
 import '../../../domain/entities/game_state.dart';
 import '../../../domain/entities/models.dart';
+import '../../../domain/entities/v12_game_state_extensions.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../shared/widgets/development_stage_progress_rail.dart';
 import '../contracts/contract_detail_screen.dart';
 import '../contracts/contracts_screen.dart';
 import '../products/product_workspace_screen.dart';
@@ -112,7 +114,7 @@ class OperationsScreen extends StatelessWidget {
               const SectionHeader(
                 title: 'Распределение сотрудников',
                 subtitle:
-                    'Сотрудник может участвовать в нескольких продуктах: его 100% времени делятся между назначениями, а workload растёт.',
+                    'Сотрудник может вести до 4 работ одновременно. Эффективность на каждой: 100% → 70% → 55% → 40%.',
               ),
               const SizedBox(height: 10),
               if (state.employees.isEmpty)
@@ -140,7 +142,7 @@ class OperationsScreen extends StatelessWidget {
                             contentPadding: EdgeInsets.zero,
                             title: AppText(employee.name),
                             subtitle: AppText(
-                              '${employeeRoleName(employee)} • проектов ${state.assignmentsForEmployee(employee.id).length} • workload ${employee.workload}/100',
+                              '${employeeRoleName(employee)} • проектов ${state.assignmentsForEmployee(employee.id).length} • нагрузка ${employee.workload}/100',
                             ),
                             trailing: ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 150),
@@ -178,7 +180,7 @@ class _ProductWorkCard extends StatelessWidget {
     final state = controller.state;
     final team = state.employeesForProduct(product.id);
     final coverage = state.productRoleCoverage(product.id);
-    final capacity = state.productDevelopmentCapacity(product.id);
+    final capacity = state.totalDevelopmentCapacityFor(product);
     final staffing = state.developmentStaffingFor(product.id);
     final phase = state.developmentPhaseFor(product);
     final featureWork = state.activeFeatureDevelopmentFor(product.id);
@@ -227,6 +229,14 @@ class _ProductWorkCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           if (product.stage == ProductStage.development) ...[
+            DevelopmentStageProgressRail(
+              state: state,
+              product: product,
+              compact: true,
+            ),
+            const SizedBox(height: 10),
+          ],
+          if (product.stage == ProductStage.development) ...[
             LinearProgressIndicator(value: product.developmentProgress),
             const SizedBox(height: 7),
             AppText('${phase.name} • ${staffing.status}'),
@@ -246,7 +256,9 @@ class _ProductWorkCard extends StatelessWidget {
               Chip(label: AppText('Команда ${team.length}')),
               Chip(label: AppText('Роли ${(coverage * 100).round()}%')),
               Chip(
-                label: AppText('Capacity ${capacity.toStringAsFixed(2)} FTE'),
+                label: AppText(
+                  'Мощность разработки ${capacity.toStringAsFixed(2)} FTE',
+                ),
               ),
               Chip(
                 label: AppText('Эфф. ${(staffing.efficiency * 100).round()}%'),
@@ -315,7 +327,7 @@ class _ContractWorkCard extends StatelessWidget {
       ),
       hintTitle: 'Контракт ${template.name}',
       hintBody:
-          'Назначьте конкретных сотрудников. Они могут участвовать и в продуктах, но параллельная работа повышает workload и снижает morale.',
+          'Назначьте конкретных сотрудников. Они могут участвовать и в продуктах, но параллельная работа повышает нагрузку и снижает morale.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -352,7 +364,7 @@ class _ContractWorkCard extends StatelessWidget {
               Chip(label: AppText('Команда ${team.length}')),
               Chip(label: AppText('Роли ${(coverage * 100).round()}%')),
               Chip(label: AppText('${daysLeft.toStringAsFixed(1)} дн.')),
-              Chip(label: AppText('Grace +${template.graceDays} дн.')),
+              Chip(label: AppText('Льготный срок +${template.graceDays} дн.')),
               Chip(
                 label: AppText(
                   '${(contract.progress * 100).toStringAsFixed(1)}%',
@@ -394,6 +406,10 @@ Future<void> _showAssignmentSheet({
   required String keyPrefix,
   required ValueChanged<List<String>> onSave,
 }) async {
+  final productMode = keyPrefix.startsWith('product-');
+  final targetProductId = productMode
+      ? keyPrefix.substring('product-'.length)
+      : null;
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -403,7 +419,7 @@ Future<void> _showAssignmentSheet({
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: SizedBox(
-            height: MediaQuery.sizeOf(sheetContext).height * 0.72,
+            height: MediaQuery.sizeOf(sheetContext).height * 0.76,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -412,49 +428,70 @@ Future<void> _showAssignmentSheet({
                   style: Theme.of(sheetContext).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 6),
-                AppText(
-                  'Выбрано ${selected.length}. Checkbox не закрывает панель; всё применяется только кнопкой сохранения.',
+                const AppText(
+                  'До 4 активных работ на сотрудника. Эффективность: 1 работа 100%, 2 — 70%, 3 — 55%, 4 — 40%.',
                 ),
+                if (productMode &&
+                    targetProductId != null &&
+                    state.companyProfile.configured) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withAlpha(12),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: AppColors.primary.withAlpha(60),
+                      ),
+                    ),
+                    child: CheckboxListTile(
+                      value: true,
+                      onChanged: null,
+                      secondary: const Icon(Icons.person_outline),
+                      title: AppText(
+                        state.companyProfile.founderName,
+                        translate: false,
+                      ),
+                      subtitle: AppText(
+                        'CEO участвует автоматически • ${state.founderDevelopmentCapacityFor(state.productById(targetProductId)!).toStringAsFixed(2)} FTE • не занимает слот сотрудника',
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Expanded(
                   child: ListView.builder(
                     itemCount: state.employees.length,
                     itemBuilder: (_, index) {
                       final employee = state.employees[index];
-                      final productAssignment = state.assignmentForEmployee(
+                      final count = state.activeAssignmentCountForEmployee(
                         employee.id,
                       );
-                      final contractAssignment = state
-                          .contractAssignmentForEmployee(employee.id);
-                      final busy = productAssignment != null
-                          ? state.productById(productAssignment.productId)?.name
-                          : contractAssignment != null
-                          ? state
-                                .contractById(contractAssignment.contractId)
-                                ?.letName(state)
-                          : 'Свободен';
-                      final productMode = keyPrefix.startsWith('product-');
-                      final targetId = productMode
-                          ? keyPrefix.substring('product-'.length)
-                          : keyPrefix;
+                      final efficiency =
+                          (state.parallelEfficiencyForEmployee(employee.id) *
+                                  100)
+                              .round();
+                      final alreadySelected = selected.contains(employee.id);
+                      final atLimit = count >= 4 && !alreadySelected;
                       return CheckboxListTile(
                         key: Key(
                           productMode
-                              ? 'assign-${employee.id}-to-$targetId'
+                              ? 'assign-${employee.id}-to-$targetProductId'
                               : '$keyPrefix-${employee.id}',
                         ),
-                        value: selected.contains(employee.id),
+                        value: alreadySelected,
                         title: AppText(employee.name),
                         subtitle: AppText(
-                          '${roleName(employee.role)} • ${busy ?? 'Свободен'}',
+                          '${roleName(employee.role)} • работ $count/4 • эффективность $efficiency%${atLimit ? ' • лимит' : ''}',
                         ),
-                        onChanged: (value) => setSheetState(() {
-                          if (value ?? false) {
-                            selected.add(employee.id);
-                          } else {
-                            selected.remove(employee.id);
-                          }
-                        }),
+                        onChanged: atLimit
+                            ? null
+                            : (value) => setSheetState(() {
+                                if (value ?? false) {
+                                  selected.add(employee.id);
+                                } else {
+                                  selected.remove(employee.id);
+                                }
+                              }),
                       );
                     },
                   ),
@@ -472,8 +509,8 @@ Future<void> _showAssignmentSheet({
                       flex: 2,
                       child: FilledButton.icon(
                         key: Key(
-                          keyPrefix.startsWith('product-')
-                              ? 'save-team-${keyPrefix.substring('product-'.length)}'
+                          productMode
+                              ? 'save-team-$targetProductId'
                               : 'save-$keyPrefix',
                         ),
                         onPressed: () {

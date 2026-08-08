@@ -101,7 +101,7 @@ class _InfrastructureScreenState extends State<InfrastructureScreen> {
                 ),
                 ResponsiveInfoRow(
                   'Сотрудники',
-                  '${state.employees.length} / ${state.office.capacity}',
+                  '${state.onSiteEmployeeCount}/${state.office.capacity} в офисе • ${state.remoteEmployeeCount} remote',
                 ),
                 ResponsiveInfoRow('Hosting', state.hostingPlan.name),
                 ResponsiveInfoRow(
@@ -158,9 +158,9 @@ class _OfficesList extends StatelessWidget {
       children: [
         SectionHeader(
           title: 'Аренда офиса',
-          subtitle: state.onSiteEmployeeCount == 0
-              ? 'Вся команда remote: офис сейчас не списывает деньги.'
-              : 'Комфорт влияет на мораль, вместимость — на предел команды.',
+          subtitle: state.selectedOfficeId == 'remote_first'
+              ? 'Remote-first: аренды нет, on-site места появятся после выбора офиса.'
+              : 'Аренда офиса списывается независимо от заполнения; комфорт и вместимость влияют на команду.',
         ),
         const SizedBox(height: 10),
         ...GameCatalog.offices.map((office) {
@@ -187,9 +187,9 @@ class _OfficesList extends StatelessWidget {
                             AppText(
                               '${office.group} • аренда ${money(office.monthlyRent)}/мес.',
                             ),
-                            if (state.onSiteEmployeeCount == 0)
+                            if (office.id == 'remote_first')
                               AppText(
-                                'Сейчас списание 0 ₽/мес.: вся команда работает remote.',
+                                '0 ₽/мес. • on-site мест нет • remote-сотрудники доступны.',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                           ],
@@ -219,7 +219,7 @@ class _OfficesList extends StatelessWidget {
                         'Коммуникация ×${office.communicationEfficiency.toStringAsFixed(2)}',
                       ),
                       _ValueChip(
-                        'Hiring +${(office.hiringBoostPercent * 100).round()}%',
+                        'Бонус к найму +${(office.hiringBoostPercent * 100).round()}%',
                       ),
                       _ValueChip('Престиж ${office.prestigeScore}/100'),
                       _ValueChip('Депозит ${money(office.deposit)}'),

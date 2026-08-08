@@ -10,13 +10,16 @@ import '../../../domain/catalog/product_evolution_catalog.dart';
 import '../../../domain/catalog/product_strategy_catalog.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/models.dart';
+import '../../../domain/entities/v12_game_state_extensions.dart';
 import '../../../domain/entities/product_evolution_models.dart';
 import '../../../domain/explainability/staffing_deficit_resolver.dart';
 import '../../../domain/simulation/product_projection_cache.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
+import '../../shared/widgets/development_stage_progress_rail.dart';
 import 'product_detail_screen.dart';
+import 'product_development_experience.dart';
 import '../../../application/localization/app_text.dart';
 import '../../shared/widgets/scoped_listenable_builder.dart';
 import '../../../application/localization/app_localizer.dart';
@@ -158,11 +161,11 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
       AppCard(
         hintTitle: 'Совместимость стека',
         hintBody:
-            'Coherence — это совместимость framework, языков, технологий и функций. 100% означает естественный стек; низкое значение добавляет часы, стоимость поддержки и риск дефектов.',
+            'Совместимость — это согласованность фреймворка, языков, технологий и функций. 100% означает естественный стек; низкое значение добавляет часы, стоимость поддержки и риск дефектов.',
         hintBullets: const [
           '70–100%: стек понятный и поддерживаемый.',
           '45–69%: есть спорные сочетания и лишняя сложность.',
-          'Ниже 45%: лучше сменить framework или убрать часть стека.',
+          'Ниже 45%: лучше сменить фреймворк или убрать часть стека.',
         ],
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,22 +268,40 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
   Widget _development(Product product) {
     final state = widget.controller.state;
     final phase = state.developmentPhaseFor(product);
-    final capacity = state.productDevelopmentCapacity(product.id);
+    final capacity = state.totalDevelopmentCapacityFor(product);
     final activeWork = state.activeFeatureDevelopmentFor(product.id);
     return _list([
       SectionHeader(
         title: 'Разработка',
         subtitle:
             '${phase.name} • ${(product.developmentProgress * 100).round()}%',
-        hintTitle: 'Development capacity',
+        hintTitle: 'Мощность разработки',
         hintBody:
-            'Development capacity — эффективная скорость команды в FTE. 1,0 FTE примерно равен одному подходящему специалисту на полной занятости. Значение учитывает навыки, роль, языки, долю времени, мораль и AI-помощь.',
+            'Мощность разработки — эффективная скорость команды в FTE. 1,0 FTE примерно равен одному подходящему специалисту на полной занятости. Значение учитывает навыки, роль, языки, долю времени, мораль и AI-помощь.',
       ),
       const SizedBox(height: 12),
+      if (product.stage == ProductStage.development)
+        AppCard(
+          child: DevelopmentStageProgressRail(state: state, product: product),
+        )
+      else
+        const AppCard(
+          child: AppText(
+            'Основная разработка завершена. Дальше продукт развивается через функции и технические улучшения.',
+          ),
+        ),
+      if (product.stage == ProductStage.development) ...[
+        const SizedBox(height: 12),
+        ProductDevelopmentExperience(
+          controller: widget.controller,
+          product: product,
+        ),
+      ],
+      const SizedBox(height: 12),
       AppCard(
-        hintTitle: 'Почему capacity меняется',
+        hintTitle: 'Почему меняется мощность разработки',
         hintBody:
-            'Capacity не является отдельным ресурсом или серверной мощностью. Это производительность людей. При работе сотрудника над несколькими проектами его вклад делится между ними, а перегрузка снижает мораль.',
+            'Мощность разработки не является отдельным ресурсом или серверной мощностью. Это производительность людей. При работе сотрудника над несколькими проектами его вклад делится между ними, а перегрузка снижает мораль.',
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -381,7 +402,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
         subtitle: '${team.length} назначено • дефицитов ${deficits.length}',
         hintTitle: 'Несколько проектов',
         hintBody:
-            'Один сотрудник может участвовать в нескольких проектах. Его рабочее время делится между назначениями. Чем больше параллельных проектов, тем выше workload и риск выгорания.',
+            'Один сотрудник может участвовать в нескольких проектах. Его рабочее время делится между назначениями. Чем больше параллельных проектов, тем выше нагрузка и риск выгорания.',
       ),
       const SizedBox(height: 12),
       AppCard(
@@ -407,7 +428,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             ),
             const SizedBox(height: 8),
             const AppText(
-              'Игра сама подберёт доступных специалистов под дефициты проекта. За срочный подбор зарплата и signing bonus каждого нанятого сотрудника будут на 25% выше.',
+              'Игра сама подберёт доступных специалистов под дефициты проекта. За срочный подбор зарплата и бонус при найме каждого нанятого сотрудника будут на 25% выше.',
             ),
             const SizedBox(height: 12),
             SizedBox(

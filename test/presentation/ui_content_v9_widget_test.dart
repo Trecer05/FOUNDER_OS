@@ -76,7 +76,7 @@ void main() {
     expect(find.text('Метрики и терминология'), findsOneWidget);
     await tester.enterText(find.byKey(const Key('glossary-search')), 'runway');
     await tester.pump();
-    expect(find.text('Runway'), findsOneWidget);
+    expect(find.text('Запас денег'), findsOneWidget);
     expect(find.text('MRR'), findsNothing);
   });
 }

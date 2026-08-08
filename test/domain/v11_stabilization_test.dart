@@ -11,8 +11,8 @@ void main() {
 
   test('new company starts without purchased physical servers', () {
     final state = GameState.initial();
-    expect(currentSnapshotVersion, 11);
-    expect(state.snapshotVersion, 11);
+    expect(currentSnapshotVersion, 12);
+    expect(state.snapshotVersion, 12);
     expect(state.installedServers, isEmpty);
     expect(state.preparedComputeUnits, 0);
   });
@@ -28,7 +28,7 @@ void main() {
 
     final migrated = GameState.decode(legacy.encode());
 
-    expect(migrated.snapshotVersion, 11);
+    expect(migrated.snapshotVersion, 12);
     expect(migrated.installedServers, isEmpty);
   });
 

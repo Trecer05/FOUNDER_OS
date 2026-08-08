@@ -57,7 +57,7 @@ class ContractDetailScreen extends StatelessWidget {
                     '${template.client} • ${_statusName(contract.status)}',
                 hintTitle: 'Контракт как отдельный проект',
                 hintBody:
-                    'У контракта собственная команда, прогресс и дедлайн. Один сотрудник не может одновременно работать над продуктом и контрактом.',
+                    'У контракта собственная команда, прогресс и дедлайн. Один сотрудник может вести до 4 работ; эффективность падает при параллельной загрузке.',
               ),
               const SizedBox(height: 12),
               AppCard(
@@ -81,7 +81,11 @@ class ContractDetailScreen extends StatelessWidget {
                     _ValueRow('Награда', money(contract.reward)),
                     _ValueRow('Команда', '${team.length}'),
                     _ValueRow('Покрытие ролей', '${(coverage * 100).round()}%'),
-                    _ValueRow('Capacity', capacity.toStringAsFixed(0)),
+                    _ValueRow(
+                      'Состав',
+                      coverage >= 1 ? 'Хватает' : 'Не хватает',
+                    ),
+                    _ValueRow('Мощность команды', capacity.toStringAsFixed(0)),
                     _ValueRow(
                       'Прогноз завершения',
                       etaDays.isInfinite
@@ -205,23 +209,21 @@ class ContractDetailScreen extends StatelessWidget {
                             itemCount: state.employees.length,
                             itemBuilder: (_, index) {
                               final employee = state.employees[index];
-                              final productAssignment = state
-                                  .assignmentForEmployee(employee.id);
-                              final contractAssignment = state
-                                  .contractAssignmentForEmployee(employee.id);
-                              final busyLabel = productAssignment != null
-                                  ? state
-                                        .productById(
-                                          productAssignment.productId,
-                                        )
-                                        ?.name
-                                  : contractAssignment != null
-                                  ? state
-                                        .contractById(
-                                          contractAssignment.contractId,
-                                        )
-                                        ?.letName(state)
-                                  : null;
+                              final assignmentCount = state
+                                  .activeAssignmentCountForEmployee(
+                                    employee.id,
+                                  );
+                              final efficiency =
+                                  (state.parallelEfficiencyForEmployee(
+                                            employee.id,
+                                          ) *
+                                          100)
+                                      .round();
+                              final alreadySelected = selected.contains(
+                                employee.id,
+                              );
+                              final atLimit =
+                                  assignmentCount >= 4 && !alreadySelected;
                               return CheckboxListTile(
                                 key: Key(
                                   'contract-${contract.id}-employee-${employee.id}',
@@ -229,15 +231,17 @@ class ContractDetailScreen extends StatelessWidget {
                                 value: selected.contains(employee.id),
                                 title: AppText(employee.name),
                                 subtitle: AppText(
-                                  '${roleName(employee.role)} • ${busyLabel ?? 'свободен'}',
+                                  '${roleName(employee.role)} • работ $assignmentCount/4 • эффективность $efficiency%${atLimit ? ' • лимит' : ''}',
                                 ),
-                                onChanged: (value) => setSheetState(() {
-                                  if (value ?? false) {
-                                    selected.add(employee.id);
-                                  } else {
-                                    selected.remove(employee.id);
-                                  }
-                                }),
+                                onChanged: atLimit
+                                    ? null
+                                    : (value) => setSheetState(() {
+                                        if (value ?? false) {
+                                          selected.add(employee.id);
+                                        } else {
+                                          selected.remove(employee.id);
+                                        }
+                                      }),
                               );
                             },
                           ),
@@ -278,10 +282,6 @@ class ContractDetailScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-extension on ClientContract {
-  String letName(GameState state) => state.contractTemplate(templateId).name;
 }
 
 String _statusName(ContractStatus status) => switch (status) {

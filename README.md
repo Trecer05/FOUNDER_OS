@@ -1,88 +1,96 @@
 # FOUNDER.OS
 
-Портретный offline-first симулятор технологической компании на Flutter.
+FOUNDER.OS is an offline-first mobile management simulator about building and operating a technology company.
 
-## Product development economy v8
+The player creates a company, configures a founder profile, launches products, hires and assigns teams, manages infrastructure, accepts client contracts, controls monetization and marketing, and grows the business through a deterministic simulation.
 
-V8 перестраивает основной цикл вокруг реальной разработки, команды и ликвидности:
+## Current baseline
 
-- семишаговый мастер проекта: масштаб → framework → языки → технологии → функции → монетизация → итоговая проверка;
-- восемь типов продукта — от сайта компании до цифровой системы города;
-- двенадцать языков, девять frameworks и кандидаты с конкретными технологическими навыками;
-- обязательные языки framework, ограничения сложности стека и штрафы за бессмысленную комбинацию всего сразу;
-- разработка по рабочему календарю с шестью подписанными стадиями;
-- under/overstaffing, покрытие ролей и языков, critical/movable сотрудники;
-- функции добавляют рабочие часы, а не списывают абстрактную стоимость;
-- стартовый капитал 450 000 ₽ и управляемая цепочка отрицательного баланса, кредита и банкротства;
-- контракты открываются после релиза сайта компании;
-- прогноз влияния цены на пользователей, churn и выручку, ценовой sentiment затухает за 45 игровых дней;
-- рекламные агентства и каналы с CPM/CPC, диапазоном результата, brand awareness и trust;
-- snapshot schema v8 с миграционными defaults для старых сохранений;
-- тестовые промокоды:
-  - `FOUNDER-RICH` — добавить 5 000 000 ₽;
-  - `FOUNDER-BROKE` — установить баланс −500 000 ₽ и запустить кризисный сценарий.
+**v12.2 — pre-TestFlight**
 
-## Архитектура
+The current baseline is verified with the full Flutter test suite and debug builds for iOS Simulator and Android.
 
-Поток изменений остаётся однонаправленным:
+## Core systems
+
+- company and founder setup;
+- staged product development;
+- employee hiring, workload and multi-project assignments;
+- client contracts and automatic team matching;
+- product monetization and marketing;
+- infrastructure capacity and operating costs;
+- finance, cash flow, credit and company valuation;
+- ecosystem integrations and product evolution;
+- deterministic events and project challenges;
+- RU/EN interface;
+- versioned local saves and snapshot migration.
+
+## Architecture
+
+The simulation uses a one-way state flow:
 
 ```text
 View → GameAction → GameEngine.reduce → GameState → View
 ```
 
-- `GameEngine` рассчитывает время, разработку, рынок, рекламу, кредиты и события;
-- `GameState` хранит полное детерминированное состояние и сериализуется в versioned snapshot;
-- `GameController` управляет clock, lifecycle и последовательным autosave;
-- интерфейс не меняет игровые показатели напрямую.
+Key principles:
 
-## Полный локальный gate
+- deterministic simulation rules are shared across platforms in Dart;
+- `GameState` is the source of truth for simulation state;
+- `GameController` owns lifecycle, clock and persistence coordination;
+- iOS and Android native bridges are limited to platform-specific persistence and diagnostics;
+- the application is designed to work offline.
 
-```bash
-bash tools/verify_product_economy_v8.sh
-```
+## Technology
 
-Скрипт выполняет:
+- Flutter / Dart
+- iOS / Android
+- native Swift and Kotlin bridges for platform-specific operations
+- local versioned persistence
+- automated domain, widget, migration and regression tests
 
-```bash
-flutter pub get
-dart format lib test
-flutter analyze
-flutter test test/domain/product_economy_v8_test.dart --reporter expanded
-flutter test --reporter expanded
-git diff --check
-flutter build ios --simulator --debug
-```
+## Verification
 
-## Проверка на физическом iPhone
+Run the current verification gate:
 
 ```bash
-flutter devices
-flutter run --profile -d <DEVICE_ID>
+bash tools/verify_v12_2_pre_testflight.sh
 ```
 
-Обязательный сценарий описан в `docs/NEXT_STEP_V8.md`.
+The gate covers static checks, formatting, analysis, focused regression tests, the full Flutter test suite, snapshot migrations and mobile debug builds.
 
-## Документация
+## Build
 
-- `docs/PRODUCT_SPEC.md`
-- `docs/TECHNICAL_PLAN.md`
-- `docs/DECISIONS.md`
-- `docs/IMPLEMENTATION_STATUS.md`
-- `docs/NEXT_STEP_V8.md`
-- `docs/TEST_PLAN.md`
-<!-- FOUNDER_OS_V9 -->
-## FOUNDER.OS v9 — UI, Infrastructure, Explainability & Content Expansion
+Android APK:
 
-Version 9 moves global time controls into a safe-area-aware floating glass overlay, introduces rented hosting and v8→v9 snapshots, dynamic technology limits, deterministic staffing deficits, staged contract payments, payroll ledger entries, a permanent glossary, compact team metrics, redesigned ecosystem integrations and a validated **8.53×** data catalog.
+```bash
+flutter build apk --release
+```
 
-Verification: `bash tools/verify_ui_content_v9.sh`.
+Android App Bundle:
 
-<!-- V10_UAT_REWORK -->
-## v10 UAT rework
+```bash
+flutter build appbundle --release
+```
 
-Product workspaces, explainable language/stack limits, multi-project staffing, HR auto-hire, visible finance/time, investor negotiations, discoverable credit, time-based improvements, contract grace periods, display currency, and v10 snapshot migration are documented in `docs/V10_UAT_REWORK.md`. Run `bash tools/verify_ux_economy_v10.sh` before commit.
+iOS device build:
 
-<!-- V10_OPTIMIZATION -->
-## v10_optimization
+```bash
+flutter build ios --release
+```
 
-Native atomic snapshot I/O, coalesced saves, projection/index caches, localized rebuilds, RU/EN presentation audit and dual-platform verification are documented in `docs/V10_OPTIMIZATION.md`. Run `bash tools/verify_v10_optimization.sh`.
+## Project structure
+
+```text
+lib/
+  application/     controllers, settings, localization
+  domain/          simulation, entities, catalogs, commands
+  presentation/    screens and shared widgets
+
+test/              domain, presentation and regression tests
+tools/             verification and repository utilities
+docs/              product and engineering documentation
+```
+
+## Status
+
+The automated v12.2 gate is green. Physical-device UAT is the final validation step before external distribution.

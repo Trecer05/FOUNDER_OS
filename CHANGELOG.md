@@ -1,34 +1,60 @@
+# Changelog
 
-<!-- V11_STABILIZATION -->
-## Unreleased — v11 stabilization
+## v12.2
 
-- Fixed physical-device overflow in infrastructure and advertising controls.
-- Reworked RU localization to preserve technical vocabulary and promo codes.
-- Removed automatic starter servers with controlled snapshot migration.
-- Exposed HR hiring and hardened project auto-hire requirements.
-- Restored office prices, clarified hosting capacity and finance expense labels.
-- Added profit month/day switching and v11 regression verification.
+- Added clean new-company reset with no simulation-state leakage.
+- Made founder capacity visible in project development speed.
+- Added automatic founder participation without payroll/headcount duplication.
+- Added support for up to four active work assignments per employee with progressive efficiency.
+- Added contract team sufficiency indicators and automatic matching of suitable employees.
+- Removed active development-stage UI from released products.
+- Improved project review cards and development-stage presentation.
+- Replaced repeated development mini-games with one optional project-wide technical challenge.
+- Expanded mobile layout and localization regression coverage.
 
-## v12 Founder Expansion
-- Added company creation with name, budget and 25 transparent logos.
-- Added playable founder background and skill allocation.
-- Added remote-first company start without office rent.
-- Added four visible product development stages with rich deterministic content and mini-challenges.
-- Added exact HR staffing plan.
-- Hardened legacy product improvement parsing against `Bad state: No element`.
-- Expanded English localization coverage and clarified Russian business terminology.
+## v12.1
 
-## v12.1 Physical UAT hotfix
-- Fixed New Company reset so company, logo, founder background, and CEO skills setup reappears.
-- Reworked project review into selected stack + development payroll estimate + compute requirement summary.
-- Added visible four-stage development progression across main product surfaces.
-- Completed Russian labels for capacity, security, setup, product metrics, leader comparison, and security controls.
+- Fixed new-company reset flow.
+- Improved project review with selected stack, payroll estimate and compute requirement.
+- Added visible four-stage development progression across primary product screens.
+- Expanded Russian localization for product, infrastructure and security terminology.
 
-## v12.2 pre-TestFlight
-- Clean new-company reset; no products, employees, contracts or old simulation day survive restart.
-- CEO capacity is visible in the real project speed and is pinned as an automatic project participant.
-- Employees can work on up to four active products/contracts with deterministic 100/70/55/40% efficiency.
-- Contracts show team sufficiency and auto-assign suitable low-load employees on acceptance.
-- Released products no longer show the four active development-stage chips.
-- Project review/cards were polished; design evolves from loose wireframe to coherent layout.
-- One optional project-wide technical challenge replaces daily mini-games; success boosts the current stage by 30%.
+## v12
+
+- Added company creation with configurable name, budget and logo.
+- Added founder background and skill allocation.
+- Added remote-first company start.
+- Added staged product development with deterministic planning, design, development and debugging content.
+- Added exact HR staffing logic.
+- Hardened legacy product-improvement recovery.
+- Expanded RU/EN localization coverage.
+
+## v11
+
+- Improved responsive infrastructure and advertising layouts.
+- Refined localization behavior for technical vocabulary.
+- Removed automatic starter servers and added controlled migration behavior.
+- Exposed dedicated HR hiring and project auto-hire requirements.
+- Restored office pricing and clarified hosting, finance and capacity labels.
+
+## v10
+
+- Added product workspaces and clearer stack constraints.
+- Added project-specific hiring and parallel employee assignments.
+- Added investor negotiations, credit, contract grace periods and time-based improvements.
+- Improved persistence, runtime performance and localization coverage.
+
+## v9
+
+- Added global time controls.
+- Added rented and owned infrastructure flows.
+- Added staffing deficit explanations and dynamic technology limits.
+- Added staged contract payments and ecosystem improvements.
+- Expanded content, glossary and regression coverage.
+
+## v8
+
+- Rebuilt product development around working hours, team capacity and stack constraints.
+- Added configurable monetization, advertising campaigns and pricing behavior.
+- Added liquidity, credit and company-failure rules.
+- Added snapshot migration and broader automated verification.

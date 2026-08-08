@@ -966,6 +966,31 @@ default: break;
       r'''auto deadline = std::chrono::steady_clock::now() + 5s;''',
       r'''metrics.requests.fetch_add(1, std::memory_order_relaxed);''',
     ],
+
+    "csharp": <String>[
+      r'''public sealed record Metric(string Name, double Value);''',
+      r'''var active = sessions.Where(x => x.LastSeen > cutoff).Select(x => x.UserId).Distinct();''',
+      r'''using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));''',
+      r'''await repository.SaveAsync(snapshot, cancellationToken);''',
+    ],
+    "ruby": <String>[
+      r'''active_users = sessions.select { _1.last_seen > cutoff }.map(&:user_id).uniq''',
+      r'''raise ArgumentError, "product_id is required" if product_id.empty?''',
+      r'''Snapshot.transaction { repository.save!(snapshot) }''',
+      r'''offers.sort_by { |offer| [offer.price, -offer.quality] }''',
+    ],
+    "scala": <String>[
+      r'''final case class Metric(name: String, value: Double)''',
+      r'''val activeUsers = sessions.filter(_.lastSeen > cutoff).map(_.userId).toSet''',
+      r'''Future.traverse(jobs)(worker.run)''',
+      r'''require(productId.nonEmpty, "productId is required")''',
+    ],
+    "elixir": <String>[
+      r'''def active_users(sessions, cutoff), do: sessions |> Enum.filter(&(&1.last_seen > cutoff)) |> Enum.map(& &1.user_id)''',
+      r'''with {:ok, snapshot} <- Repo.transaction(fn -> save(state) end), do: snapshot''',
+      r'''Task.async_stream(jobs, &run/1, timeout: 5_000) |> Enum.to_list()''',
+      r'''def clamp(value, low, high), do: value |> max(low) |> min(high)''',
+    ],
   };
 
   static const Map<String, List<String>> _debugByLanguage =
@@ -1089,6 +1114,31 @@ default: break;
           "transaction aborted before commit",
           "timeout waiting for worker result",
           "invalid_argument: product_id is required",
+        ],
+
+        "csharp": <String>[
+          "NullReferenceException in product lookup",
+          "TaskCanceledException while loading metrics",
+          "JsonException: missing productId",
+          "DbUpdateException during transaction commit",
+        ],
+        "ruby": <String>[
+          "NoMethodError: undefined method for nil",
+          "ActiveRecord::RecordNotUnique",
+          "JSON::ParserError in snapshot",
+          "Timeout::Error while loading metrics",
+        ],
+        "scala": <String>[
+          "NoSuchElementException in product lookup",
+          "MatchError for deployment state",
+          "TimeoutException during repository call",
+          "DecodingFailure: missing productId",
+        ],
+        "elixir": <String>[
+          "MatchError in deployment handler",
+          "DBConnection.ConnectionError during transaction",
+          "Task.TimeoutError while loading metrics",
+          "KeyError: key :product_id not found",
         ],
       };
 

@@ -5,7 +5,6 @@ import '../../../application/controllers/game_controller.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/models.dart';
 import '../../../domain/entities/v12_game_state_extensions.dart';
-import '../../shared/widgets/formatters.dart';
 import '../infrastructure/infrastructure_screen.dart';
 import '../more/more_screen.dart';
 import '../overview/overview_screen.dart';
@@ -159,6 +158,11 @@ class _FounderDashboardState extends State<FounderDashboard> {
     }
   }
 
+  void _selectTab(int value) {
+    if (!mounted) return;
+    setState(() => _tab = value);
+  }
+
   Future<void> _showCriticalEvent() async {
     final state = widget.controller.state;
     final event = state.criticalEvent;
@@ -195,8 +199,11 @@ class _FounderDashboardState extends State<FounderDashboard> {
               onPressed: () {
                 widget.controller.dispatch(const ResolveCriticalEvent());
                 Navigator.of(dialogContext).pop();
-                setState(() {
-                  _tab = event == CriticalEventType.serverOverload ? 3 : 1;
+                final target = event == CriticalEventType.serverOverload
+                    ? 3
+                    : 1;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _selectTab(target);
                 });
               },
               child: AppText(content.action),
@@ -215,53 +222,28 @@ class _FounderDashboardState extends State<FounderDashboard> {
           listenable: widget.controller,
           builder: (context, _) {
             final state = widget.controller.state;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            return Row(
               children: <Widget>[
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final showLogo = constraints.maxWidth >= 72;
-                    return Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (showLogo) ...[
-                          CompanyLogo(
-                            logoId: state.companyProfile.logoId,
-                            size: 24,
-                            borderRadius: 7,
-                          ),
-                          const SizedBox(width: 6),
-                        ],
-                        Flexible(
-                          child: AppText(
-                            state.companyProfile.companyName,
-                            translate: false,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w900),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+                CompanyLogo(
+                  logoId: state.companyProfile.logoId,
+                  size: 26,
+                  borderRadius: 7,
                 ),
-                AppText(
-                  'День ${state.day} • ${state.formattedTime}',
-                  style: Theme.of(context).textTheme.bodySmall,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: AppText(
+                    state.companyProfile.companyName,
+                    translate: false,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
                 ),
               ],
             );
           },
         ),
         actions: <Widget>[
-          ScopedListenableBuilder(
-            listenable: widget.controller,
-            builder: (context, _) => _HeaderMetric(
-              label: trContext(context, 'Деньги'),
-              value: money(widget.controller.state.cash),
-            ),
-          ),
-          const SizedBox(width: 6),
           PopupMenuButton<String>(
             tooltip: trContext(context, 'Меню компании'),
             onSelected: (value) async {
@@ -305,23 +287,20 @@ class _FounderDashboardState extends State<FounderDashboard> {
       ),
       body: SafeArea(
         top: false,
-        child: IndexedStack(
-          index: _tab,
-          children: <Widget>[
-            for (var index = 0; index < _screenBuilders.length; index += 1)
-              ActiveTabScope(
-                active: index == _tab,
-                child: ScopedListenableBuilder(
-                  listenable: widget.controller,
-                  builder: (context, _) => _screenBuilders[index](),
-                ),
-              ),
-          ],
+        child: KeyedSubtree(
+          key: ValueKey<int>(_tab),
+          child: ActiveTabScope(
+            active: true,
+            child: ScopedListenableBuilder(
+              listenable: widget.controller,
+              builder: (context, _) => _screenBuilders[_tab](),
+            ),
+          ),
         ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
-        onDestinationSelected: (value) => setState(() => _tab = value),
+        onDestinationSelected: _selectTab,
         destinations: <NavigationDestination>[
           NavigationDestination(
             icon: const Icon(Icons.space_dashboard_outlined),
@@ -347,50 +326,6 @@ class _FounderDashboardState extends State<FounderDashboard> {
             icon: const Icon(Icons.grid_view_rounded),
             selectedIcon: const Icon(Icons.grid_view),
             label: trContext(context, 'Ещё'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeaderMetric extends StatelessWidget {
-  const _HeaderMetric({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AppText(
-            '$label ',
-            style: const TextStyle(
-              fontSize: 9,
-              height: 1,
-              color: AppColors.textMuted,
-            ),
-          ),
-          AppText(
-            value,
-            maxLines: 1,
-            softWrap: false,
-            overflow: TextOverflow.fade,
-            style: const TextStyle(
-              fontSize: 11,
-              height: 1,
-              fontWeight: FontWeight.w900,
-            ),
           ),
         ],
       ),

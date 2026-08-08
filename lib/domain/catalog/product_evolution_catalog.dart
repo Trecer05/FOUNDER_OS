@@ -175,6 +175,11 @@ abstract final class ProductEvolutionCatalog {
     ],
     ProductCategory.browser => const [
       ProductRoleRequirement(
+        role: EmployeeRole.productManager,
+        minimumCount: 1,
+        reason: 'Ведёт roadmap браузера и ускоряет разработку команды на 15%.',
+      ),
+      ProductRoleRequirement(
         role: EmployeeRole.frontend,
         minimumCount: 2,
         reason: 'Интерфейс и browser shell.',

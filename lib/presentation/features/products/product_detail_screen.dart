@@ -20,7 +20,6 @@ import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/development_stage_progress_rail.dart';
 import '../../shared/widgets/specialist_deficit_card.dart';
 import '../security/security_center_screen.dart';
-import '../operations/operations_screen.dart';
 import '../contracts/contracts_screen.dart';
 import 'product_development_experience.dart';
 import '../../../domain/simulation/product_projection_cache.dart';
@@ -206,19 +205,6 @@ class ProductDetailScreen extends StatelessWidget {
                         last: true,
                       ),
                       const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () => Navigator.of(context).push<void>(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  OperationsScreen(controller: controller),
-                            ),
-                          ),
-                          icon: const Icon(Icons.account_tree_outlined),
-                          label: const AppText('Управлять проектной командой'),
-                        ),
-                      ),
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,

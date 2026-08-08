@@ -37,12 +37,12 @@ class FounderCompanyProfile {
       startingBudget = 450000,
       background = FounderBackground.product,
       skills = const <FounderSkill, int>{
-        FounderSkill.engineering: 2,
-        FounderSkill.design: 2,
-        FounderSkill.product: 2,
-        FounderSkill.growth: 2,
-        FounderSkill.negotiation: 2,
-        FounderSkill.operations: 2,
+        FounderSkill.engineering: 4,
+        FounderSkill.design: 3,
+        FounderSkill.product: 5,
+        FounderSkill.growth: 3,
+        FounderSkill.negotiation: 3,
+        FounderSkill.operations: 4,
       };
 
   const FounderCompanyProfile.legacy()
@@ -53,16 +53,16 @@ class FounderCompanyProfile {
       startingBudget = 450000,
       background = FounderBackground.product,
       skills = const <FounderSkill, int>{
-        FounderSkill.engineering: 2,
-        FounderSkill.design: 2,
-        FounderSkill.product: 2,
-        FounderSkill.growth: 2,
-        FounderSkill.negotiation: 2,
-        FounderSkill.operations: 2,
+        FounderSkill.engineering: 4,
+        FounderSkill.design: 3,
+        FounderSkill.product: 5,
+        FounderSkill.growth: 3,
+        FounderSkill.negotiation: 3,
+        FounderSkill.operations: 4,
       };
 
-  static const int distributableSkillPoints = 12;
-  static const int maximumSkill = 5;
+  static const int distributableSkillPoints = 22;
+  static const int maximumSkill = 7;
 
   final bool configured;
   final String companyName;
@@ -173,9 +173,18 @@ class FounderCompanyProfile {
       ),
       skills: Map<FounderSkill, int>.unmodifiable(<FounderSkill, int>{
         for (final skill in FounderSkill.values)
-          skill: ((rawSkills[skill.name] as num?)?.toInt() ?? 2)
-              .clamp(0, maximumSkill)
-              .toInt(),
+          skill:
+              ((rawSkills[skill.name] as num?)?.toInt() ??
+                      switch (skill) {
+                        FounderSkill.engineering => 4,
+                        FounderSkill.design => 3,
+                        FounderSkill.product => 5,
+                        FounderSkill.growth => 3,
+                        FounderSkill.negotiation => 3,
+                        FounderSkill.operations => 4,
+                      })
+                  .clamp(0, maximumSkill)
+                  .toInt(),
       }),
     );
   }

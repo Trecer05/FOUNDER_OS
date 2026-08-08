@@ -18,7 +18,7 @@ import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/development_stage_progress_rail.dart';
-import 'product_detail_screen.dart';
+import '../../shared/widgets/interactive_metric_chart_card.dart';
 import 'product_development_experience.dart';
 import '../../../application/localization/app_text.dart';
 import '../../shared/widgets/scoped_listenable_builder.dart';
@@ -75,23 +75,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
       return const Scaffold(body: Center(child: AppText('Продукт не найден')));
     }
     return Scaffold(
-      appBar: AppBar(
-        title: AppText(product.name),
-        actions: [
-          IconButton(
-            tooltip: trContext(context, 'Все расширенные инструменты'),
-            icon: const Icon(Icons.tune),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => ProductDetailScreen(
-                  controller: widget.controller,
-                  productId: product.id,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: AppText(product.name), actions: const <Widget>[]),
       body: Column(
         children: <Widget>[
           _SectionRail(
@@ -155,7 +139,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
         subtitle: '${stageName(product.stage)} • ${product.name}',
         hintTitle: 'Рабочее пространство продукта',
         hintBody:
-            'Шесть разделов отделяют разработку, команду, рекламу, метрики и инфраструктуру. Шестерёнка сверху открывает редкие расширенные настройки.',
+            'Шесть разделов отделяют разработку, команду, рекламу, метрики и инфраструктуру. Управление людьми полностью находится в разделе «Команда».',
       ),
       const SizedBox(height: 12),
       AppCard(
@@ -234,6 +218,13 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                   icon: const Icon(Icons.show_chart),
                   label: const AppText('Графики'),
                 ),
+                if (product.stage == ProductStage.live)
+                  OutlinedButton.icon(
+                    key: const Key('sell-product'),
+                    onPressed: () => _confirmProductSale(product),
+                    icon: const Icon(Icons.sell_outlined),
+                    label: const AppText('Продать продукт'),
+                  ),
               ],
             ),
           ],
@@ -377,14 +368,33 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
     final deficits = StaffingDeficitResolver.forProduct(state, product);
     final hasHr = state.employees.any((employee) => employee.isHr);
     final requiredRoles = deficits.map((item) => item.roleId).toSet();
-    final candidates =
-        state.candidates
-            .where((candidate) => !candidate.isHr)
+    final teamIds = team.map((item) => item.id).toSet();
+    final availableEmployees =
+        state.employees
+            .where(
+              (employee) =>
+                  !employee.isHr &&
+                  !teamIds.contains(employee.id) &&
+                  requiredRoles.contains(employee.role.name) &&
+                  state.canAssignEmployeeToMoreWork(employee.id),
+            )
             .toList(growable: false)
           ..sort((left, right) {
-            final leftFit = requiredRoles.contains(left.role.name) ? 1 : 0;
-            final rightFit = requiredRoles.contains(right.role.name) ? 1 : 0;
-            if (leftFit != rightFit) return rightFit.compareTo(leftFit);
+            final load = state
+                .activeAssignmentCountForEmployee(left.id)
+                .compareTo(state.activeAssignmentCountForEmployee(right.id));
+            if (load != 0) return load;
+            return right.skill.compareTo(left.skill);
+          });
+    final candidates =
+        state.candidates
+            .where(
+              (candidate) =>
+                  !candidate.isHr &&
+                  requiredRoles.contains(candidate.role.name),
+            )
+            .toList(growable: false)
+          ..sort((left, right) {
             final leftLanguages = left.languageIds
                 .where(product.languageIds.contains)
                 .length;
@@ -396,13 +406,51 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             }
             return right.skill.compareTo(left.skill);
           });
+    final hasProductManager = team.any(
+      (employee) => employee.role == EmployeeRole.productManager,
+    );
+    final founderCapacity = state.founderDevelopmentCapacityFor(product);
+
     return _list([
       SectionHeader(
-        title: 'Команда проекта',
-        subtitle: '${team.length} назначено • дефицитов ${deficits.length}',
-        hintTitle: 'Несколько проектов',
+        title: 'Команда',
+        subtitle: '${team.length} сотрудников • дефицитов ${deficits.length}',
+        hintTitle: 'Команда продукта',
         hintBody:
-            'Один сотрудник может участвовать в нескольких проектах. Его рабочее время делится между назначениями. Чем больше параллельных проектов, тем выше нагрузка и риск выгорания.',
+            'Все назначения продукта находятся здесь. CEO участвует автоматически. Один сотрудник может вести до четырёх активных работ с падающей эффективностью.',
+      ),
+      const SizedBox(height: 12),
+      AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const AppText('CEO', style: TextStyle(fontWeight: FontWeight.w900)),
+            const SizedBox(height: 6),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const CircleAvatar(child: Icon(Icons.person)),
+              title: AppText(
+                state.companyProfile.founderName,
+                translate: false,
+              ),
+              subtitle: AppText(
+                'Автоматический участник • ${founderCapacity.toStringAsFixed(2)} FTE',
+              ),
+              trailing: const Chip(label: AppText('CEO')),
+            ),
+            if (hasProductManager)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: AppText(
+                  'Product Manager в команде: +15% к производительности разработки.',
+                  style: TextStyle(
+                    color: AppColors.green,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
       const SizedBox(height: 12),
       AppCard(
@@ -413,7 +461,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               children: [
                 const Expanded(
                   child: AppText(
-                    'Автоподбор команды',
+                    'Автоподбор',
                     style: TextStyle(fontWeight: FontWeight.w900),
                   ),
                 ),
@@ -428,7 +476,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             ),
             const SizedBox(height: 8),
             const AppText(
-              'Игра сама подберёт доступных специалистов под дефициты проекта. За срочный подбор зарплата и бонус при найме каждого нанятого сотрудника будут на 25% выше.',
+              'Автоподбор закрывает только минимальные дефициты ролей. Лишние должности и запасной headcount не создаются.',
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -443,9 +491,9 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                 icon: const Icon(Icons.auto_awesome),
                 label: AppText(
                   deficits.isEmpty
-                      ? 'Критических дефицитов нет'
+                      ? 'Минимальный состав закрыт'
                       : hasHr
-                      ? 'Нанять команду под проект'
+                      ? 'Добрать только недостающих'
                       : 'Сначала наймите HR',
                 ),
               ),
@@ -453,8 +501,8 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
           ],
         ),
       ),
-      const SizedBox(height: 12),
-      if (deficits.isNotEmpty)
+      if (deficits.isNotEmpty) ...[
+        const SizedBox(height: 12),
         AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -463,9 +511,8 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                 'Кого не хватает',
                 style: TextStyle(fontWeight: FontWeight.w900),
               ),
-              const SizedBox(height: 8),
               ...deficits
-                  .take(5)
+                  .take(8)
                   .map(
                     (deficit) => ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -473,29 +520,65 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                       title: AppText(
                         '${deficit.roleName} ×${deficit.missingCount}',
                       ),
+                      subtitle: AppText(deficit.effect),
+                    ),
+                  ),
+            ],
+          ),
+        ),
+      ],
+      if (availableEmployees.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const AppText(
+                'Подходящие сотрудники уже в штате',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+              ...availableEmployees
+                  .take(8)
+                  .map(
+                    (employee) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: AppText(employee.name),
                       subtitle: AppText(
-                        '${deficit.effect}${deficit.languageName == null ? '' : ' • ${deficit.languageName}'}',
+                        '${employeeRoleName(employee)} • workload ${employee.workload}/100',
+                      ),
+                      trailing: FilledButton(
+                        onPressed: () => widget.controller.dispatch(
+                          AssignEmployeeToProduct(
+                            employeeId: employee.id,
+                            productId: product.id,
+                          ),
+                        ),
+                        child: const AppText('Назначить'),
                       ),
                     ),
                   ),
             ],
           ),
         ),
+      ],
       const SizedBox(height: 12),
       AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const AppText(
-              'Подходящие кандидаты',
+              'Рынок кандидатов',
               style: TextStyle(fontWeight: FontWeight.w900),
             ),
-            const SizedBox(height: 8),
-            if (candidates.isEmpty)
-              const AppText('На рынке сейчас нет кандидатов.')
+            const SizedBox(height: 6),
+            if (deficits.isEmpty)
+              const AppText(
+                'Минимальный состав закрыт. Лишние должности под этот продукт не предлагаются.',
+              )
+            else if (candidates.isEmpty)
+              const AppText('Под нужные роли кандидатов сейчас нет.')
             else
-              ...candidates.take(8).map((candidate) {
-                final roleNeeded = requiredRoles.contains(candidate.role.name);
+              ...candidates.take(10).map((candidate) {
                 final languageMatch = candidate.languageIds
                     .where(product.languageIds.contains)
                     .map((id) => GameCatalog.languageById(id).name)
@@ -507,7 +590,8 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                   ),
                   title: AppText(candidate.name),
                   subtitle: AppText(
-                    '${candidateRoleName(candidate)} • skill ${candidate.skill}${roleNeeded ? ' • нужная роль' : ''}${languageMatch.isEmpty ? '' : ' • ${languageMatch.join(', ')}'}',
+                    '${candidateRoleName(candidate)} • skill ${candidate.skill}'
+                    '${languageMatch.isEmpty ? '' : ' • ${languageMatch.join(', ')}'}',
                   ),
                   trailing: FilledButton(
                     onPressed: () => widget.controller.dispatch(
@@ -523,8 +607,8 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
           ],
         ),
       ),
-      const SizedBox(height: 12),
-      if (team.isNotEmpty)
+      if (team.isNotEmpty) ...[
+        const SizedBox(height: 12),
         AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -542,36 +626,27 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                   contentPadding: EdgeInsets.zero,
                   title: AppText(employee.name),
                   subtitle: AppText(
-                    '${employeeRoleName(employee)} • ${allocation.round()}% времени • workload ${employee.workload}/100 • morale ${employee.morale}/100',
+                    '${employeeRoleName(employee)} • ${allocation.round()}% • workload ${employee.workload}/100 • morale ${employee.morale}/100',
                   ),
-                  trailing: PopupMenuButton<String>(
-                    onSelected: (value) {
-                      if (value == 'vacation') {
-                        widget.controller.dispatch(
-                          SendEmployeeOnVacation(employee.id),
-                        );
-                      } else if (value == 'bonus') {
-                        widget.controller.dispatch(
-                          GiveWellbeingBonus(employee.id),
-                        );
-                      }
-                    },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
-                        value: 'vacation',
-                        child: AppText('Отправить в отпуск'),
+                  trailing: IconButton(
+                    tooltip: trContext(context, 'Снять с продукта'),
+                    icon: const Icon(Icons.person_remove_outlined),
+                    onPressed: () => widget.controller.dispatch(
+                      SetProductTeam(
+                        productId: product.id,
+                        employeeIds: team
+                            .where((item) => item.id != employee.id)
+                            .map((item) => item.id)
+                            .toList(growable: false),
                       ),
-                      PopupMenuItem(
-                        value: 'bonus',
-                        child: AppText('Корпоративный бонус'),
-                      ),
-                    ],
+                    ),
                   ),
                 );
               }),
             ],
           ),
         ),
+      ],
     ]);
   }
 
@@ -721,13 +796,24 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
         .metricHistoryFor(product.id)
         .where((item) => item.simulationMinutes >= cutoff)
         .toList(growable: false);
+
+    List<InteractiveMetricPoint> points(double Function(dynamic item) value) =>
+        history
+            .map(
+              (item) => InteractiveMetricPoint(
+                simulationMinutes: item.simulationMinutes,
+                value: value(item),
+              ),
+            )
+            .toList(growable: false);
+
     return _list([
       SectionHeader(
         title: 'Метрики',
         subtitle: 'Период: ${_range.label}',
-        hintTitle: 'Период графиков',
+        hintTitle: 'Интерактивные графики',
         hintBody:
-            'Фильтр меняет только диапазон отображения. История сохраняется ежедневно: пользователи, DAU, MAU, выручка и требуемая compute-мощность.',
+            'Проведите пальцем по графику: карточка покажет точную дату и значение выбранного игрового дня.',
       ),
       const SizedBox(height: 10),
       SegmentedButton<_MetricRange>(
@@ -740,29 +826,73 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
         onSelectionChanged: (value) => setState(() => _range = value.first),
       ),
       const SizedBox(height: 12),
-      _MetricChartCard(
+      InteractiveMetricChartCard(
         title: 'Пользователи',
         current: compactNumber(product.users),
-        points: history.map((item) => item.users.toDouble()).toList(),
+        points: points((item) => item.users.toDouble()),
+        dateFormatter: state.formatDateAt,
+        valueFormatter: (value) => compactNumber(value.round()),
       ),
       const SizedBox(height: 12),
-      _MetricChartCard(
+      InteractiveMetricChartCard(
+        title: 'DAU',
+        current: compactNumber(product.dau),
+        points: points((item) => item.dau.toDouble()),
+        dateFormatter: state.formatDateAt,
+        valueFormatter: (value) => compactNumber(value.round()),
+      ),
+      const SizedBox(height: 12),
+      InteractiveMetricChartCard(
+        title: 'MAU',
+        current: compactNumber(product.mau),
+        points: points((item) => item.mau.toDouble()),
+        dateFormatter: state.formatDateAt,
+        valueFormatter: (value) => compactNumber(value.round()),
+      ),
+      const SizedBox(height: 12),
+      InteractiveMetricChartCard(
         title: 'Выручка в месяц',
         current: money(product.monthlyRevenue),
-        points: history.map((item) => item.revenue).toList(),
+        points: points((item) => item.revenue),
+        dateFormatter: state.formatDateAt,
+        valueFormatter: money,
       ),
       const SizedBox(height: 12),
-      _MetricChartCard(
+      InteractiveMetricChartCard(
+        title: 'Рейтинг',
+        current: product.rating.toStringAsFixed(2),
+        points: points((item) => item.rating),
+        dateFormatter: state.formatDateAt,
+        valueFormatter: (value) => value.toStringAsFixed(2),
+      ),
+      const SizedBox(height: 12),
+      InteractiveMetricChartCard(
+        title: 'Retention 30d',
+        current: percent(product.retention30d),
+        points: points((item) => item.retention30d),
+        dateFormatter: state.formatDateAt,
+        valueFormatter: percent,
+      ),
+      const SizedBox(height: 12),
+      InteractiveMetricChartCard(
+        title: 'Churn',
+        current: percent(product.churnRate),
+        points: points((item) => item.churnRate),
+        dateFormatter: state.formatDateAt,
+        valueFormatter: percent,
+      ),
+      const SizedBox(height: 12),
+      InteractiveMetricChartCard(
         title: 'Требуемая мощность',
         current: state.productComputeDemand(product).toStringAsFixed(1),
-        points: history.map((item) => item.requiredCompute).toList(),
+        points: points((item) => item.requiredCompute),
+        dateFormatter: state.formatDateAt,
+        valueFormatter: (value) => '${value.toStringAsFixed(1)} CU',
       ),
       if (history.isEmpty) ...[
         const SizedBox(height: 12),
         const AppCard(
-          child: AppText(
-            'История появится после смены игрового дня. Текущие значения уже учитываются.',
-          ),
+          child: AppText('История появится после смены игрового дня.'),
         ),
       ],
     ]);
@@ -835,6 +965,59 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
           ),
         ),
     ]);
+  }
+
+  Future<void> _confirmProductSale(Product product) async {
+    final state = widget.controller.state;
+    final buyer = state.productBuyerFor(product);
+    final value = state.productSaleValue(product);
+    final fresh =
+        product.users <= 100 &&
+        product.mau <= 50 &&
+        product.monthlyRevenue <= 0 &&
+        state.releasedUpdateCount(product) <= 1;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const AppText('Продать продукт?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppText('${buyer.companyName} готова купить ${product.name}.'),
+            const SizedBox(height: 10),
+            AppText(
+              'Цена сделки: ${money(value)}',
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            AppText(
+              fresh
+                  ? 'Продукт без заметной аудитории оценивается от 30% базовой стоимости разработки.'
+                  : 'Цена учитывает пользователей, выручку, выпущенные обновления и показатели относительно конкурентов.',
+            ),
+            const SizedBox(height: 8),
+            const AppText(
+              'После сделки продукт уйдёт из портфеля, а его команда освободится.',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const AppText('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const AppText('Продать'),
+          ),
+        ],
+      ),
+    );
+    if ((confirmed ?? false) && mounted) {
+      widget.controller.dispatch(SellProduct(product.id));
+      if (mounted) Navigator.of(context).pop();
+    }
   }
 
   String _coherenceMeaning(double value) {
@@ -998,106 +1181,5 @@ class _MetricStrip extends StatelessWidget {
           )
           .toList(growable: false),
     );
-  }
-}
-
-class _MetricChartCard extends StatelessWidget {
-  const _MetricChartCard({
-    required this.title,
-    required this.current,
-    required this.points,
-  });
-
-  final String title;
-  final String current;
-  final List<double> points;
-
-  @override
-  Widget build(BuildContext context) {
-    final usable = points.length >= 2 ? points : <double>[0, ...points];
-    return RepaintBoundary(
-      child: AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: AppText(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                ),
-                AppText(current),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 130,
-              width: double.infinity,
-              child: CustomPaint(painter: _LinePainter(usable)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _LinePainter extends CustomPainter {
-  _LinePainter(this.points);
-  final List<double> points;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (points.isEmpty) return;
-    final minValue = points.reduce(math.min);
-    final maxValue = points.reduce(math.max);
-    final range = math.max(1, maxValue - minValue);
-    final gridPaint = Paint()
-      ..color = AppColors.border
-      ..strokeWidth = 1;
-    for (var index = 1; index < 4; index += 1) {
-      final y = size.height * index / 4;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-    final path = Path();
-    for (var index = 0; index < points.length; index += 1) {
-      final x = points.length == 1
-          ? 0.0
-          : size.width * index / (points.length - 1);
-      final normalized = (points[index] - minValue) / range;
-      final y = size.height - normalized * size.height;
-      if (index == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = AppColors.primary
-        ..strokeWidth = 2.5
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _LinePainter oldDelegate) {
-    if (identical(oldDelegate.points, points)) {
-      return false;
-    }
-    if (oldDelegate.points.length != points.length) {
-      return true;
-    }
-    for (var index = 0; index < points.length; index += 1) {
-      if (oldDelegate.points[index] != points[index]) {
-        return true;
-      }
-    }
-    return false;
   }
 }

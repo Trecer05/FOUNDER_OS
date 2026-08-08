@@ -950,6 +950,7 @@ void main() {
 }
 
 GameState _fundedInitial() => GameState.initial().copyWith(
+  selectedHostingPlanId: 'shared_launch',
   investorAgreements: List<InvestorAgreement>.generate(
     5,
     (index) => InvestorAgreement(

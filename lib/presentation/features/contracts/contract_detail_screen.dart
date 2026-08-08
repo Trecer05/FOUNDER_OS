@@ -134,6 +134,26 @@ class ContractDetailScreen extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
+                        key: const Key('auto-hire-contract-team'),
+                        onPressed:
+                            contract.status == ContractStatus.active &&
+                                coverage < 1
+                            ? () => controller.dispatch(
+                                AutoHireContractTeam(contract.id),
+                              )
+                            : null,
+                        icon: const Icon(Icons.group_add_outlined),
+                        label: AppText(
+                          coverage >= 1
+                              ? 'Команда укомплектована'
+                              : 'Нанять недостающих под контракт',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
                         key: Key('manage-contract-team-${contract.id}'),
                         onPressed: contract.status == ContractStatus.active
                             ? () => _showTeamSheet(context, state, contract)
@@ -141,6 +161,10 @@ class ContractDetailScreen extends StatelessWidget {
                         icon: const Icon(Icons.groups_2_outlined),
                         label: const AppText('Изменить команду'),
                       ),
+                    ),
+                    const SizedBox(height: 6),
+                    const AppText(
+                      'Автоподбор использует сотрудников из штата первым и нанимает только реально недостающие роли.',
                     ),
                   ],
                 ),
@@ -180,6 +204,14 @@ class ContractDetailScreen extends StatelessWidget {
         .employeesForContract(contract.id)
         .map((item) => item.id)
         .toSet();
+    final requiredRoles = state
+        .contractTemplate(contract.templateId)
+        .requiredRoles;
+    final eligibleEmployees = state.employees
+        .where(
+          (employee) => !employee.isHr && requiredRoles.contains(employee.role),
+        )
+        .toList(growable: false);
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -199,16 +231,16 @@ class ContractDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   AppText(
-                    'Выбрано: ${selected.length}. Изменения применятся только после сохранения.',
+                    'Выбрано: ${selected.length}. Здесь только роли, которые реально нужны контракту.',
                   ),
                   const SizedBox(height: 12),
                   Expanded(
-                    child: state.employees.isEmpty
+                    child: eligibleEmployees.isEmpty
                         ? const Center(child: AppText('Сотрудников пока нет.'))
                         : ListView.builder(
-                            itemCount: state.employees.length,
+                            itemCount: eligibleEmployees.length,
                             itemBuilder: (_, index) {
-                              final employee = state.employees[index];
+                              final employee = eligibleEmployees[index];
                               final assignmentCount = state
                                   .activeAssignmentCountForEmployee(
                                     employee.id,

@@ -33,7 +33,7 @@ class GlobalTimeControlBar extends StatelessWidget {
             container: true,
             label: tr('Глобальное управление временем и деньгами'),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520, minHeight: 48),
+              constraints: const BoxConstraints(maxWidth: 620, minHeight: 48),
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: AppColors.surface.withAlpha(238),
@@ -103,9 +103,9 @@ class GlobalTimeControlBar extends StatelessWidget {
                         child: _StatusPill(
                           key: const Key('global-current-time'),
                           semanticLabel: tr(
-                            'День ${state.day}, время ${state.formattedTime}',
+                            'Дата и время ${state.formattedDateTime}',
                           ),
-                          text: 'Д${state.day} ${state.formattedTime}',
+                          text: state.formattedDateTime,
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -157,7 +157,7 @@ class _StatusPill extends StatelessWidget {
     return Semantics(
       label: semanticLabel,
       child: Container(
-        constraints: const BoxConstraints(minWidth: 58, maxWidth: 105),
+        constraints: const BoxConstraints(minWidth: 58, maxWidth: 150),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
           color: warning

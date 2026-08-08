@@ -24,12 +24,12 @@ void main() {
     final migrated = GameState.decode(jsonEncode(json));
 
     expect(migrated.snapshotVersion, currentSnapshotVersion);
-    expect(migrated.selectedHostingPlanId, 'shared_launch');
+    expect(migrated.selectedHostingPlanId, 'no_hosting');
     expect(migrated.rngSeed, 77);
     expect(migrated.rngCounter, 19);
     expect(
       GameState.decode(migrated.encode()).selectedHostingPlanId,
-      'shared_launch',
+      'no_hosting',
     );
   });
 
@@ -172,7 +172,7 @@ void main() {
   });
 
   test(
-    'company starts on rented hosting and owned migration has requirements',
+    'company starts without hosting and owned migration has requirements',
     () {
       final initial = GameState.initial();
       expect(initial.hostingPlan.kind, isNot(HostingKind.owned));

@@ -88,6 +88,11 @@ class LaunchProduct extends GameAction {
   final String productId;
 }
 
+class SellProduct extends GameAction {
+  const SellProduct(this.productId);
+  final String productId;
+}
+
 class AddProductFeature extends GameAction {
   const AddProductFeature({required this.productId, required this.featureId});
 
@@ -187,6 +192,12 @@ class SetProductTeam extends GameAction {
 
   final String productId;
   final List<String> employeeIds;
+}
+
+class AutoHireContractTeam extends GameAction {
+  const AutoHireContractTeam(this.contractId);
+
+  final String contractId;
 }
 
 class SetContractTeam extends GameAction {

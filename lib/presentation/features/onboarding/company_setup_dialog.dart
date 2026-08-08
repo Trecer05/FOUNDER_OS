@@ -40,7 +40,12 @@ class _CompanySetupDialogState extends State<_CompanySetupDialog> {
   String _logoId = 'company_logo_01';
   double _budget = 450000;
   final Map<FounderSkill, int> _skills = <FounderSkill, int>{
-    for (final skill in FounderSkill.values) skill: 2,
+    FounderSkill.engineering: 4,
+    FounderSkill.design: 3,
+    FounderSkill.product: 5,
+    FounderSkill.growth: 3,
+    FounderSkill.negotiation: 3,
+    FounderSkill.operations: 4,
   };
 
   int get _spent => _skills.values.fold<int>(0, (sum, value) => sum + value);

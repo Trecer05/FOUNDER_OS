@@ -3,6 +3,27 @@ import '../entities/v9_models.dart';
 abstract final class V9ContentCatalog {
   static const List<HostingPlan> hostingPlans = <HostingPlan>[
     HostingPlan(
+      id: 'no_hosting',
+      provider: '—',
+      name: 'Без хостинга',
+      kind: HostingKind.none,
+      description:
+          'Инфраструктура ещё не арендована. Нет compute, storage, SLA и ежемесячных расходов.',
+      computeUnits: 0,
+      storageGb: 0,
+      bandwidthTb: 0,
+      sla: 0,
+      approximateUsers: 0,
+      monthlyCost: 0,
+      setupCost: 0,
+      reliability: 0,
+      scalability: 0,
+      strengths: <String>['Нулевые расходы до первого размещения'],
+      weaknesses: <String>['Нет вычислительной мощности и публичного hosting'],
+      risks: <String>['Перед ростом продукта нужно выбрать инфраструктуру'],
+      requiredRoles: <String>[],
+    ),
+    HostingPlan(
       id: 'shared_launch',
       provider: 'NorthHost',
       name: 'Shared Launch',

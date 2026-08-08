@@ -1,4 +1,5 @@
 enum HostingKind {
+  none,
   shared,
   vps,
   managed,

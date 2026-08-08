@@ -11,6 +11,7 @@ import '../../shared/widgets/section_header.dart';
 import '../../../application/localization/app_text.dart';
 import '../../shared/widgets/scoped_listenable_builder.dart';
 import '../../../application/localization/app_localizer.dart';
+import 'market_company_detail_screen.dart';
 
 class MarketScreen extends StatelessWidget {
   const MarketScreen({required this.controller, super.key});
@@ -101,6 +102,14 @@ class _CompanyCard extends StatelessWidget {
         spareCompute >= company.computeDemand * 1.2;
 
     return AppCard(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => MarketCompanyDetailScreen(
+            controller: controller,
+            company: company,
+          ),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -146,6 +155,20 @@ class _CompanyCard extends StatelessWidget {
               ),
               _ValueChip('Security ${company.securityScore.round()}'),
               _ValueChip('${company.computeDemand.round()} compute'),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Row(
+            children: [
+              Icon(Icons.open_in_new, size: 17, color: AppColors.primary),
+              SizedBox(width: 6),
+              AppText(
+                'Открыть компанию и продукты',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),

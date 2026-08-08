@@ -114,8 +114,8 @@ class GameState {
     liquidityGraceUsed: false,
     ecosystemLinks: const <EcosystemLink>[],
     selectedOfficeId: 'remote_first',
-    selectedServerRoomId: 'closet',
-    selectedHostingPlanId: 'shared_launch',
+    selectedServerRoomId: 'no_server_room',
+    selectedHostingPlanId: 'no_hosting',
     installedServers: const <InstalledServer>[],
     investorOffers: const <InvestorOffer>[],
     investorAgreements: const <InvestorAgreement>[],
@@ -203,12 +203,29 @@ class GameState {
   final int rngCounter;
   final List<String> feed;
 
+  static final DateTime simulationEpoch = DateTime.utc(2026, 1, 5);
+
   int get day => simulationMinutes ~/ (24 * 60) + 1;
   int get minuteOfDay => simulationMinutes % (24 * 60);
   int get hour => minuteOfDay ~/ 60;
   int get minute => minuteOfDay % 60;
+
+  DateTime dateTimeAt(int minutes) =>
+      simulationEpoch.add(Duration(minutes: minutes));
+
+  DateTime get simulationDateTime => dateTimeAt(simulationMinutes);
+
+  String formatDateAt(int minutes) {
+    final value = dateTimeAt(minutes);
+    return '${value.day.toString().padLeft(2, '0')}.'
+        '${value.month.toString().padLeft(2, '0')}.'
+        '${value.year}';
+  }
+
+  String get formattedDate => formatDateAt(simulationMinutes);
   String get formattedTime =>
       '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  String get formattedDateTime => '$formattedDate $formattedTime';
 
   OfficeOption get office => GameCatalog.officeById(selectedOfficeId);
   ServerRoomOption get serverRoom =>
@@ -565,6 +582,10 @@ class GameState {
     final staffing = developmentStaffingFor(productId);
     final phase = developmentPhaseFor(product);
     final aiMultiplier = 1 + productAiDevelopmentBoost(productId);
+    final productManagerMultiplier =
+        team.any((employee) => employee.role == EmployeeRole.productManager)
+        ? 1.15
+        : 1.0;
     if (team.isEmpty) {
       return companyProfile.configured
           ? 0
@@ -622,7 +643,8 @@ class GameState {
         staffing.efficiency *
         communicationMultiplier *
         comfortMultiplier *
-        aiMultiplier;
+        aiMultiplier *
+        productManagerMultiplier;
   }
 
   double get averageEmployeeSkill => _employeeAverage((item) => item.skill);
@@ -848,6 +870,9 @@ class GameState {
       : hostingPlan.computeUnits;
 
   double get totalNetworkGbps {
+    if (hostingPlan.kind == HostingKind.none) {
+      return 0;
+    }
     if (!usingOwnedInfrastructure) {
       return math.max(0.1, hostingPlan.bandwidthTb * 0.60).toDouble();
     }

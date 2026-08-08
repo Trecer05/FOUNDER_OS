@@ -264,12 +264,12 @@ Future<GameState> _configuredState() async {
       startingBudget: 750000,
       background: FounderBackground.engineer,
       skills: <FounderSkill, int>{
-        FounderSkill.engineering: 5,
-        FounderSkill.design: 1,
-        FounderSkill.product: 2,
-        FounderSkill.growth: 0,
-        FounderSkill.negotiation: 1,
-        FounderSkill.operations: 3,
+        FounderSkill.engineering: 7,
+        FounderSkill.design: 3,
+        FounderSkill.product: 4,
+        FounderSkill.growth: 2,
+        FounderSkill.negotiation: 2,
+        FounderSkill.operations: 4,
       },
     ),
   );

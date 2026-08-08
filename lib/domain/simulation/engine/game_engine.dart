@@ -47,6 +47,7 @@ class GameEngine {
       SkipNight() => _skipNight(state),
       CreateConfiguredProduct() => _createProduct(state, action),
       LaunchProduct() => _launchProduct(state, action.productId),
+      SellProduct() => _sellProduct(state, action.productId),
       AddProductFeature() => _addProductFeature(
         state,
         action.productId,
@@ -108,6 +109,7 @@ class GameEngine {
         action.productId,
         action.employeeIds,
       ),
+      AutoHireContractTeam() => _autoHireContractTeam(state, action.contractId),
       SetContractTeam() => _setContractTeam(
         state,
         action.contractId,
@@ -207,7 +209,7 @@ class GameEngine {
         !profile.hasValidSkillBudget) {
       return _withFeed(
         state,
-        'Настройка компании отклонена: проверьте название, имя CEO, бюджет, логотип и 12 очков навыков.',
+        'Настройка компании отклонена: проверьте название, имя CEO, бюджет, логотип и 22 очка навыков.',
       );
     }
     return state.copyWith(
@@ -1428,9 +1430,79 @@ class GameEngine {
     return next;
   }
 
+  GameState _refreshCandidateMarket(GameState state, int day) {
+    final week = day ~/ 7;
+    final existingIds = state.candidates.map((item) => item.id).toSet();
+    const names = <String>[
+      'Илья Романов',
+      'Анна Соколова',
+      'Максим Власов',
+      'Полина Тихонова',
+      'Никита Ершов',
+      'Вера Комарова',
+      'Глеб Кузнецов',
+      'Лилия Чернова',
+      'Артур Фомин',
+      'Юлия Гаврилова',
+      'Степан Белов',
+      'Ксения Виноградова',
+      'Марк Киселёв',
+      'Елена Жукова',
+      'Даниил Новиков',
+      'София Миронова',
+      'Влад Мартынов',
+      'Надежда Рябова',
+      'Ярослав Громов',
+      'Татьяна Куликова',
+      'Фёдор Анисимов',
+      'Арина Денисова',
+      'Михаил Королёв',
+      'Валерия Титова',
+    ];
+    final basePool = GameCatalog.initialCandidates
+        .where((item) => !item.isHr)
+        .toList(growable: false);
+    final additions = <Candidate>[];
+    for (var index = 0; index < 4; index += 1) {
+      final base = basePool[(week * 5 + index * 7) % basePool.length];
+      final id = 'weekly_${week}_${base.role.name}_$index';
+      if (existingIds.contains(id)) continue;
+      final shift = ((week * 13 + index * 7) % 9) - 4;
+      additions.add(
+        Candidate(
+          id: id,
+          name: names[(week * 4 + index) % names.length],
+          role: base.role,
+          skill: (base.skill + shift).clamp(55, 98).toInt(),
+          speed: (base.speed - shift).clamp(55, 98).toInt(),
+          quality: (base.quality + shift ~/ 2).clamp(55, 98).toInt(),
+          autonomy: base.autonomy,
+          communication: base.communication,
+          reliability: base.reliability,
+          salary: base.salary * (0.94 + ((week + index) % 7) * 0.02),
+          loyalty: base.loyalty,
+          remote: (week + index).isEven ? true : base.remote,
+          languageIds: base.languageIds,
+        ),
+      );
+    }
+    if (additions.isEmpty) return state;
+    final market = <Candidate>[...state.candidates, ...additions];
+    final capped = market.length <= 64
+        ? market
+        : market.sublist(market.length - 64);
+    return _withFeed(
+      state.copyWith(candidates: capped),
+      'Рынок труда обновился: появилось ${additions.length} новых кандидата.',
+    );
+  }
+
   _DailyResult _dailyEvents(GameState state, int day, int counter) {
     var next = state;
     var nextCounter = counter;
+    if (day > 0 && day % 7 == 0) {
+      next = _refreshCandidateMarket(next, day);
+    }
 
     if (day % 4 == 0) {
       final competitor =
@@ -1905,6 +1977,94 @@ class GameEngine {
         title: 'Новый продукт в разработке',
         body:
             '${product.name}: ${framework.name}, ${action.featureIds.length} функций, coherence ${(projection.stackCoherence * 100).round()}%.',
+        simulationMinutes: state.simulationMinutes,
+        critical: false,
+      ),
+    );
+  }
+
+  GameState _sellProduct(GameState state, String productId) {
+    final product = state.productById(productId);
+    if (product == null || product.stage != ProductStage.live) {
+      return state;
+    }
+    final buyer = state.productBuyerFor(product);
+    final value = state.productSaleValue(product);
+    var next = state.copyWith(
+      cash: state.cash + value,
+      products: state.products
+          .where((item) => item.id != product.id)
+          .toList(growable: false),
+      employeeAssignments: state.employeeAssignments
+          .where((item) => item.productId != product.id)
+          .toList(growable: false),
+      securityControls: state.securityControls
+          .where((item) => item.productId != product.id)
+          .toList(growable: false),
+      securityAudits: state.securityAudits
+          .where((item) => item.productId != product.id)
+          .toList(growable: false),
+      productAiDeployments: state.productAiDeployments
+          .where((item) => item.productId != product.id)
+          .toList(growable: false),
+      productAiIntegrations: state.productAiIntegrations
+          .where(
+            (item) =>
+                item.aiProductId != product.id &&
+                item.targetProductId != product.id,
+          )
+          .toList(growable: false),
+      productImprovements: state.productImprovements
+          .where((item) => item.productId != product.id)
+          .toList(growable: false),
+      productUpdates: state.productUpdates
+          .where((item) => item.productId != product.id)
+          .toList(growable: false),
+      monetizationChanges: state.monetizationChanges
+          .where((item) => item.productId != product.id)
+          .toList(growable: false),
+      advertisingCampaigns: state.advertisingCampaigns
+          .where((item) => item.productId != product.id)
+          .toList(growable: false),
+      priceChanges: state.priceChanges
+          .where((item) => item.productId != product.id)
+          .toList(growable: false),
+      productFeatureDevelopments: state.productFeatureDevelopments
+          .where((item) => item.productId != product.id)
+          .toList(growable: false),
+      productMetricHistory: state.productMetricHistory
+          .where((item) => item.productId != product.id)
+          .toList(growable: false),
+      ecosystemLinks: state.ecosystemLinks
+          .where((item) => !item.contains(product.id))
+          .toList(growable: false),
+      investorOffers: state.investorOffers
+          .where((item) => item.productId != product.id)
+          .toList(growable: false),
+      financeTransactions: <FinanceTransaction>[
+        FinanceTransaction(
+          id: 'product_sale_${buyer.id}_${product.id}_${state.simulationMinutes}',
+          simulationMinutes: state.simulationMinutes,
+          amount: value,
+          category: FinanceTransactionCategory.product,
+          description:
+              'Продажа продукта • ${product.name} → ${buyer.companyName}',
+        ),
+        ...state.financeTransactions,
+      ].take(120).toList(growable: false),
+    );
+    next = _recalculateTeamWorkload(next);
+    return _withNews(
+      _withFeed(
+        next,
+        '${product.name} продан компании ${buyer.companyName} за ${value.round()} ₽.',
+      ),
+      NewsItem(
+        id: 'product_sale_${buyer.id}_${product.id}_${state.simulationMinutes}',
+        kind: NewsKind.acquisition,
+        title: '${buyer.companyName} купила ${product.name}',
+        body:
+            'Цена сделки учла аудиторию, обновления и качество продукта относительно рынка.',
         simulationMinutes: state.simulationMinutes,
         critical: false,
       ),
@@ -2527,6 +2687,138 @@ class GameEngine {
     );
   }
 
+  GameState _autoHireContractTeam(GameState state, String contractId) {
+    final contract = state.contractById(contractId);
+    if (contract == null || contract.status != ContractStatus.active) {
+      return state;
+    }
+    final template = state.contractTemplate(contract.templateId);
+    var next = state;
+    final chosen = next
+        .employeesForContract(contract.id)
+        .toList(growable: true);
+    final chosenIds = chosen.map((item) => item.id).toSet();
+    final remainingRoles = <EmployeeRole>[...template.requiredRoles];
+    for (final employee in chosen) {
+      final index = remainingRoles.indexOf(employee.role);
+      if (index >= 0) remainingRoles.removeAt(index);
+    }
+    var reused = 0;
+    var hired = 0;
+
+    for (final role in List<EmployeeRole>.of(remainingRoles)) {
+      final available =
+          next.employees
+              .where(
+                (employee) =>
+                    !employee.isHr &&
+                    employee.role == role &&
+                    !chosenIds.contains(employee.id) &&
+                    next.canAssignEmployeeToMoreWork(employee.id),
+              )
+              .toList(growable: false)
+            ..sort((left, right) {
+              final load = next
+                  .activeAssignmentCountForEmployee(left.id)
+                  .compareTo(next.activeAssignmentCountForEmployee(right.id));
+              if (load != 0) return load;
+              final skill = right.skill.compareTo(left.skill);
+              if (skill != 0) return skill;
+              return left.id.compareTo(right.id);
+            });
+      if (available.isNotEmpty) {
+        final employee = available.first;
+        chosen.add(employee);
+        chosenIds.add(employee.id);
+        remainingRoles.remove(role);
+        reused += 1;
+      }
+    }
+
+    for (final role in List<EmployeeRole>.of(remainingRoles)) {
+      final candidates =
+          next.candidates
+              .where((candidate) => !candidate.isHr && candidate.role == role)
+              .where(
+                (candidate) =>
+                    candidate.remote || next.availableOfficeSeats > 0,
+              )
+              .toList(growable: false)
+            ..sort((left, right) {
+              final l =
+                  left.skill * 2 + left.speed + left.quality + left.reliability;
+              final r =
+                  right.skill * 2 +
+                  right.speed +
+                  right.quality +
+                  right.reliability;
+              final score = r.compareTo(l);
+              if (score != 0) return score;
+              return left.salary.compareTo(right.salary);
+            });
+      if (candidates.isEmpty) continue;
+      final candidate = candidates.first;
+      final bonus = candidate.salary * 0.10 * next.founderSalaryMultiplier;
+      if (next.cash < bonus) continue;
+      final employee = candidate.toEmployee(
+        hiredAtMinutes: next.simulationMinutes,
+        salaryMultiplier: next.founderSalaryMultiplier,
+      );
+      next = next.copyWith(
+        cash: next.cash - bonus,
+        employees: <Employee>[...next.employees, employee],
+        candidates: next.candidates
+            .where((item) => item.id != candidate.id)
+            .toList(growable: false),
+        financeTransactions: <FinanceTransaction>[
+          FinanceTransaction(
+            id: 'contract_hire_${contract.id}_${candidate.id}_${next.simulationMinutes}',
+            simulationMinutes: next.simulationMinutes,
+            amount: -bonus,
+            category: FinanceTransactionCategory.payroll,
+            description:
+                'Найм под контракт • ${template.name} • ${candidate.name}',
+          ),
+          ...next.financeTransactions,
+        ].take(120).toList(growable: false),
+      );
+      chosen.add(employee);
+      chosenIds.add(employee.id);
+      remainingRoles.remove(role);
+      hired += 1;
+    }
+
+    // Final normalization protects the engine from spare roles and duplicate counts.
+    final normalized = <Employee>[];
+    final exactRoles = <EmployeeRole>[...template.requiredRoles];
+    for (final employee in chosen) {
+      final index = exactRoles.indexOf(employee.role);
+      if (index < 0) continue;
+      normalized.add(employee);
+      exactRoles.removeAt(index);
+    }
+    final assignments = <ContractEmployeeAssignment>[
+      ...next.contractEmployeeAssignments.where(
+        (item) => item.contractId != contract.id,
+      ),
+      for (final employee in normalized)
+        ContractEmployeeAssignment(
+          contractId: contract.id,
+          employeeId: employee.id,
+          assignedAtMinutes: next.simulationMinutes,
+        ),
+    ];
+    next = _recalculateTeamWorkload(
+      next.copyWith(contractEmployeeAssignments: assignments),
+    );
+    return _withFeed(
+      next,
+      '${template.name}: из штата назначено $reused, нанято $hired. '
+      '${exactRoles.isEmpty ? 'Команда полностью укомплектована.' : 'Не все роли удалось закрыть.'} '
+      'Лишний состав не создаётся.',
+    );
+  }
+
   GameState _setContractTeam(
     GameState state,
     String contractId,
@@ -2536,24 +2828,26 @@ class GameEngine {
     if (contract == null || contract.status != ContractStatus.active) {
       return state;
     }
-    final selected = employeeIds.toSet();
-    if (selected.any((id) => state.employeeById(id) == null)) {
-      return state;
-    }
+    final template = state.contractTemplate(contract.templateId);
+    final remainingRoles = <EmployeeRole>[...template.requiredRoles];
+    final selected = <String>[];
+    final seen = <String>{};
     final currentlyAssigned = state
         .employeesForContract(contractId)
         .map((item) => item.id)
         .toSet();
-    final blocked = selected.where(
-      (id) =>
+    for (final id in employeeIds) {
+      if (!seen.add(id)) continue;
+      final employee = state.employeeById(id);
+      if (employee == null || employee.isHr) continue;
+      final atLimit =
           !currentlyAssigned.contains(id) &&
-          !state.canAssignEmployeeToMoreWork(id),
-    );
-    if (blocked.isNotEmpty) {
-      return _withFeed(
-        state,
-        'Нельзя назначить сотрудника больше чем на 4 активные работы.',
-      );
+          !state.canAssignEmployeeToMoreWork(id);
+      if (atLimit) continue;
+      final roleIndex = remainingRoles.indexOf(employee.role);
+      if (roleIndex < 0) continue;
+      remainingRoles.removeAt(roleIndex);
+      selected.add(id);
     }
     final assignments = state.contractEmployeeAssignments
         .where((item) => item.contractId != contractId)
@@ -2572,7 +2866,8 @@ class GameEngine {
     );
     return _withFeed(
       next,
-      '${state.contractTemplate(contract.templateId).name}: команда сохранена, сотрудников ${selected.length}.',
+      '${template.name}: команда сохранена, сотрудников ${selected.length}. '
+      'Лишние роли и сотрудники отброшены.',
     );
   }
 
@@ -3867,7 +4162,7 @@ class GameEngine {
         : 90000.0;
     return _withFeed(
       state.copyWith(
-        cash: state.cash - math.min(state.cash, cost),
+        cash: state.cash - cost,
         criticalEvent: CriticalEventType.none,
         clearCriticalProductId: true,
         paused: true,

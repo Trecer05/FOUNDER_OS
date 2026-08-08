@@ -410,7 +410,10 @@ GameState _withInvestorCount(GameState state, int count) => state.copyWith(
 
 GameState _releasedWebsite(GameEngine engine) {
   var state = engine.reduce(
-    GameState.initial().copyWith(cash: 10000000),
+    GameState.initial().copyWith(
+      cash: 10000000,
+      selectedHostingPlanId: 'shared_launch',
+    ),
     const CreateConfiguredProduct(
       name: 'Founder Site',
       blueprintId: 'company_website',

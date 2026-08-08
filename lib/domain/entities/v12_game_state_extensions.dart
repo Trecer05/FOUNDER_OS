@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../catalog/game_catalog.dart';
 import 'game_state.dart';
 import 'models.dart';
 import 'v12_models.dart';
@@ -20,8 +21,13 @@ extension FounderV12GameState on GameState {
   }
 
   double founderDevelopmentCapacityFor(Product product) {
-    if (!companyProfile.configured ||
-        product.stage != ProductStage.development) {
+    if (!companyProfile.configured) {
+      return 0;
+    }
+    if (product.stage == ProductStage.live) {
+      return founderFeatureWorkCapacityFor(product);
+    }
+    if (product.stage != ProductStage.development) {
       return 0;
     }
     final stage = founderStageFor(product);
@@ -81,6 +87,73 @@ extension FounderV12GameState on GameState {
       companyProfile.improvementHoursMultiplier;
   double get founderGrowthMultiplier =>
       companyProfile.growthEfficiencyMultiplier;
+
+  int releasedUpdateCount(Product product) => productUpdates
+      .where(
+        (item) =>
+            item.productId == product.id &&
+            !item.reason.startsWith('v12_') &&
+            !item.reason.startsWith('Миграция snapshot') &&
+            item.reason != 'Создание продукта' &&
+            item.reason != 'Публичный запуск',
+      )
+      .length;
+
+  MarketCompany productBuyerFor(Product product) {
+    final matching = GameCatalog.marketCompanies
+        .where((company) => company.category == product.category)
+        .toList(growable: false);
+    if (matching.isEmpty) return GameCatalog.marketCompanies.first;
+    final index =
+        (product.id.hashCode ^ rngSeed ^ simulationMinutes).abs() %
+        matching.length;
+    return matching[index];
+  }
+
+  double productSaleValue(Product product) {
+    final blueprint = GameCatalog.blueprintById(product.blueprintId);
+    final minimum = blueprint.baseDevelopmentCost * 0.30;
+    final updates = releasedUpdateCount(product);
+    final hasTraction =
+        product.users > 100 ||
+        product.mau > 50 ||
+        product.monthlyRevenue > 0 ||
+        updates > 1;
+    if (!hasTraction) return minimum;
+
+    final competitor = GameCatalog.competitorFor(product.category);
+    final ownSpeedScore =
+        (100 - product.speedMs / math.max(1, competitor.speedMs) * 45)
+            .clamp(0, 100)
+            .toDouble();
+    final ownScore =
+        ownSpeedScore * 0.14 +
+        product.designScore * 0.18 +
+        product.securityScore * 0.20 +
+        product.reliability * 100 * 0.16 +
+        product.featureCoverage * 100 * 0.14 +
+        product.qualityScore * 0.18;
+    final competitorScore =
+        55.0 * 0.14 +
+        competitor.designScore * 0.18 +
+        competitor.securityScore * 0.20 +
+        competitor.reliability * 100 * 0.16 +
+        100 * 0.14 +
+        math.max(60, competitor.designScore) * 0.18;
+    final relative = (ownScore / math.max(1, competitorScore))
+        .clamp(0.65, 1.85)
+        .toDouble();
+    final audience = math.max(product.users, product.mau);
+    final userValue = audience * (32 + product.rating * 18);
+    final revenueValue = math.max(0, product.monthlyRevenue) * 8.0;
+    final updateMultiplier = 1 + math.min(0.70, updates * 0.055);
+    return math
+        .max(
+          minimum,
+          (minimum + userValue + revenueValue) * relative * updateMultiplier,
+        )
+        .toDouble();
+  }
 
   String founderStageNameRu(FounderDevelopmentStage stage) => switch (stage) {
     FounderDevelopmentStage.planning => 'Проектирование',

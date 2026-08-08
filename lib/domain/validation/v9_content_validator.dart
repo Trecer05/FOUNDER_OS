@@ -24,6 +24,7 @@ abstract final class V9ContentValidator {
         );
       }
       if (plan.kind != HostingKind.owned &&
+          plan.kind != HostingKind.none &&
           (plan.computeUnits <= 0 ||
               plan.monthlyCost < 0 ||
               plan.sla <= 0 ||

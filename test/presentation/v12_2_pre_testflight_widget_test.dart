@@ -152,12 +152,12 @@ GameState _configuredCompany() {
           startingBudget: 1200000,
           background: FounderBackground.engineer,
           skills: <FounderSkill, int>{
-            FounderSkill.engineering: 4,
-            FounderSkill.design: 2,
-            FounderSkill.product: 2,
-            FounderSkill.growth: 1,
-            FounderSkill.negotiation: 1,
-            FounderSkill.operations: 2,
+            FounderSkill.engineering: 7,
+            FounderSkill.design: 3,
+            FounderSkill.product: 4,
+            FounderSkill.growth: 2,
+            FounderSkill.negotiation: 2,
+            FounderSkill.operations: 4,
           },
         ),
       )

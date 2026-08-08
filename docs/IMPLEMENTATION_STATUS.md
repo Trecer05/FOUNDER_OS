@@ -1,154 +1,103 @@
-# IMPLEMENTATION_STATUS
+# IMPLEMENTATION STATUS
 
-Дата: 5 августа 2026.
+## Current baseline
 
-## База v3 — проверено
+**FOUNDER.OS v12.2 — pre-TestFlight**
 
-- [x] `flutter analyze` без ошибок;
-- [x] полный `flutter test`;
-- [x] iOS Simulator debug build;
-- [x] ветка `feat/mvp-vertical-slice` отправлена на GitHub, commit `2d70d2d`.
+The current build is feature-complete for the planned external UAT pass.
 
-## Operations/security v4 — проверено
+### Verified
 
-- [x] 15 domain tests;
-- [x] 4 snapshot/migration tests;
-- [x] 3 widget tests;
-- [x] полный набор: 22 tests passed;
-- [x] `git diff --check`;
-- [x] iOS Simulator debug build;
-- [x] ручной запуск на физическом iPhone;
-- [x] базовая оценка плавности и нагрева: критических проблем не обнаружено;
-- [ ] Android debug build;
-- [ ] длительная симуляция 30+ игровых дней.
+- `flutter analyze` — clean;
+- focused v12.2 domain tests — passed;
+- focused v12.2 widget tests — passed;
+- v12 and v12.1 regression suites — passed;
+- snapshot and migration regressions — passed;
+- all domain tests — passed;
+- all application and presentation tests — passed;
+- full Flutter test suite — passed;
+- `git diff --check` — passed;
+- iOS Simulator debug build — passed;
+- Android debug build — passed;
+- Android release APK — built;
+- Android release AAB — built;
+- unsigned iOS release package for device-side signing — built.
 
-## Guidance/AI/product evolution v5 — проверено пользователем на iPhone
+## Main systems
 
-- [x] onboarding и повторный запуск;
-- [x] средние показатели команды;
-- [x] role requirements и role coverage;
-- [x] public/corporate AI и внутренние интеграции;
-- [x] product freshness/staleness;
-- [x] повторяемые continuous improvements;
-- [x] snapshot schema v5 и controlled migrations;
-- [x] полный локальный набор тестов проходил перед установкой;
-- [x] физический iPhone: игра запускается и в целом работает плавно;
-- [x] собран фактический UX/logic feedback для v6;
-- [ ] Android debug build;
-- [ ] длительный balance/performance run.
+### Company and founder
 
-## Business loop and UX fixes v6 — реализовано в пакете
+- company setup with name, budget and logo;
+- configurable founder background and skills;
+- founder contribution to product development;
+- remote-first company start;
+- clean new-company reset.
 
-- [x] старт разработки с `0%`;
-- [x] пакетное сохранение проектной команды;
-- [x] отдельный учёт onsite/remote при найме и аренде офиса;
-- [x] запрет continuous improvements до релиза;
-- [x] пять клиентских контрактов;
-- [x] аванс, финальная выплата, deadline и штраф;
-- [x] required roles и разделение мощности параллельных контрактов;
-- [x] регулировка subscription price;
-- [x] проектная сводка на Overview;
-- [x] удаление placeholder-подсказок;
-- [x] snapshot schema v6 и миграция v5 → v6;
-- [x] новые domain/snapshot/widget tests подготовлены;
-- [x] документация обновлена.
+### Product development
 
-## Требует проверки после применения v6
+- multi-step product configuration;
+- four player-facing development stages;
+- framework, language and technology constraints;
+- deterministic development content;
+- project-wide technical challenge;
+- post-release product improvements;
+- released-product stage cleanup.
 
-- [ ] `dart format lib test`;
-- [ ] `flutter analyze`;
-- [ ] точечные domain/snapshot/widget tests;
-- [ ] полный `flutter test`;
-- [ ] `git diff --check`;
-- [ ] iOS Simulator debug build;
-- [ ] profile-run на физическом iPhone;
-- [ ] force quit / restore snapshot v6;
-- [ ] ручная проверка контрактного дедлайна и нескольких контрактов;
-- [ ] Android debug build.
+### Team
 
-V6 нельзя считать проверенной или готовой к merge до прохождения этих пунктов на локальной машине проекта.
+- hiring and role requirements;
+- HR-assisted automatic hiring;
+- founder shown as a non-payroll project participant;
+- multi-project employee assignments;
+- deterministic workload efficiency for parallel work;
+- product and contract staffing coverage.
 
-## V7 — management refactor (ожидает локальной проверки)
+### Contracts
 
-- [x] Сериализованная очередь сохранений и lifecycle flush.
-- [x] Глобальная панель времени на всех маршрутах.
-- [x] Контракты с отдельными командами и детальной карточкой.
-- [x] Единая сводка продуктов и контрактов.
-- [x] Ограничение смены монетизации раз в 30 игровых дней.
-- [x] Диапазонный прогноз дохода с явными допущениями.
-- [x] Финансовая история, график, категории и ledger.
-- [x] Role-specific подсказки и исправление overflow статистики команды.
-- [ ] flutter analyze.
-- [ ] полный flutter test.
-- [ ] iOS Simulator build.
-- [ ] ручная проверка на физическом iPhone.
+- client contract acceptance and deadlines;
+- team sufficiency indicators;
+- automatic assignment of suitable low-load employees;
+- progress, payouts and failure conditions;
+- parallel contract capacity sharing.
 
+### Business simulation
 
-## V8 — product development economy (реализовано в пакете, ожидает локального gate)
+- monetization and pricing;
+- advertising campaigns;
+- finance ledger and history;
+- office and infrastructure management;
+- hosting and server capacity;
+- credit and negative-cash recovery;
+- ecosystem integrations;
+- product freshness and continuous improvements;
+- company ownership and investment mechanics.
 
-- [x] семишаговый мастер создания проекта;
-- [x] 8 масштабов, включая сайт и city system;
-- [x] 12 языков, 9 frameworks, 24 кандидата и кадровые language skills;
-- [x] stack limits, required languages и investor gates;
-- [x] рабочий календарь и реалистичные часы разработки;
-- [x] фазы, critical/movable staff, under/overstaffing;
-- [x] сайт с монетизацией только рекламой и contract gate;
-- [x] feature work без прямой покупки;
-- [x] стартовый cash 450 000 ₽;
-- [x] liquidity/credit/game-over chain;
-- [x] price/churn/revenue forecast и затухание sentiment;
-- [x] агентства, каналы, CPM/CPC и trust-aware acquisition;
-- [x] промокоды `FOUNDER-RICH` / `FOUNDER-BROKE`;
-- [x] snapshot schema v8 и migration defaults;
-- [x] focused v8 domain tests и обновлённые widget fixtures;
-- [ ] `dart format lib test`;
-- [ ] `flutter analyze`;
-- [ ] точечные v8/domain/snapshot/widget tests;
-- [ ] полный `flutter test`;
-- [ ] `git diff --check`;
-- [ ] iOS Simulator debug build;
-- [ ] ручной smoke на iPhone;
-- [ ] 90+ игровых дней balance-run;
-- [ ] Android debug build.
-<!-- FOUNDER_OS_V9 -->
-## v9 status
-Implemented in the v9 overlay package: floating time UI, dynamic stack resolver, staffing deficits, rental hosting and owned migration, payroll ledger, staged contracts, ecosystem rework, glossary, compact team metrics, snapshot migration, content catalog/validator, tests and verification gate. Local Flutter/Xcode results are recorded only after running `tools/verify_ui_content_v9.sh` on the target Mac.
+### Platform and persistence
 
-<!-- V10_UAT_REWORK -->
-## v10 UAT rework
+- offline-first operation;
+- versioned local snapshots;
+- controlled migration of older saves;
+- serialized persistence writes;
+- iOS and Android platform bridges for critical local persistence operations;
+- RU/EN interface.
 
-Status: **implemented, verification pending**.
+## Remaining validation
 
-Automated verification command: `bash tools/verify_ux_economy_v10.sh`. Physical-iPhone UAT remains required before marking the iteration verified. Full historic RU/EN localization and a complete regional price audit remain partial.
+Before external distribution, complete physical-device UAT on representative iPhone and Android devices, with focus on:
 
-<!-- V10_OPTIMIZATION -->
-## v10_optimization
+- clean install and onboarding;
+- product creation and release;
+- project challenges;
+- hiring and parallel staffing;
+- contracts;
+- infrastructure and finance;
+- save/restore after force quit and reboot;
+- RU/EN switching;
+- long-session performance and thermal behavior;
+- narrow-screen layout and safe-area behavior.
 
-Status: **implemented, verification pending**. Automated verifier includes 95 existing tests plus optimization/localization tests and iOS/Android builds. Physical-device profiling remains required.
+## Verification command
 
-<!-- V11_STABILIZATION -->
-## v11 stabilization
-
-Status: **implemented, verification pending**.
-
-Covered: physical-device localization regression, technical vocabulary, office pricing, responsive infrastructure/advertising layout, starter-server migration, visible HR hiring and auto-hire gate, hosting capacity explanation, profit period toggle and finance labels.
-
-Verification: `bash tools/verify_v11_stabilization.sh`, followed by physical iPhone UAT. Do not mark verified from compilation alone.
-
-## v12 Founder Expansion
-- Company setup: название, стартовый бюджет, 25 transparent logos.
-- Playable CEO: background + 12 skill points + development/economic bonuses.
-- Remote-first start: новая компания не арендует офис.
-- Product pipeline: проектирование → дизайн → разработка → отладка с live content.
-- HR auto-hire: только минимально необходимые роли, без запасного headcount.
-- Product improvement recovery: malformed legacy work no longer throws `Bad state: No element`.
-- Localization: expanded explicit RU/EN lexicon; technical identifiers stay intact.
-
-## v12.1 Physical UAT hotfix
-- New game/reset reliably reopens company + CEO setup instead of staying on a legacy profile.
-- Product review now shows selected languages/technologies, estimated development cost from required-role market salaries, required development compute, and readable mobile summary rows.
-- Four-stage development rail is visible in Products, Project Center, Workspace, and Product Details, including completed live products.
-- Russian UI cleanup covers Capacity/Security/Incident/Setup, product metrics, market-leader comparison, and security control names/descriptions.
-
-## v12.2 pre-TestFlight
-Implemented pending verification on physical iPhone: atomic clean reset, CEO total FTE UI, max-four parallel staffing with progressive efficiency, contract team sufficiency/auto-assignment, released-stage cleanup, project-review/card polish, progressive design mockup, once-per-project challenge overlay.
+```bash
+bash tools/verify_v12_2_pre_testflight.sh
+```

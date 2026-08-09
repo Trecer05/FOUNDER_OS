@@ -6,9 +6,9 @@ The player creates a company, configures a founder profile, launches products, h
 
 ## Current baseline
 
-**v12.2 — pre-TestFlight**
+**v13 — release candidate**
 
-The current baseline is verified with the full Flutter test suite and debug builds for iOS Simulator and Android.
+The release candidate adds a procedural four-grade labour market, a deeper product roadmap, rebalanced acquisition channels and market scale, rival strategy events, Founder Legacy progression, and a production main menu with manual save slots.
 
 ## Core systems
 
@@ -34,7 +34,7 @@ View → GameAction → GameEngine.reduce → GameState → View
 
 Key principles:
 
-- deterministic simulation rules are shared across platforms in Dart;
+- simulation rules are deterministic within each saved game seed and shared across platforms in Dart;
 - `GameState` is the source of truth for simulation state;
 - `GameController` owns lifecycle, clock and persistence coordination;
 - iOS and Android native bridges are limited to platform-specific persistence and diagnostics;
@@ -50,13 +50,13 @@ Key principles:
 
 ## Verification
 
-Run the current verification gate:
+Run the current release gate on a machine with Flutter installed:
 
 ```bash
-bash tools/verify_v12_2_pre_testflight.sh
+bash tools/verify_v13_release_candidate.sh
 ```
 
-The gate covers static checks, formatting, analysis, focused regression tests, the full Flutter test suite, snapshot migrations and mobile debug builds.
+The gate covers static release checks, analysis, focused regressions, the full Flutter suite, snapshot persistence, an iOS Simulator build and an Android release APK.
 
 ## Build
 
@@ -93,4 +93,4 @@ docs/              product and engineering documentation
 
 ## Status
 
-The automated v12.2 gate is green. Physical-device UAT is the final validation step before external distribution.
+Source is prepared as a release candidate. The v13 gate and physical-device UAT must pass before external distribution.

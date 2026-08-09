@@ -95,6 +95,30 @@ void main() {
       expect(GameState.decode(bridge.snapshot!).cash, recovery.cash);
     },
   );
+
+  test('manual slots round-trip independently and survive autosave clear', () async {
+    final fallback = _MemoryFallbackStore();
+    final bridge = _FakeNativeBridge();
+    final store = GameSnapshotStore(
+      nativeBridge: bridge,
+      fallbackStore: fallback,
+    );
+    final saved = GameState.initial(seed: 42).copyWith(cash: 7654321);
+
+    await store.saveSlot('slot_2', saved);
+    final summaries = await store.listSlots();
+
+    expect(summaries, hasLength(1));
+    expect(summaries.single.slotId, 'slot_2');
+    expect(summaries.single.cash, saved.cash);
+    expect((await store.loadSlot('slot_2'))!.cash, saved.cash);
+
+    await store.clear();
+    expect((await store.loadSlot('slot_2'))!.cash, saved.cash);
+
+    await store.deleteSlot('slot_2');
+    expect(await store.loadSlot('slot_2'), isNull);
+  });
 }
 
 class _MemoryFallbackStore implements SnapshotFallbackStore {

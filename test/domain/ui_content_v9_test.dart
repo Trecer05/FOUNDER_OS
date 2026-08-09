@@ -120,7 +120,9 @@ void main() {
 
   test('hire charges signing bonus, never full monthly salary', () {
     final initial = GameState.initial().copyWith(cash: 10000000);
-    final candidate = initial.candidates.first;
+    final candidate = initial.candidates.firstWhere(
+      (item) => item.remote && !item.isHr,
+    );
     final hired = engine.reduce(initial, HireCandidate(candidate.id));
     final charged = initial.cash - hired.cash;
 
@@ -135,7 +137,9 @@ void main() {
 
   test('payroll accrues for the actual partial period and is explained', () {
     var state = GameState.initial().copyWith(cash: 10000000, paused: false);
-    final candidate = state.candidates.first;
+    final candidate = state.candidates.firstWhere(
+      (item) => item.remote && !item.isHr,
+    );
     state = engine.reduce(state, HireCandidate(candidate.id));
     final afterHire = state;
     state = engine.reduce(

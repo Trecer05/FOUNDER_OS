@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import '../catalog/contract_catalog.dart';
+import '../catalog/candidate_market_catalog.dart';
 import '../catalog/game_catalog.dart';
 import '../catalog/operations_catalog.dart';
 import '../catalog/product_evolution_catalog.dart';
@@ -71,6 +72,7 @@ class GameState {
     required this.founderOwnershipPercent,
     required this.portfolioHoldings,
     required this.acquiredCompanyIds,
+    this.fullyAcquiredCompanyIds = const <String>[],
     required this.news,
     required this.criticalEvent,
     required this.criticalProductId,
@@ -82,7 +84,7 @@ class GameState {
     required this.feed,
   });
 
-  factory GameState.initial() => GameState(
+  factory GameState.initial({int seed = 20260804}) => GameState(
     snapshotVersion: currentSnapshotVersion,
     simulationMinutes: 8 * 60,
     speed: GameSpeed.x1,
@@ -90,7 +92,9 @@ class GameState {
     cash: 450000,
     companyProfile: FounderCompanyProfile.unconfigured(),
     products: const <Product>[],
-    candidates: List<Candidate>.unmodifiable(GameCatalog.initialCandidates),
+    candidates: List<Candidate>.unmodifiable(
+      CandidateMarketCatalog.initialMarket(seed: seed),
+    ),
     employees: const <Employee>[],
     employeeAssignments: const <EmployeeAssignment>[],
     securityControls: const <ProductSecurityControl>[],
@@ -122,31 +126,14 @@ class GameState {
     founderOwnershipPercent: 100,
     portfolioHoldings: const <PortfolioHolding>[],
     acquiredCompanyIds: const <String>[],
-    news: const <NewsItem>[
-      NewsItem(
-        id: 'news_start_competitor',
-        kind: NewsKind.competitor,
-        title: 'Astra AI обновила модель',
-        body: 'Конкурент сократил среднюю задержку ответа до 1,45 сек.',
-        simulationMinutes: 8 * 60,
-        critical: false,
-      ),
-      NewsItem(
-        id: 'news_start_market',
-        kind: NewsKind.market,
-        title: 'Рынок ждёт узкие продукты',
-        body:
-            'Пользователи готовы переходить ради заметного преимущества по одной важной метрике.',
-        simulationMinutes: 8 * 60,
-        critical: false,
-      ),
-    ],
+    fullyAcquiredCompanyIds: const <String>[],
+    news: const <NewsItem>[],
     criticalEvent: CriticalEventType.none,
     criticalProductId: null,
     gameOver: false,
     miniGamesEnabled: true,
     onboardingCompleted: false,
-    rngSeed: 20260804,
+    rngSeed: seed,
     rngCounter: 0,
     feed: const <String>[
       'Компания зарегистрирована. На счету 450 тыс. ₽.',
@@ -193,6 +180,7 @@ class GameState {
   final double founderOwnershipPercent;
   final List<PortfolioHolding> portfolioHoldings;
   final List<String> acquiredCompanyIds;
+  final List<String> fullyAcquiredCompanyIds;
   final List<NewsItem> news;
   final CriticalEventType criticalEvent;
   final String? criticalProductId;
@@ -773,6 +761,20 @@ class GameState {
     return option.baseCost * (1 + level * 0.38);
   }
 
+  double improvementRequiredHours(
+    String productId,
+    ProductImprovementType type,
+  ) {
+    final option = ProductEvolutionCatalog.improvementByType(type);
+    final nextLevel = improvementLevel(productId, type) + 1;
+    return (math.max(
+              14,
+              option.baseCost / 1600 * (1 + (nextLevel - 1) * 0.18),
+            ) *
+            companyProfile.improvementHoursMultiplier)
+        .toDouble();
+  }
+
   double productImprovementMonthlyCost(String productId) => 0;
 
   double productImprovementComputeMultiplier(String productId) =>
@@ -1066,18 +1068,33 @@ class GameState {
         ? (impressions * (0.006 + agency.quality * 0.008)).round()
         : (effectiveBudget / math.max(1, channel.baseCpc)).round();
     final maturity =
-        (0.08 + product.brandAwareness * 0.52 + product.brandTrust * 0.40)
-            .clamp(0.05, 0.95)
+        (0.55 + product.brandAwareness * 0.28 + product.brandTrust * 0.17)
+            .clamp(0.50, 1.0)
             .toDouble();
     final qualityFactor =
-        (product.qualityScore / 100 * 0.52 +
-                product.retention30d * 0.28 +
-                product.reliability * 0.20)
-            .clamp(0.10, 1.0)
+        (0.45 +
+                product.qualityScore / 100 * 0.32 +
+                product.retention30d * 0.10 +
+                product.reliability * 0.13)
+            .clamp(0.48, 1.0)
             .toDouble();
     final founderGrowthMultiplier = companyProfile.growthEfficiencyMultiplier;
-    final conversion =
-        (0.015 + agency.quality * 0.035 + channel.trustWeight * 0.018) *
+    final channelConversion = switch (channel.id) {
+      'search_ads' => 0.38,
+      'social_feed' => 0.12,
+      'creator_reviews' => 0.22,
+      'b2b_outreach' => 0.09,
+      'short_video' => 0.10,
+      'newsletters' => 0.19,
+      'developer_communities' => 0.24,
+      'affiliate_partners' => 0.16,
+      _ => 0.14,
+    };
+    final agencyMultiplier = (0.60 + agency.quality * 0.65)
+        .clamp(0.75, 1.35)
+        .toDouble();
+    final conversion = channelConversion *
+        agencyMultiplier *
         maturity *
         qualityFactor *
         categoryFit *
@@ -1091,9 +1108,9 @@ class GameState {
       usersExpected: math.max(0, expected),
       usersHigh: math.max(0, (expected * (1 + spread)).round()),
       effectiveBudget: effectiveBudget,
-      note: maturity < 0.22
-          ? 'Бренду пока не доверяют: даже большой бюджет даст мало пользователей.'
-          : 'Диапазон зависит от доверия, качества продукта, канала и точности агентства.',
+      note: product.brandAwareness < 0.08
+          ? 'Новый бренд конвертирует слабее зрелого, но закупленный трафик всё равно даёт измеримый объём. Дальше результат решают activation и retention.'
+          : 'Диапазон зависит от доверия, качества продукта, соответствия канала и точности агентства.',
     );
   }
 
@@ -1188,6 +1205,44 @@ class GameState {
   }
 
   double get founderPortfolioValue => valuation * founderOwnershipPercent / 100;
+
+  int get requiredReleasedBlueprintsForLegacy =>
+      (GameCatalog.productBlueprints.length * 0.70).ceil();
+
+  int get releasedBlueprintCount {
+    final catalogIds = GameCatalog.productBlueprints.map((item) => item.id).toSet();
+    return products
+        .where(
+          (product) =>
+              product.stage == ProductStage.live &&
+              !product.acquired &&
+              catalogIds.contains(product.blueprintId),
+        )
+        .map((product) => product.blueprintId)
+        .toSet()
+        .length;
+  }
+
+  double get legacyProductProgress =>
+      (releasedBlueprintCount / math.max(1, requiredReleasedBlueprintsForLegacy))
+          .clamp(0, 1)
+          .toDouble();
+
+  bool get legacyProductRequirementMet =>
+      releasedBlueprintCount >= requiredReleasedBlueprintsForLegacy;
+
+  bool marketCompanyFullyAcquired(String companyId) =>
+      fullyAcquiredCompanyIds.contains(companyId);
+
+  int get acquiredRivalCount => GameCatalog.marketCompanies
+      .where((company) => marketCompanyFullyAcquired(company.id))
+      .length;
+
+  int get remainingRivalCount =>
+      math.max(0, GameCatalog.marketCompanies.length - acquiredRivalCount).toInt();
+
+  bool get founderLegacyCompleted =>
+      !gameOver && legacyProductRequirementMet && remainingRivalCount == 0;
 
   List<ProductMetricPoint> metricHistoryFor(String productId) =>
       _index.metricHistoryByProduct[productId] ?? const <ProductMetricPoint>[];
@@ -1331,6 +1386,7 @@ class GameState {
     double? founderOwnershipPercent,
     List<PortfolioHolding>? portfolioHoldings,
     List<String>? acquiredCompanyIds,
+    List<String>? fullyAcquiredCompanyIds,
     List<NewsItem>? news,
     CriticalEventType? criticalEvent,
     String? criticalProductId,
@@ -1431,6 +1487,9 @@ class GameState {
       acquiredCompanyIds: List<String>.unmodifiable(
         acquiredCompanyIds ?? this.acquiredCompanyIds,
       ),
+      fullyAcquiredCompanyIds: List<String>.unmodifiable(
+        fullyAcquiredCompanyIds ?? this.fullyAcquiredCompanyIds,
+      ),
       news: List<NewsItem>.unmodifiable(news ?? this.news),
       criticalEvent: criticalEvent ?? this.criticalEvent,
       criticalProductId: clearCriticalProductId
@@ -1509,6 +1568,7 @@ class GameState {
         .map((item) => item.toJson())
         .toList(),
     'acquiredCompanyIds': acquiredCompanyIds,
+    'fullyAcquiredCompanyIds': fullyAcquiredCompanyIds,
     'news': news.map((item) => item.toJson()).toList(),
     'criticalEvent': criticalEvent.name,
     'criticalProductId': criticalProductId,
@@ -1650,6 +1710,7 @@ class GameState {
         PortfolioHolding.fromJson,
       ),
       acquiredCompanyIds: (json['acquiredCompanyIds']! as List).cast<String>(),
+      fullyAcquiredCompanyIds: _decodeFullyAcquiredCompanyIds(json),
       news: _decodeList(json['news'], NewsItem.fromJson),
       criticalEvent: CriticalEventType.values.byName(
         json['criticalEvent']! as String,
@@ -1748,6 +1809,28 @@ class GameState {
     final items = source as List? ?? const <Object?>[];
     return items
         .map((item) => decoder((item! as Map).cast<String, Object?>()))
+        .toList(growable: false);
+  }
+
+  static List<String> _decodeFullyAcquiredCompanyIds(
+    Map<String, Object?> json,
+  ) {
+    final stored = json['fullyAcquiredCompanyIds'];
+    if (stored is List) return stored.cast<String>();
+
+    // Older v12 saves represented a full company acquisition only by the
+    // retained acquisition team. Promote that stable marker once on decode.
+    final employeeIds = <String>{};
+    for (final raw in json['employees'] as List? ?? const <Object?>[]) {
+      if (raw is Map && raw['id'] is String) {
+        employeeIds.add(raw['id']! as String);
+      }
+    }
+    return GameCatalog.marketCompanies
+        .where(
+          (company) => employeeIds.contains('acq_${company.id}_lead'),
+        )
+        .map((company) => company.id)
         .toList(growable: false);
   }
 }

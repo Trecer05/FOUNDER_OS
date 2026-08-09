@@ -78,6 +78,35 @@ class _ProductsScreenState extends State<ProductsScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.flag_outlined, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: AppText(
+                        'Путь основателя: ${state.releasedBlueprintCount}/${state.requiredReleasedBlueprintsForLegacy} разных релизов',
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 9),
+                LinearProgressIndicator(value: state.legacyProductProgress),
+                const SizedBox(height: 7),
+                AppText(
+                  state.legacyProductRequirementMet
+                      ? 'Порог 70% пройден. Финальная консолидация рынка доступна.'
+                      : 'Для финала нужно самостоятельно выпустить не меньше 70% направлений каталога. Купленные продукты не засчитываются.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: _searchController,
             decoration: InputDecoration(

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../../catalog/contract_catalog.dart';
+import '../../catalog/candidate_market_catalog.dart';
 import '../../catalog/game_catalog.dart';
 import '../../catalog/operations_catalog.dart';
 import '../../catalog/product_evolution_catalog.dart';
@@ -1433,67 +1434,30 @@ class GameEngine {
   GameState _refreshCandidateMarket(GameState state, int day) {
     final week = day ~/ 7;
     final existingIds = state.candidates.map((item) => item.id).toSet();
-    const names = <String>[
-      'Илья Романов',
-      'Анна Соколова',
-      'Максим Власов',
-      'Полина Тихонова',
-      'Никита Ершов',
-      'Вера Комарова',
-      'Глеб Кузнецов',
-      'Лилия Чернова',
-      'Артур Фомин',
-      'Юлия Гаврилова',
-      'Степан Белов',
-      'Ксения Виноградова',
-      'Марк Киселёв',
-      'Елена Жукова',
-      'Даниил Новиков',
-      'София Миронова',
-      'Влад Мартынов',
-      'Надежда Рябова',
-      'Ярослав Громов',
-      'Татьяна Куликова',
-      'Фёдор Анисимов',
-      'Арина Денисова',
-      'Михаил Королёв',
-      'Валерия Титова',
-    ];
-    final basePool = GameCatalog.initialCandidates
-        .where((item) => !item.isHr)
+    final usedNames = <String>{
+      ...state.candidates.map((item) => item.name),
+      ...state.employees.map((item) => item.name),
+    };
+    final additions = CandidateMarketCatalog.weeklyArrivals(
+      seed: state.rngSeed,
+      week: week,
+    )
+        .where(
+          (candidate) =>
+              !existingIds.contains(candidate.id) &&
+              !usedNames.contains(candidate.name),
+        )
         .toList(growable: false);
-    final additions = <Candidate>[];
-    for (var index = 0; index < 4; index += 1) {
-      final base = basePool[(week * 5 + index * 7) % basePool.length];
-      final id = 'weekly_${week}_${base.role.name}_$index';
-      if (existingIds.contains(id)) continue;
-      final shift = ((week * 13 + index * 7) % 9) - 4;
-      additions.add(
-        Candidate(
-          id: id,
-          name: names[(week * 4 + index) % names.length],
-          role: base.role,
-          skill: (base.skill + shift).clamp(55, 98).toInt(),
-          speed: (base.speed - shift).clamp(55, 98).toInt(),
-          quality: (base.quality + shift ~/ 2).clamp(55, 98).toInt(),
-          autonomy: base.autonomy,
-          communication: base.communication,
-          reliability: base.reliability,
-          salary: base.salary * (0.94 + ((week + index) % 7) * 0.02),
-          loyalty: base.loyalty,
-          remote: (week + index).isEven ? true : base.remote,
-          languageIds: base.languageIds,
-        ),
-      );
-    }
     if (additions.isEmpty) return state;
     final market = <Candidate>[...state.candidates, ...additions];
-    final capped = market.length <= 64
+    final capped = market.length <= CandidateMarketCatalog.maximumVisibleCandidates
         ? market
-        : market.sublist(market.length - 64);
+        : market.sublist(
+            market.length - CandidateMarketCatalog.maximumVisibleCandidates,
+          );
     return _withFeed(
       state.copyWith(candidates: capped),
-      'Рынок труда обновился: появилось ${additions.length} новых кандидата.',
+      'Рынок труда обновился: ${additions.length} новых профилей с разным грейдом и зарплатой.',
     );
   }
 
@@ -1504,26 +1468,15 @@ class GameEngine {
       next = _refreshCandidateMarket(next, day);
     }
 
-    if (day % 4 == 0) {
-      final competitor =
-          GameCatalog.competitors[day % GameCatalog.competitors.length];
-      next = _withNews(
-        next,
-        NewsItem(
-          id: 'competitor_${day}_${competitor.id}',
-          kind: NewsKind.competitor,
-          title: '${competitor.productName}: новое обновление',
-          body:
-              '${competitor.companyName} усилила продукт. Скорость ${competitor.speedMs.round()} ms, security ${competitor.securityScore.round()}/100.',
-          simulationMinutes: next.simulationMinutes,
-          critical: false,
-        ),
-      );
-    }
-
     final liveProducts = next.products
         .where((product) => product.stage == ProductStage.live)
         .toList(growable: false);
+    final rivalEventRoll = _random01(next.rngSeed, nextCounter++);
+    if (rivalEventRoll < 0.34) {
+      final rivalMove = _simulateRivalMove(next, liveProducts, nextCounter);
+      next = rivalMove.state;
+      nextCounter = rivalMove.counter;
+    }
     if (liveProducts.isEmpty) {
       return _DailyResult(next, nextCounter);
     }
@@ -1538,7 +1491,8 @@ class GameEngine {
       nextCounter = inbound.counter;
     }
 
-    if (day % 5 == 0 && next.criticalEvent == CriticalEventType.none) {
+    final pressureRoll = _random01(next.rngSeed, nextCounter++);
+    if (pressureRoll < 0.18 && next.criticalEvent == CriticalEventType.none) {
       final pressure = _applyCompetitorPressure(
         next,
         liveProducts,
@@ -1576,6 +1530,84 @@ class GameEngine {
       next = _triggerSecurityIncident(next, target.id);
     }
     return _DailyResult(next, nextCounter);
+  }
+
+  _DailyResult _simulateRivalMove(
+    GameState state,
+    List<Product> liveProducts,
+    int counter,
+  ) {
+    final rivals = GameCatalog.marketCompanies
+        .where((company) => !state.acquiredCompanyIds.contains(company.id))
+        .toList(growable: false);
+    if (rivals.isEmpty) return _DailyResult(state, counter);
+
+    final companyRoll = _random01(state.rngSeed, counter++);
+    final companyIndex = (companyRoll * rivals.length)
+        .floor()
+        .clamp(0, rivals.length - 1)
+        .toInt();
+    final company = rivals[companyIndex];
+    final matching = liveProducts
+        .where((product) => product.category == company.category)
+        .toList(growable: false)
+      ..sort((a, b) => b.users.compareTo(a.users));
+    final target = matching.isEmpty ? null : matching.first;
+    final actionRoll = _random01(state.rngSeed, counter++);
+    final canThreatenControl =
+        target != null &&
+        company.valuation > state.valuation * 1.4 &&
+        state.founderOwnershipPercent < 82;
+    final action = canThreatenControl && actionRoll < 0.22
+        ? 5
+        : (actionRoll * 5).floor().clamp(0, 4).toInt();
+    final audienceMillions = math.max(1, (company.users / 1000000).round());
+
+    final (title, body) = switch (action) {
+      0 => (
+        '${company.productName}: крупный продуктовый релиз',
+        '${company.companyName} выкатила пакет новых возможностей для аудитории около $audienceMillions млн пользователей. Команда делает ставку на удержание и ускорение ключевых сценариев.',
+      ),
+      1 => (
+        '${company.companyName} наращивает инфраструктуру',
+        'Конкурент направляет около ${(company.monthlyRevenue * 0.9).round()} ₽ в compute, reliability и безопасность. Это снижает пространство для слабых продуктов той же категории.',
+      ),
+      2 => (
+        '${company.companyName} усиливает дистрибуцию',
+        target == null
+            ? 'Компания расширяет маркетинг и партнёрства, используя базу примерно $audienceMillions млн пользователей.'
+            : 'Новая кампания напрямую конкурирует с ${target.name}. Оценочный месячный бюджет — ${(company.monthlyRevenue * 0.35).round()} ₽.',
+      ),
+      3 => (
+        '${company.companyName} закрыла M&A-сделку',
+        'Рыночный игрок поглотил нишевую технологическую команду примерно за ${(company.valuation * 0.015).round()} ₽ и интегрирует её технологию в ${company.productName}.',
+      ),
+      4 => (
+        '${company.productName} меняет коммерческую стратегию',
+        target == null
+            ? 'Конкурент тестирует новые тарифы и пакетные предложения, чтобы увеличить конверсию своей крупной аудитории.'
+            : 'Цены и пакеты перестраиваются вокруг сегмента ${target.name}; без свежего roadmap и бренда давление на удержание будет расти.',
+      ),
+      _ => (
+        '${company.companyName} изучает поглощение вашей компании',
+        'Банкиры конкурента контактируют с внешними инвесторами. Прямой захват невозможен, пока у основателя контрольный пакет, но при доле ниже 50% кампания закончится потерей контроля.',
+      ),
+    };
+
+    return _DailyResult(
+      _withNews(
+        state,
+        NewsItem(
+          id: 'rival_${company.id}_${state.simulationMinutes}_$action',
+          kind: NewsKind.competitor,
+          title: title,
+          body: body,
+          simulationMinutes: state.simulationMinutes,
+          critical: false,
+        ),
+      ),
+      counter,
+    );
   }
 
   _DailyResult _applyCompetitorPressure(
@@ -2286,10 +2318,7 @@ class GameEngine {
     }
     final option = ProductEvolutionCatalog.improvementByType(type);
     final level = state.improvementLevel(productId, type) + 1;
-    final requiredHours =
-        (math.max(36, option.baseCost / 450 * (1 + (level - 1) * 0.25)) *
-                state.founderImprovementMultiplier)
-            .toDouble();
+    final requiredHours = state.improvementRequiredHours(productId, type);
     final work = ProductFeatureDevelopment(
       productId: productId,
       featureId: '__improvement_${type.name}_$level',
@@ -3926,9 +3955,20 @@ class GameEngine {
     }
 
     final freeAllocation = math.max(0, 100 - state.totalAllocatedPercent);
-    final blueprint = GameCatalog.productBlueprints.firstWhere(
-      (item) => item.category == company.category,
-    );
+    final blueprintId = switch (company.id) {
+      'm_pixel' => 'creator_suite',
+      'm_guard' => 'crypto_wallet',
+      'm_api' => 'code_forge',
+      'm_orbit' => 'cloud_drive',
+      'm_neural' => 'ai_search',
+      'm_browser' => 'privacy_browser',
+      'm_work' => 'team_saas',
+      'm_data' => 'community_platform',
+      _ => GameCatalog.productBlueprints
+          .firstWhere((item) => item.category == company.category)
+          .id,
+    };
+    final blueprint = GameCatalog.blueprintById(blueprintId);
     final product = Product(
       id: 'acquired_${company.id}',
       blueprintId: blueprint.id,
@@ -3988,20 +4028,37 @@ class GameEngine {
 
   GameState _acquireCompany(GameState state, String companyId) {
     final company = GameCatalog.marketCompanyById(companyId);
-    if (state.acquiredCompanyIds.contains(company.id) ||
-        state.cash < company.valuation) {
+    if (state.marketCompanyFullyAcquired(company.id)) {
       return state;
     }
-    final acquired = _acquireProduct(
-      state,
-      AcquireMarketProduct(
-        companyId: companyId,
-        mode: AcquisitionMode.maintainSeparate,
-      ),
-    );
-    if (identical(acquired, state)) {
+    if (state.remainingRivalCount == 1 && !state.legacyProductRequirementMet) {
+      return _withFeed(
+        state,
+        'Финальная сделка пока закрыта: выпустите ${state.requiredReleasedBlueprintsForLegacy} разных продуктов из каталога. Сейчас ${state.releasedBlueprintCount}.',
+      );
+    }
+    final productAlreadyOwned = state.acquiredCompanyIds.contains(company.id);
+    final existingStake = state.holdingByCompanyId(company.id)?.ownershipPercent ?? 0;
+    final equityAdjustedPrice = company.valuation * (1 - existingStake / 100);
+    final remainingPrice = math
+        .max(0, equityAdjustedPrice - (productAlreadyOwned ? company.productPrice : 0))
+        .toDouble();
+    if (state.cash < remainingPrice) {
       return state;
     }
+    final acquired = productAlreadyOwned
+        ? state
+        : _acquireProduct(
+            state,
+            AcquireMarketProduct(
+              companyId: companyId,
+              mode: AcquisitionMode.maintainSeparate,
+            ),
+          );
+    if (!productAlreadyOwned && identical(acquired, state)) return state;
+    final companyBalance = productAlreadyOwned
+        ? remainingPrice
+        : math.max(0, equityAdjustedPrice - company.productPrice).toDouble();
     final generatedEmployees = <Employee>[
       Employee(
         id: 'acq_${company.id}_lead',
@@ -4019,6 +4076,7 @@ class GameEngine {
         workload: 58,
         remote: true,
         languageIds: const <String>['typescript', 'python'],
+        grade: EmployeeGrade.senior,
       ),
       Employee(
         id: 'acq_${company.id}_engineer',
@@ -4036,12 +4094,20 @@ class GameEngine {
         workload: 62,
         remote: true,
         languageIds: const <String>['go', 'java', 'typescript'],
+        grade: EmployeeGrade.senior,
       ),
     ];
     return _withFeed(
       acquired.copyWith(
-        cash: acquired.cash - (company.valuation - company.productPrice),
+        cash: acquired.cash - companyBalance,
         employees: <Employee>[...acquired.employees, ...generatedEmployees],
+        fullyAcquiredCompanyIds: <String>[
+          ...acquired.fullyAcquiredCompanyIds,
+          if (!acquired.fullyAcquiredCompanyIds.contains(company.id)) company.id,
+        ],
+        portfolioHoldings: acquired.portfolioHoldings
+            .where((holding) => holding.companyId != company.id)
+            .toList(growable: false),
       ),
       '${company.companyName} куплена целиком. Команда и продукт сохранены.',
     );
@@ -4157,9 +4223,11 @@ class GameEngine {
     final responseMultiplier = state.criticalProductId == null
         ? 1.0
         : state.productIncidentMultiplier(state.criticalProductId!);
-    final cost = state.criticalEvent == CriticalEventType.securityBreach
+    final isSecurityBreach =
+        state.criticalEvent == CriticalEventType.securityBreach;
+    final cost = isSecurityBreach
         ? 240000.0 * (0.55 + responseMultiplier * 0.45)
-        : 90000.0;
+        : 0.0;
     return _withFeed(
       state.copyWith(
         cash: state.cash - cost,
@@ -4167,7 +4235,9 @@ class GameEngine {
         clearCriticalProductId: true,
         paused: true,
       ),
-      'Инцидент локализован за ${cost.round()} ₽. Проверьте инфру и безопасность перед продолжением.',
+      isSecurityBreach
+          ? 'Инцидент локализован за ${cost.round()} ₽. Проверьте безопасность перед продолжением.'
+          : 'Перегрузка отмечена. Переход к инфраструктуре ничего не списывает — исправьте compute или распределение мощности.',
     );
   }
 
@@ -4219,8 +4289,10 @@ class GameEngine {
       final preference =
           1 / (1 + math.exp(-(ownScore - competitorScore) / 8.5));
       final brandFactor =
-          (0.08 + product.brandAwareness * 0.54 + product.brandTrust * 0.38)
-              .clamp(0.05, 1.0)
+          (0.0015 +
+                  product.brandAwareness * 0.70 +
+                  product.brandTrust * 0.025)
+              .clamp(0.001, 1.0)
               .toDouble();
       final organic =
           segment.addressableUsers *
@@ -4392,6 +4464,7 @@ class GameEngine {
         action is AdvanceTime ||
         action is SkipNight ||
         action is StartAdvertisingCampaign ||
+        action is AcceptClientContract ||
         action is HireCandidate ||
         action is HireCandidateForProduct ||
         action is AutoHireProjectTeam ||

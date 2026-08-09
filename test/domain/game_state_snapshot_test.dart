@@ -43,8 +43,17 @@ void main() {
           featureIds: <String>['autoscaling', 'monitoring'],
         ),
       );
-      state = engine.reduce(state, const HireCandidate('c_anna'));
-      state = engine.reduce(state, const HireCandidate('c_timur'));
+      final integrationSpecialist = state.candidates.firstWhere(
+        (candidate) =>
+            candidate.role == EmployeeRole.backend ||
+            candidate.role == EmployeeRole.devOps,
+      );
+      final teammate = state.candidates.firstWhere(
+        (candidate) => candidate.id != integrationSpecialist.id,
+      );
+      final candidateIds = <String>[integrationSpecialist.id, teammate.id];
+      state = engine.reduce(state, HireCandidate(candidateIds[0]));
+      state = engine.reduce(state, HireCandidate(candidateIds[1]));
       state = engine.reduce(
         state,
         ConnectProducts(
@@ -55,7 +64,7 @@ void main() {
       state = engine.reduce(
         state,
         AssignEmployeeToProduct(
-          employeeId: 'c_anna',
+          employeeId: candidateIds[0],
           productId: state.products[0].id,
         ),
       );

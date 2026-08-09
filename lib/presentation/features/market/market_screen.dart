@@ -44,6 +44,14 @@ class MarketScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     _InfoRow(
+                      'Путь основателя',
+                      '${state.releasedBlueprintCount}/${state.requiredReleasedBlueprintsForLegacy} релизов',
+                    ),
+                    _InfoRow(
+                      'Консолидация рынка',
+                      '${state.acquiredRivalCount}/${GameCatalog.marketCompanies.length}',
+                    ),
+                    _InfoRow(
                       'Долей в портфеле',
                       '${state.portfolioHoldings.length}',
                     ),
@@ -51,7 +59,17 @@ class MarketScreen extends StatelessWidget {
                     _InfoRow(
                       'Свободный compute',
                       '${spareCompute.round()} units',
-                      last: true,
+                    ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(value: state.legacyProductProgress),
+                    const SizedBox(height: 7),
+                    AppText(
+                      state.founderLegacyCompleted
+                          ? 'Рынок консолидирован. Вы достигли финала Founder Legacy.'
+                          : state.legacyProductRequirementMet
+                          ? 'Порог 70% выполнен — можно завершать консолидацию рынка.'
+                          : 'Последнего конкурента можно поглотить только после самостоятельного релиза 70% каталога.',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),
@@ -87,7 +105,15 @@ class _CompanyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = controller.state;
     final holding = state.holdingByCompanyId(company.id);
-    final acquired = state.acquiredCompanyIds.contains(company.id);
+    final productAcquired = state.acquiredCompanyIds.contains(company.id);
+    final acquired = state.marketCompanyFullyAcquired(company.id);
+    final equityAdjustedPrice =
+        company.valuation * (1 - (holding?.ownershipPercent ?? 0) / 100);
+    final remainingCompanyPrice = productAcquired
+        ? (equityAdjustedPrice - company.productPrice)
+              .clamp(0, double.infinity)
+              .toDouble()
+        : equityAdjustedPrice;
     final sameCategoryProducts = state.products
         .where(
           (product) =>
@@ -100,6 +126,10 @@ class _CompanyCard extends StatelessWidget {
     final migrationReady =
         sameCategoryProducts.isNotEmpty &&
         spareCompute >= company.computeDemand * 1.2;
+    final finalAcquisitionLocked =
+        !acquired &&
+        state.remainingRivalCount == 1 &&
+        !state.legacyProductRequirementMet;
 
     return AppCard(
       onTap: () => Navigator.of(context).push(
@@ -135,7 +165,10 @@ class _CompanyCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (acquired) const _StatusChip(label: 'Куплено', positive: true),
+              if (acquired)
+                const _StatusChip(label: 'Компания куплена', positive: true)
+              else if (productAcquired)
+                const _StatusChip(label: 'Продукт куплен', positive: true),
             ],
           ),
           const SizedBox(height: 10),
@@ -203,7 +236,8 @@ class _CompanyCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: FilledButton.tonal(
-                  onPressed: !acquired && state.cash >= company.productPrice
+                  onPressed: !productAcquired &&
+                          state.cash >= company.productPrice
                       ? () => _showProductAcquisition(
                           context,
                           controller,
@@ -221,12 +255,25 @@ class _CompanyCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: !acquired && state.cash >= company.valuation
+              onPressed: !acquired &&
+                      !finalAcquisitionLocked &&
+                      state.cash >= remainingCompanyPrice
                   ? () => controller.dispatch(AcquireMarketCompany(company.id))
                   : null,
-              child: AppText('Купить компанию • ${money(company.valuation)}'),
+              child: AppText(
+                productAcquired
+                    ? 'Докупить компанию • ${money(remainingCompanyPrice)}'
+                    : 'Купить компанию • ${money(remainingCompanyPrice)}',
+              ),
             ),
           ),
+          if (finalAcquisitionLocked) ...[
+            const SizedBox(height: 8),
+            AppText(
+              'Финальная сделка: сначала ${state.requiredReleasedBlueprintsForLegacy} собственных релизов (${state.releasedBlueprintCount} готово).',
+              style: const TextStyle(color: AppColors.yellow, fontWeight: FontWeight.w700),
+            ),
+          ],
           const SizedBox(height: 9),
           Row(
             children: [
@@ -399,10 +446,9 @@ class _CompanyCard extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow(this.label, this.value, {this.last = false});
+  const _InfoRow(this.label, this.value);
   final String label;
   final String value;
-  final bool last;
 
   @override
   Widget build(BuildContext context) {
@@ -417,7 +463,7 @@ class _InfoRow extends StatelessWidget {
             ],
           ),
         ),
-        if (!last) const Divider(),
+        const Divider(),
       ],
     );
   }

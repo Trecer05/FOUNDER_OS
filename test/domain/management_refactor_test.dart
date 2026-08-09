@@ -72,8 +72,14 @@ void main() {
   test('product and contract teams allow parallel work and remain atomic', () {
     var state = _stateWithWebsite(engine);
 
-    state = engine.reduce(state, const HireCandidate('c_anna'));
-    state = engine.reduce(state, const HireCandidate('c_daria'));
+    final firstId = state.candidates
+        .firstWhere((candidate) => candidate.role == EmployeeRole.frontend)
+        .id;
+    final secondId = state.candidates
+        .firstWhere((candidate) => candidate.role == EmployeeRole.designer)
+        .id;
+    state = engine.reduce(state, HireCandidate(firstId));
+    state = engine.reduce(state, HireCandidate(secondId));
     state = engine.reduce(state, const AcceptClientContract('landing_launch'));
 
     final productId = state.products.single.id;
@@ -83,58 +89,58 @@ void main() {
       state,
       SetProductTeam(
         productId: productId,
-        employeeIds: const <String>['c_anna'],
+        employeeIds: <String>[firstId],
       ),
     );
 
     expect(
       state.employeesForProduct(productId).map((item) => item.id),
-      <String>['c_anna'],
+      <String>[firstId],
     );
 
     state = engine.reduce(
       state,
       SetContractTeam(
         contractId: contractId,
-        employeeIds: const <String>['c_anna', 'c_daria'],
+        employeeIds: <String>[firstId, secondId],
       ),
     );
 
     expect(
       state.employeesForProduct(productId).map((item) => item.id),
-      <String>['c_anna'],
+      <String>[firstId],
     );
     expect(
       state.employeesForContract(contractId).map((item) => item.id).toSet(),
-      <String>{'c_anna', 'c_daria'},
+      <String>{firstId, secondId},
     );
     expect(
-      state.employeeById('c_anna')!.workload,
-      greaterThan(state.employeeById('c_daria')!.workload),
+      state.employeeById(firstId)!.workload,
+      greaterThan(state.employeeById(secondId)!.workload),
     );
 
     state = engine.reduce(
       state,
       SetProductTeam(
         productId: productId,
-        employeeIds: const <String>['c_anna'],
+        employeeIds: <String>[firstId],
       ),
     );
 
-    expect(state.employeesForProduct(productId).single.id, 'c_anna');
+    expect(state.employeesForProduct(productId).single.id, firstId);
     expect(
       state.employeesForContract(contractId).map((item) => item.id).toSet(),
-      <String>{'c_anna', 'c_daria'},
+      <String>{firstId, secondId},
     );
     expect(
       state.employeeAssignments
-          .where((item) => item.employeeId == 'c_anna')
+          .where((item) => item.employeeId == firstId)
           .length,
       1,
     );
     expect(
       state.contractEmployeeAssignments
-          .where((item) => item.employeeId == 'c_anna')
+          .where((item) => item.employeeId == firstId)
           .length,
       1,
     );
@@ -186,8 +192,14 @@ void main() {
                 : item,
           )
           .toList(growable: false),
-      employees: <Employee>[state.candidateById('c_anna')!.toEmployee()],
+      employees: <Employee>[
+        state.candidates
+            .firstWhere((candidate) => candidate.role == EmployeeRole.frontend)
+            .toEmployee(),
+      ],
     );
+
+    final contractEmployeeId = state.employees.single.id;
 
     state = engine.reduce(state, const AcceptClientContract('landing_launch'));
 
@@ -195,7 +207,7 @@ void main() {
       state,
       SetContractTeam(
         contractId: state.activeContracts.single.id,
-        employeeIds: const <String>['c_anna'],
+        employeeIds: <String>[contractEmployeeId],
       ),
     );
 

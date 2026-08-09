@@ -68,9 +68,11 @@ void main() {
     var state = GameState.initial().copyWith(
       cash: 10000000,
       onboardingCompleted: true,
+      selectedOfficeId: 'garage',
     );
-    state = engine.reduce(state, const HireCandidate('c_anna'));
-    state = engine.reduce(state, const HireCandidate('c_daria'));
+    final candidateIds = state.candidates.take(2).map((item) => item.id).toList();
+    state = engine.reduce(state, HireCandidate(candidateIds[0]));
+    state = engine.reduce(state, HireCandidate(candidateIds[1]));
     final store = _MemorySnapshotStore()..value = state;
     final controller = GameController(snapshotStore: store, startClock: false);
     addTearDown(controller.dispose);
@@ -110,8 +112,9 @@ void main() {
     await tester.tap(find.byKey(Key('manage-contract-team-$contractId')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(Key('contract-$contractId-employee-c_anna')));
-    await tester.tap(find.byKey(Key('contract-$contractId-employee-c_daria')));
+    final employeeIds = controller.state.employees.map((item) => item.id).toList();
+    await tester.tap(find.byKey(Key('contract-$contractId-employee-${employeeIds[0]}')));
+    await tester.tap(find.byKey(Key('contract-$contractId-employee-${employeeIds[1]}')));
     await tester.pumpAndSettle();
 
     expect(controller.state.employeesForContract(contractId), isEmpty);
@@ -128,9 +131,16 @@ Future<GameController> _controllerWithContract() async {
   var state = GameState.initial().copyWith(
     cash: 10000000,
     onboardingCompleted: true,
+    selectedOfficeId: 'garage',
   );
-  state = engine.reduce(state, const HireCandidate('c_anna'));
-  state = engine.reduce(state, const HireCandidate('c_daria'));
+  final frontendId = state.candidates
+      .firstWhere((candidate) => candidate.role == EmployeeRole.frontend)
+      .id;
+  final designerId = state.candidates
+      .firstWhere((candidate) => candidate.role == EmployeeRole.designer)
+      .id;
+  state = engine.reduce(state, HireCandidate(frontendId));
+  state = engine.reduce(state, HireCandidate(designerId));
   state = engine.reduce(
     state,
     const CreateConfiguredProduct(

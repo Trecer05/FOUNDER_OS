@@ -35,6 +35,13 @@ String candidateRoleName(Candidate candidate) =>
 String employeeRoleName(Employee employee) =>
     employee.isHr ? 'HR / People Partner' : roleName(employee.role);
 
+String gradeName(EmployeeGrade grade) => switch (grade) {
+  EmployeeGrade.intern => 'Intern',
+  EmployeeGrade.junior => 'Junior',
+  EmployeeGrade.middle => 'Middle',
+  EmployeeGrade.senior => 'Senior',
+};
+
 String roleName(EmployeeRole role) => switch (role) {
   EmployeeRole.productManager => 'Product Manager',
   EmployeeRole.frontend => 'Frontend',

@@ -29,6 +29,7 @@ class _TeamScreenState extends State<TeamScreen> {
   final TextEditingController _searchController = TextEditingController();
   _TeamView _view = _TeamView.candidates;
   EmployeeRole? _role;
+  EmployeeGrade? _grade;
   _CandidateSort _sort = _CandidateSort.skill;
   bool _remoteOnly = false;
   bool _hrOnly = false;
@@ -60,7 +61,8 @@ class _TeamScreenState extends State<TeamScreen> {
                   candidateRoleName(candidate).toLowerCase().contains(query) ||
                   languageMatch;
               final remoteMatch = !_remoteOnly || candidate.remote;
-              return roleMatch && searchMatch && remoteMatch;
+              final gradeMatch = _grade == null || candidate.grade == _grade;
+              return roleMatch && searchMatch && remoteMatch && gradeMatch;
             })
             .toList(growable: false)
           ..sort(_candidateComparator);
@@ -230,10 +232,34 @@ class _TeamScreenState extends State<TeamScreen> {
             ),
           ),
           const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                ChoiceChip(
+                  label: const AppText('Все грейды'),
+                  selected: _grade == null,
+                  onSelected: (_) => setState(() => _grade = null),
+                ),
+                const SizedBox(width: 8),
+                ...EmployeeGrade.values.map(
+                  (grade) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: AppText(gradeName(grade), translate: false),
+                      selected: _grade == grade,
+                      onSelected: (_) => setState(() => _grade = grade),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
           AppCard(
             hintTitle: 'Фильтры рынка кандидатов',
             hintBody:
-                'Сортировка не меняет характеристики кандидатов. Remote-сотрудник не занимает место в офисе, но получает полную зарплату и может быть назначен на любой продукт.',
+                'Каждый профиль генерируется при появлении на рынке. Грейд задаёт диапазон характеристик и зарплаты, а конкретные значения случайны. Имя в рамках одной игры не переиспользуется. Remote-сотрудник не занимает место в офисе.',
             child: Column(
               children: [
                 Row(
@@ -371,9 +397,10 @@ class _CandidateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
+      key: Key('candidate-card-${candidate.id}'),
       hintTitle: 'Кандидат ${candidate.name}',
       hintBody:
-          '${candidateRoleName(candidate)}: ${candidate.isHr ? 'Открывает автоматический подбор команды под проект.' : rolePurpose(candidate.role)} Языки: ${candidate.languageIds.isEmpty ? 'не указаны' : candidate.languageIds.map((id) => GameCatalog.languageById(id).name).join(', ')}. ${candidate.remote ? 'Remote-кандидат не занимает офисное место.' : 'Office-кандидату требуется свободное место.'} Сравните зарплату и рабочие характеристики перед наймом.',
+          '${gradeName(candidate.grade)} • ${candidateRoleName(candidate)}: ${candidate.isHr ? 'Открывает автоматический подбор команды под проект.' : rolePurpose(candidate.role)} Грейд задаёт вилку зарплаты и показателей, конкретный профиль сгенерирован для этой игры. Языки: ${candidate.languageIds.isEmpty ? 'не указаны' : candidate.languageIds.map((id) => GameCatalog.languageById(id).name).join(', ')}. ${candidate.remote ? 'Remote-кандидат не занимает офисное место.' : 'Office-кандидату требуется свободное место.'}',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -396,7 +423,7 @@ class _CandidateCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     AppText(
-                      '${candidateRoleName(candidate)} • ${candidate.remote ? 'remote' : 'office'} • loyalty ${candidate.loyalty}/100',
+                      '${gradeName(candidate.grade)} • ${candidateRoleName(candidate)} • ${candidate.remote ? 'remote' : 'office'} • loyalty ${candidate.loyalty}/100',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -470,7 +497,7 @@ class _EmployeeCard extends StatelessWidget {
     return AppCard(
       hintTitle: 'Сотрудник ${employee.name}',
       hintBody:
-          '${employeeRoleName(employee)}: ${employee.isHr ? 'Разрешает автоматический подбор специалистов под проекты.' : rolePurpose(employee.role)} Языки: ${employee.languageIds.isEmpty ? 'не указаны' : employee.languageIds.map((id) => GameCatalog.languageById(id).name).join(', ')}. Зарплата списывается каждый месяц. Реальный вклад появляется только после назначения на продукт или контракт.',
+          '${gradeName(employee.grade)} • ${employeeRoleName(employee)}: ${employee.isHr ? 'Разрешает автоматический подбор специалистов под проекты.' : rolePurpose(employee.role)} Языки: ${employee.languageIds.isEmpty ? 'не указаны' : employee.languageIds.map((id) => GameCatalog.languageById(id).name).join(', ')}. Зарплата списывается каждый месяц. Реальный вклад появляется только после назначения на продукт или контракт.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -493,7 +520,7 @@ class _EmployeeCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     AppText(
-                      '${employeeRoleName(employee)} • ${employee.remote ? 'remote' : 'office'}',
+                      '${gradeName(employee.grade)} • ${employeeRoleName(employee)} • ${employee.remote ? 'remote' : 'office'}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],

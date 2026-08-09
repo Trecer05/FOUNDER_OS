@@ -31,22 +31,17 @@ void main() {
     ]);
   });
 
-  test('candidate market covers every selectable programming language', () {
-    final selectableLanguages = GameCatalog.languages
-        .map((item) => item.id)
-        .toSet();
+  test('candidate market is procedural, broad and grade-diverse', () {
+    final candidates = GameCatalog.initialCandidates;
     final candidateLanguages = GameCatalog.initialCandidates
         .expand((candidate) => candidate.languageIds)
         .toSet();
 
-    expect(GameCatalog.initialCandidates.length, greaterThanOrEqualTo(24));
-    expect(candidateLanguages, containsAll(selectableLanguages));
-    expect(
-      GameCatalog.initialCandidates.any(
-        (candidate) => candidate.languageIds.contains('php'),
-      ),
-      isTrue,
-    );
+    expect(candidates.length, greaterThanOrEqualTo(40));
+    expect(candidates.map((item) => item.name).toSet(), hasLength(candidates.length));
+    expect(candidates.map((item) => item.grade).toSet(), containsAll(EmployeeGrade.values));
+    expect(candidates.map((item) => item.role).toSet(), containsAll(EmployeeRole.values));
+    expect(candidateLanguages.length, greaterThanOrEqualTo(10));
   });
 
   test('framework requirements and stack limits block invalid projects', () {
@@ -154,16 +149,9 @@ void main() {
         monetization: MonetizationModel.advertising,
       ),
     );
-    for (final candidateId in const <String>[
-      'c_anna',
-      'c_daria',
-      'c_sonya',
-      'c_alina',
-      'c_nikita',
-      'c_vika',
-      'c_maria',
-    ]) {
-      state = engine.reduce(state, HireCandidate(candidateId));
+    final teamCandidates = state.candidates.where((item) => item.remote).take(7);
+    for (final candidate in teamCandidates) {
+      state = engine.reduce(state, HireCandidate(candidate.id));
     }
     final productId = state.products.single.id;
     state = engine.reduce(
@@ -293,7 +281,7 @@ void main() {
     expect(settled.currentPriceSentiment(shocked), 0);
   });
 
-  test('new unknown brand cannot buy a million users on release day', () {
+  test('new unknown brand gets bounded measurable traffic on release day', () {
     final state = _releasedWebsite(engine).copyWith(cash: 10000000);
     final product = state.products.single;
     final forecast = state.advertisingForecast(
@@ -304,7 +292,7 @@ void main() {
     );
 
     expect(forecast.usersExpected, lessThan(5000));
-    expect(forecast.note, contains('не доверяют'));
+    expect(forecast.note, contains('конвертирует слабее'));
     expect(forecast.impressions, greaterThan(forecast.usersExpected));
   });
 

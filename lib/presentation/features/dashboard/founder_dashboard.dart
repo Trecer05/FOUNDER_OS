@@ -13,15 +13,21 @@ import '../products/project_challenge_dialog.dart';
 import '../team/team_screen.dart';
 import '../tutorial/founder_tutorial_dialog.dart';
 import '../onboarding/company_setup_dialog.dart';
+import '../menu/save_slots_dialog.dart';
 import '../../../application/localization/app_localizer.dart';
 import '../../../application/localization/app_text.dart';
 import '../../shared/widgets/scoped_listenable_builder.dart';
 import '../../shared/widgets/company_logo.dart';
 
 class FounderDashboard extends StatefulWidget {
-  const FounderDashboard({required this.controller, super.key});
+  const FounderDashboard({
+    required this.controller,
+    this.onExitToMainMenu,
+    super.key,
+  });
 
   final GameController controller;
+  final VoidCallback? onExitToMainMenu;
 
   @override
   State<FounderDashboard> createState() => _FounderDashboardState();
@@ -32,6 +38,8 @@ class _FounderDashboardState extends State<FounderDashboard> {
   CriticalEventType _shownEvent = CriticalEventType.none;
   bool _tutorialShowing = false;
   bool _projectChallengeShowing = false;
+  bool _legacyWinShowing = false;
+  bool _legacyWinShown = false;
   late final List<Widget Function()> _screenBuilders;
 
   @override
@@ -49,6 +57,9 @@ class _FounderDashboardState extends State<FounderDashboard> {
       await _maybeShowTutorial();
       if (mounted) {
         await _maybeShowProjectChallenge();
+      }
+      if (mounted) {
+        await _maybeShowLegacyWin();
       }
     });
   }
@@ -115,6 +126,7 @@ class _FounderDashboardState extends State<FounderDashboard> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _maybeShowProjectChallenge();
+          _maybeShowLegacyWin();
         }
       });
     }
@@ -155,6 +167,42 @@ class _FounderDashboardState extends State<FounderDashboard> {
       );
     } finally {
       _projectChallengeShowing = false;
+    }
+  }
+
+  Future<void> _maybeShowLegacyWin() async {
+    if (!mounted ||
+        _legacyWinShowing ||
+        _legacyWinShown ||
+        _tutorialShowing ||
+        _projectChallengeShowing ||
+        widget.controller.state.criticalEvent != CriticalEventType.none ||
+        !widget.controller.state.founderLegacyCompleted) {
+      return;
+    }
+    _legacyWinShowing = true;
+    _legacyWinShown = true;
+    final state = widget.controller.state;
+    try {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          icon: const Icon(Icons.emoji_events_outlined, color: AppColors.yellow, size: 46),
+          title: const AppText('Founder Legacy завершён'),
+          content: AppText(
+            'Вы самостоятельно выпустили ${state.releasedBlueprintCount} направлений и поглотили всех ${state.acquiredRivalCount} крупных конкурентов. Это полноценный финал кампании — компанию можно продолжить развивать в свободном режиме.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const AppText('Продолжить компанию'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      _legacyWinShowing = false;
     }
   }
 
@@ -247,15 +295,32 @@ class _FounderDashboardState extends State<FounderDashboard> {
           PopupMenuButton<String>(
             tooltip: trContext(context, 'Меню компании'),
             onSelected: (value) async {
-              if (value != 'reset') {
+              if (value == 'save') {
+                await showSaveSlotsDialog(
+                  context,
+                  widget.controller,
+                  mode: SaveSlotDialogMode.save,
+                );
                 return;
               }
+              if (value == 'main_menu') {
+                if (!widget.controller.state.paused) {
+                  widget.controller.dispatch(
+                    const TogglePause(),
+                    playSound: false,
+                  );
+                }
+                await widget.controller.saveNow();
+                if (mounted) widget.onExitToMainMenu?.call();
+                return;
+              }
+              if (value != 'reset') return;
               final confirmed = await showDialog<bool>(
                 context: context,
                 builder: (dialogContext) => AlertDialog(
                   title: const AppText('Начать заново?'),
                   content: const AppText(
-                    'Текущее локальное сохранение будет удалено.',
+                    'Текущий автосейв будет заменён. Ручные слоты останутся доступными.',
                   ),
                   actions: <Widget>[
                     TextButton(
@@ -277,6 +342,16 @@ class _FounderDashboardState extends State<FounderDashboard> {
               }
             },
             itemBuilder: (_) => <PopupMenuEntry<String>>[
+              if (widget.controller.supportsManualSaves)
+                const PopupMenuItem<String>(
+                  value: 'save',
+                  child: AppText('Сохранить игру'),
+                ),
+              if (widget.onExitToMainMenu != null)
+                const PopupMenuItem<String>(
+                  value: 'main_menu',
+                  child: AppText('В главное меню'),
+                ),
               const PopupMenuItem<String>(
                 value: 'reset',
                 child: AppText('Новая компания'),

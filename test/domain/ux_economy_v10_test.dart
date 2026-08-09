@@ -54,7 +54,7 @@ void main() {
     'employee can participate in two products at seventy percent efficiency',
     () {
       var state = _twoProducts();
-      final employee = state.candidateById('c_timur')!.toEmployee();
+      final employee = state.candidates.firstWhere((item) => !item.isHr).toEmployee();
       state = state.copyWith(
         employees: <Employee>[employee],
         candidates: state.candidates
@@ -91,7 +91,8 @@ void main() {
 
   test('HR auto-hire assigns specialists and applies premium salaries', () {
     var state = _oneProduct();
-    state = engine.reduce(state, const HireCandidate('c_hr_natalia'));
+    final hrId = state.candidates.singleWhere((candidate) => candidate.isHr).id;
+    state = engine.reduce(state, HireCandidate(hrId));
     final beforeCandidates = <String, double>{
       for (final candidate in state.candidates) candidate.id: candidate.salary,
     };

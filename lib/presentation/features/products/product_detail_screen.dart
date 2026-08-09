@@ -499,21 +499,37 @@ class ProductDetailScreen extends StatelessWidget {
                   ),
                 )
               else
-                ...availableFeatures.map(
-                  (feature) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _FeatureUpgradeCard(
-                      feature: feature,
-                      enabled:
-                          product.stage == ProductStage.live &&
-                          activeFeatureWork == null,
-                      onAdd: () => controller.dispatch(
-                        AddProductFeature(
-                          productId: product.id,
-                          featureId: feature.id,
-                        ),
-                      ),
+                AppCard(
+                  child: ExpansionTile(
+                    key: const Key('product-roadmap-expansion'),
+                    tilePadding: EdgeInsets.zero,
+                    childrenPadding: const EdgeInsets.only(top: 8),
+                    title: AppText(
+                      'Доступно функций: ${availableFeatures.length}',
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
+                    subtitle: const AppText(
+                      'Разверните список, чтобы выбрать следующее обновление.',
+                    ),
+                    children: availableFeatures
+                        .map(
+                          (feature) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _FeatureUpgradeCard(
+                              feature: feature,
+                              enabled:
+                                  product.stage == ProductStage.live &&
+                                  activeFeatureWork == null,
+                              onAdd: () => controller.dispatch(
+                                AddProductFeature(
+                                  productId: product.id,
+                                  featureId: feature.id,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
                   ),
                 ),
               const SizedBox(height: 8),
@@ -1410,9 +1426,15 @@ class _ContinuousImprovementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final level = state.improvementLevel(product.id, option.type);
-    final cost = state.improvementCost(product.id, option.type);
     final released = product.stage == ProductStage.live;
-    final canAfford = released && state.cash >= cost;
+    final activeWork = state.activeFeatureDevelopmentFor(product.id);
+    final ownWork = activeWork != null &&
+        activeWork.featureId.startsWith('__improvement_${option.type.name}_');
+    final canStart = released && activeWork == null;
+    final requiredHours = state.improvementRequiredHours(
+      product.id,
+      option.type,
+    );
     return AppCard(
       hintTitle: option.name,
       hintBody: option.description,
@@ -1437,8 +1459,7 @@ class _ContinuousImprovementCard extends StatelessWidget {
             spacing: 7,
             runSpacing: 7,
             children: [
-              Chip(label: AppText(money(cost))),
-              Chip(label: AppText('+${money(option.monthlyCostDelta)}/мес.')),
+              Chip(label: AppText('≈ ${requiredHours.round()} командо-часов')),
               if (option.speedMultiplier != 1)
                 Chip(
                   label: AppText(
@@ -1453,18 +1474,30 @@ class _ContinuousImprovementCard extends StatelessWidget {
                 Chip(label: AppText('Quality +${option.qualityDelta}')),
             ],
           ),
+          if (ownWork) ...[
+            const SizedBox(height: 10),
+            LinearProgressIndicator(
+              value: activeWork.progress.clamp(0, 1).toDouble(),
+            ),
+            const SizedBox(height: 6),
+            AppText(
+              'В работе ${(activeWork.progress * 100).toStringAsFixed(0)}% • осталось ${state.featureDevelopmentRemainingHours(product.id).round()} командо-часов',
+            ),
+          ],
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             child: FilledButton.tonalIcon(
-              onPressed: canAfford ? onApply : null,
+              onPressed: canStart ? onApply : null,
               icon: const Icon(Icons.upgrade_outlined),
               label: AppText(
                 !released
                     ? 'Доступно после релиза'
-                    : canAfford
-                    ? 'Выпустить улучшение'
-                    : 'Недостаточно денег',
+                    : ownWork
+                    ? 'Улучшение в работе'
+                    : activeWork != null
+                    ? 'Сначала завершите текущую работу'
+                    : 'Начать улучшение',
               ),
             ),
           ),

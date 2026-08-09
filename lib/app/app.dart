@@ -3,20 +3,40 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '../application/controllers/game_controller.dart';
 import '../application/settings/display_preferences.dart';
+import '../domain/commands/game_action.dart';
 import '../presentation/features/dashboard/founder_dashboard.dart';
+import '../presentation/features/menu/main_menu_screen.dart';
 import '../presentation/shared/widgets/global_time_control_bar.dart';
 import 'theme/app_theme.dart';
 import '../presentation/shared/widgets/scoped_listenable_builder.dart';
 
-class FounderOsApp extends StatelessWidget {
+class FounderOsApp extends StatefulWidget {
   const FounderOsApp({
     required this.controller,
     this.showGlobalTimeControls = true,
+    this.startAtMainMenu = false,
     super.key,
   });
 
   final GameController controller;
   final bool showGlobalTimeControls;
+  final bool startAtMainMenu;
+
+  @override
+  State<FounderOsApp> createState() => _FounderOsAppState();
+}
+
+class _FounderOsAppState extends State<FounderOsApp> {
+  late bool _inGame;
+
+  @override
+  void initState() {
+    super.initState();
+    _inGame = !widget.startAtMainMenu;
+    if (widget.startAtMainMenu && !widget.controller.state.paused) {
+      widget.controller.dispatch(const TogglePause(), playSound: false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +54,9 @@ class FounderOsApp extends StatelessWidget {
         builder: (context, child) {
           final media = MediaQuery.of(context);
           final controlsVisible =
-              showGlobalTimeControls && media.viewInsets.bottom == 0;
+              widget.showGlobalTimeControls &&
+              _inGame &&
+              media.viewInsets.bottom == 0;
           const controlsHeight = 58.0;
           final content = MediaQuery(
             data: media.copyWith(
@@ -55,13 +77,23 @@ class FounderOsApp extends StatelessWidget {
                   right: 8,
                   child: Align(
                     alignment: Alignment.topCenter,
-                    child: GlobalTimeControlBar(controller: controller),
+                  child: GlobalTimeControlBar(controller: widget.controller),
                   ),
                 ),
             ],
           );
         },
-        home: FounderDashboard(controller: controller),
+        home: _inGame
+            ? FounderDashboard(
+                controller: widget.controller,
+                onExitToMainMenu: widget.startAtMainMenu
+                    ? () => setState(() => _inGame = false)
+                    : null,
+              )
+            : MainMenuScreen(
+                controller: widget.controller,
+                onEnterGame: () => setState(() => _inGame = true),
+              ),
       ),
     );
   }

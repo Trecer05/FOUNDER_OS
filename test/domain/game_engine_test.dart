@@ -3,6 +3,7 @@ import 'package:founder_os/domain/catalog/contract_catalog.dart';
 import 'package:founder_os/domain/commands/game_action.dart';
 import 'package:founder_os/domain/entities/business_models.dart';
 import 'package:founder_os/domain/entities/game_state.dart';
+import 'package:founder_os/domain/entities/management_models.dart';
 import 'package:founder_os/domain/entities/models.dart';
 import 'package:founder_os/domain/entities/product_evolution_models.dart';
 import 'package:founder_os/domain/simulation/engine/game_engine.dart';
@@ -11,6 +12,7 @@ void main() {
   const engine = GameEngine();
 
   test('same seed and actions produce exactly the same state', () {
+    final deterministicCandidateId = GameState.initial().candidates.first.id;
     final actions = <GameAction>[
       _configuredProduct(
         name: 'Nova',
@@ -18,7 +20,7 @@ void main() {
         frameworkId: 'fastapi_react',
         featureIds: const <String>['chat_history', 'file_analysis'],
       ),
-      const HireCandidate('c_anna'),
+      HireCandidate(deterministicCandidateId),
       const TogglePause(),
       const AdvanceTime(60),
       const SetGameSpeed(GameSpeed.x4),
@@ -38,14 +40,17 @@ void main() {
 
   test('candidate hiring respects numeric office capacity', () {
     var state = _fundedInitial().copyWith(selectedOfficeId: 'garage');
-    state = engine.reduce(state, const HireCandidate('c_timur'));
-    state = engine.reduce(state, const HireCandidate('c_ilya'));
-    state = engine.reduce(state, const HireCandidate('c_maksim'));
-    final fullOffice = engine.reduce(state, const HireCandidate('c_roman'));
+    final onSite = state.candidates.where((item) => !item.remote).take(4).toList();
+    expect(onSite, hasLength(4));
+    for (final candidate in onSite.take(3)) {
+      state = engine.reduce(state, HireCandidate(candidate.id));
+    }
+    final blockedCandidate = onSite[3];
+    final fullOffice = engine.reduce(state, HireCandidate(blockedCandidate.id));
 
     expect(state.onSiteEmployeeCount, 3);
     expect(fullOffice.onSiteEmployeeCount, 3);
-    expect(fullOffice.candidateById('c_roman'), isNotNull);
+    expect(fullOffice.candidateById(blockedCandidate.id), isNotNull);
     expect(fullOffice.office.capacity, 3);
   });
 
@@ -84,7 +89,16 @@ void main() {
         ),
       );
 
-      state = engine.reduce(state, const HireCandidate('c_timur'));
+      final integrationSpecialist = state.candidates.firstWhere(
+        (candidate) =>
+            candidate.remote &&
+            (candidate.role == EmployeeRole.backend ||
+                candidate.role == EmployeeRole.devOps),
+      );
+      state = engine.reduce(
+        state,
+        HireCandidate(integrationSpecialist.id),
+      );
 
       final ai = state.products[0];
       final cloud = state.products[1];
@@ -347,7 +361,7 @@ void main() {
 
   test('acquired product migration requires prepared compute capacity', () {
     var state = _fundedInitial().copyWith(
-      cash: 30000000,
+      cash: 5000000000,
       selectedOfficeId: 'garage',
     );
     state = engine.reduce(
@@ -382,9 +396,17 @@ void main() {
     expect(blocked.acquiredCompanyIds, isEmpty);
 
     state = engine.reduce(state, const RentServerRoom('regional_dc'));
-    state = engine.reduce(state, const InstallServer('cluster_x12'));
-    state = engine.reduce(state, const HireCandidate('c_ilya'));
-    state = engine.reduce(state, const HireCandidate('c_nikita'));
+    for (var index = 0; index < 19; index++) {
+      state = engine.reduce(state, const InstallServer('cluster_x12'));
+    }
+    final devOps = state.candidates.firstWhere(
+      (candidate) => candidate.role == EmployeeRole.devOps,
+    );
+    final security = state.candidates.firstWhere(
+      (candidate) => candidate.role == EmployeeRole.security,
+    );
+    state = engine.reduce(state, HireCandidate(devOps.id));
+    state = engine.reduce(state, HireCandidate(security.id));
     state = engine.reduce(state, const MigrateToOwnedInfrastructure());
     expect(state.usingOwnedInfrastructure, isTrue);
     state = engine.reduce(
@@ -497,7 +519,13 @@ void main() {
           featureIds: const <String>['autoscaling', 'monitoring'],
         ),
       );
-      state = engine.reduce(state, const HireCandidate('c_anna'));
+      final candidateId = state.candidates
+          .firstWhere(
+            (candidate) =>
+                candidate.remote && candidate.role == EmployeeRole.backend,
+          )
+          .id;
+      state = engine.reduce(state, HireCandidate(candidateId));
       final firstId = state.products[0].id;
       final secondId = state.products[1].id;
 
@@ -505,7 +533,7 @@ void main() {
       expect(founderOnlyCapacity, greaterThan(0));
       state = engine.reduce(
         state,
-        AssignEmployeeToProduct(employeeId: 'c_anna', productId: firstId),
+        AssignEmployeeToProduct(employeeId: candidateId, productId: firstId),
       );
 
       expect(state.employeesForProduct(firstId), hasLength(1));
@@ -517,27 +545,30 @@ void main() {
 
       state = engine.reduce(
         state,
-        AssignEmployeeToProduct(employeeId: 'c_anna', productId: secondId),
+        AssignEmployeeToProduct(employeeId: candidateId, productId: secondId),
       );
       expect(state.employeesForProduct(firstId), hasLength(1));
       expect(state.employeesForProduct(secondId), hasLength(1));
-      expect(state.assignmentsForEmployee('c_anna'), hasLength(2));
-      expect(state.employeeAllocationForProduct('c_anna', firstId), 70);
-      expect(state.employeeAllocationForProduct('c_anna', secondId), 70);
+      expect(state.assignmentsForEmployee(candidateId), hasLength(2));
+      expect(state.employeeAllocationForProduct(candidateId, firstId), 70);
+      expect(state.employeeAllocationForProduct(candidateId, secondId), 70);
     },
   );
 
   test('training and raise change exact employee metrics and payroll', () {
     var state = _fundedInitial().copyWith(cash: 10000000);
-    state = engine.reduce(state, const HireCandidate('c_anna'));
-    final before = state.employeeById('c_anna')!;
+    final candidateId = state.candidates
+        .firstWhere((candidate) => candidate.remote && !candidate.isHr)
+        .id;
+    state = engine.reduce(state, HireCandidate(candidateId));
+    final before = state.employeeById(candidateId)!;
     final cashBefore = state.cash;
 
     state = engine.reduce(
       state,
-      const TrainEmployee(employeeId: 'c_anna', programId: 'security'),
+      TrainEmployee(employeeId: candidateId, programId: 'security'),
     );
-    final trained = state.employeeById('c_anna')!;
+    final trained = state.employeeById(candidateId)!;
     expect(trained.skill, before.skill + 4);
     expect(trained.reliability, before.reliability + 6);
     expect(state.cash, cashBefore - 110000);
@@ -545,10 +576,10 @@ void main() {
     final salaryBefore = trained.salary;
     state = engine.reduce(
       state,
-      const GiveEmployeeRaise(employeeId: 'c_anna', percent: 10),
+      GiveEmployeeRaise(employeeId: candidateId, percent: 10),
     );
     expect(
-      state.employeeById('c_anna')!.salary,
+      state.employeeById(candidateId)!.salary,
       closeTo(salaryBefore * 1.1, 0.01),
     );
   });
@@ -607,10 +638,13 @@ void main() {
     expect(state.productRoleCoverage(productId), 0);
     expect(state.missingRoleRequirements(productId), isNotEmpty);
 
-    state = engine.reduce(state, const HireCandidate('c_egor'));
+    final aiCandidate = state.candidates.firstWhere(
+      (candidate) => candidate.role == EmployeeRole.aiMl,
+    );
+    state = engine.reduce(state, HireCandidate(aiCandidate.id));
     state = engine.reduce(
       state,
-      AssignEmployeeToProduct(employeeId: 'c_egor', productId: productId),
+      AssignEmployeeToProduct(employeeId: aiCandidate.id, productId: productId),
     );
 
     expect(state.assignedRoleCount(productId, EmployeeRole.aiMl), 1);
@@ -779,8 +813,9 @@ void main() {
       state = engine.reduce(state, HireCandidate(candidate.id));
     }
     expect(state.onSiteEmployeeCount, state.office.capacity);
-    state = engine.reduce(state, const HireCandidate('c_anna'));
-    expect(state.employeeById('c_anna'), isNotNull);
+    final remoteCandidate = state.candidates.firstWhere((item) => item.remote);
+    state = engine.reduce(state, HireCandidate(remoteCandidate.id));
+    expect(state.employeeById(remoteCandidate.id), isNotNull);
     expect(state.remoteEmployeeCount, 1);
   });
 
@@ -865,10 +900,14 @@ void main() {
     state = _withReleasedWebsite(state, engine);
 
     final template = ContractCatalog.byId('landing_launch');
-    final anna = state.candidateById('c_anna')!.toEmployee();
-    final daria = state.candidateById('c_daria')!.toEmployee();
+    final frontend = state.candidates
+        .firstWhere((candidate) => candidate.role == EmployeeRole.frontend)
+        .toEmployee();
+    final designer = state.candidates
+        .firstWhere((candidate) => candidate.role == EmployeeRole.designer)
+        .toEmployee();
 
-    state = state.copyWith(employees: <Employee>[anna, daria]);
+    state = state.copyWith(employees: <Employee>[frontend, designer]);
 
     final cashBeforeAccept = state.cash;
 
@@ -882,12 +921,23 @@ void main() {
         0.01,
       ),
     );
+    final advanceTransactions = state.financeTransactions
+        .where(
+          (transaction) =>
+              transaction.category == FinanceTransactionCategory.contract,
+        )
+        .toList(growable: false);
+    expect(advanceTransactions, hasLength(1));
+    expect(
+      advanceTransactions.single.amount,
+      closeTo(template.reward * template.upfrontPercent, 0.01),
+    );
 
     state = engine.reduce(
       state,
       SetContractTeam(
         contractId: state.activeContracts.single.id,
-        employeeIds: const <String>['c_anna', 'c_daria'],
+        employeeIds: <String>[frontend.id, designer.id],
       ),
     );
 
@@ -897,7 +947,28 @@ void main() {
 
     expect(state.completedContracts, hasLength(1));
     expect(state.activeContracts, isEmpty);
-    expect(state.cash, greaterThan(cashAfterUpfront));
+    final laterContractPayments = state.financeTransactions
+        .where(
+          (transaction) =>
+              transaction.category == FinanceTransactionCategory.contract &&
+              transaction.simulationMinutes > 0,
+        )
+        .toList(growable: false);
+    expect(
+      laterContractPayments.map((transaction) => transaction.description),
+      containsAll(<String>[
+        'Этап 50% • ${template.name}',
+        'Финальная выплата • ${template.name}',
+      ]),
+    );
+    final totalContractRevenue = state.financeTransactions
+        .where(
+          (transaction) =>
+              transaction.category == FinanceTransactionCategory.contract,
+        )
+        .fold<double>(0, (sum, transaction) => sum + transaction.amount);
+    expect(totalContractRevenue, closeTo(template.reward, 0.01));
+    expect(state.cash, isNot(cashAfterUpfront));
   });
 
   test('parallel contracts share the available reserve capacity', () {

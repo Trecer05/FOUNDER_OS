@@ -95,7 +95,7 @@ void main() {
   testWidgets(
     'team screen exposes filters languages and numeric hiring metrics',
     (tester) async {
-      await _pumpApp(tester);
+      final controller = await _pumpApp(tester);
 
       await tester.tap(find.byIcon(Icons.groups_2_outlined));
       await tester.pumpAndSettle();
@@ -116,24 +116,31 @@ void main() {
 
       expect(searchField, findsOneWidget);
       expect(find.text('Все роли'), findsOneWidget);
-      await tester.enterText(searchField, 'Анна');
+      final target = controller.state.candidates.firstWhere(
+        (candidate) => candidate.remote && candidate.languageIds.isNotEmpty,
+      );
+      await tester.enterText(searchField, target.name);
       await tester.pumpAndSettle();
 
-      final candidateName = find.text('Анна Миронова');
+      final candidateCard = find.byKey(Key('candidate-card-${target.id}'));
+      final hireButton = find.byKey(Key('hire-${target.id}'));
       for (
         var attempt = 0;
-        attempt < 12 && candidateName.evaluate().isEmpty;
+        attempt < 20 && candidateCard.evaluate().isEmpty;
         attempt += 1
       ) {
         await tester.drag(teamList, const Offset(0, -240));
         await tester.pumpAndSettle();
       }
 
-      expect(candidateName, findsOneWidget);
-      expect(find.byKey(const Key('hire-c_anna')), findsOneWidget);
-      expect(find.textContaining('HTML + CSS'), findsWidgets);
-      expect(find.text('78'), findsWidgets);
-      expect(find.text('84'), findsWidgets);
+      expect(candidateCard, findsOneWidget);
+      expect(
+        find.descendant(of: candidateCard, matching: find.text(target.name)),
+        findsOneWidget,
+      );
+      expect(hireButton, findsOneWidget);
+      expect(find.text('${target.skill}'), findsWidgets);
+      expect(find.text('${target.quality}'), findsWidgets);
     },
   );
 
@@ -141,7 +148,10 @@ void main() {
     tester,
   ) async {
     const engine = GameEngine();
-    var state = GameState.initial().copyWith(cash: 10000000);
+    var state = GameState.initial().copyWith(
+      cash: 10000000,
+      selectedOfficeId: 'garage',
+    );
     state = engine.reduce(
       state,
       const CreateConfiguredProduct(
@@ -153,8 +163,9 @@ void main() {
         featureIds: <String>['chat_history', 'file_analysis'],
       ),
     );
-    state = engine.reduce(state, const HireCandidate('c_anna'));
-    state = engine.reduce(state, const HireCandidate('c_daria'));
+    final candidateIds = state.candidates.take(2).map((item) => item.id).toList();
+    state = engine.reduce(state, HireCandidate(candidateIds[0]));
+    state = engine.reduce(state, HireCandidate(candidateIds[1]));
 
     final store = _MemorySnapshotStore()..value = state;
     final controller = GameController(snapshotStore: store, startClock: false);
@@ -172,11 +183,11 @@ void main() {
     await tester.tap(find.byKey(Key('manage-team-$productId')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(Key('assign-c_anna-to-$productId')));
+    await tester.tap(find.byKey(Key('assign-${candidateIds[0]}-to-$productId')));
     await tester.pumpAndSettle();
     expect(find.byKey(Key('save-team-$productId')), findsOneWidget);
 
-    await tester.tap(find.byKey(Key('assign-c_daria-to-$productId')));
+    await tester.tap(find.byKey(Key('assign-${candidateIds[1]}-to-$productId')));
     await tester.pumpAndSettle();
 
     expect(controller.state.employeesForProduct(productId), isEmpty);
@@ -245,6 +256,7 @@ void main() {
         languageIds: <String>['dart'],
         technologyIds: <String>['postgresql'],
         featureIds: <String>['realtime_collaboration'],
+        monetization: MonetizationModel.subscription,
       ),
     );
     final created = state.products.single;
@@ -271,11 +283,16 @@ void main() {
     await tester.pumpAndSettle();
 
     final priceSlider = find.byKey(const Key('subscription-price-slider'));
-    await tester.scrollUntilVisible(
-      priceSlider,
-      350,
-      scrollable: find.byType(Scrollable).first,
-    );
+    final detailsList = find.byType(ListView).first;
+    expect(detailsList, findsOneWidget);
+
+    for (var attempt = 0;
+        attempt < 20 && priceSlider.evaluate().isEmpty;
+        attempt += 1) {
+      await tester.drag(detailsList, const Offset(0, -400));
+      await tester.pumpAndSettle();
+    }
+    await tester.pumpAndSettle();
     expect(priceSlider, findsOneWidget);
 
     final slider = tester.widget<Slider>(priceSlider);

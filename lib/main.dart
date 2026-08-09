@@ -12,5 +12,5 @@ Future<void> main() async {
   final controller = GameController(snapshotStore: GameSnapshotStore());
   await controller.initialize();
 
-  runApp(FounderOsApp(controller: controller));
+  runApp(FounderOsApp(controller: controller, startAtMainMenu: true));
 }

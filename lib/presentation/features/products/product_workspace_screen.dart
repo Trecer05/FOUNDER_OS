@@ -261,6 +261,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
     final phase = state.developmentPhaseFor(product);
     final capacity = state.totalDevelopmentCapacityFor(product);
     final activeWork = state.activeFeatureDevelopmentFor(product.id);
+    final competitor = GameCatalog.competitorFor(product.category);
     return _list([
       SectionHeader(
         title: 'Разработка',
@@ -287,6 +288,22 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
           controller: widget.controller,
           product: product,
         ),
+        if (product.developmentProgress >= 1) ...[
+          const SizedBox(height: 12),
+          AppCard(
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                key: const Key('release-from-development'),
+                onPressed: () => widget.controller.dispatch(
+                  LaunchProduct(product.id),
+                ),
+                icon: const Icon(Icons.rocket_launch),
+                label: const AppText('Разработка завершена — выпустить продукт'),
+              ),
+            ),
+          ),
+        ],
       ],
       const SizedBox(height: 12),
       AppCard(
@@ -337,11 +354,30 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               ...ProductImprovementType.values.map((type) {
                 final option = ProductEvolutionCatalog.improvementByType(type);
                 final level = state.improvementLevel(product.id, type);
+                final ownWork = activeWork != null &&
+                    activeWork.featureId.startsWith(
+                      '__improvement_${type.name}_',
+                    );
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: AppText('${option.name} • уровень ${level + 1}'),
-                  subtitle: AppText(
-                    'Только время команды; отдельного списания денег нет.',
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const AppText(
+                        'Только время команды; отдельного списания денег нет.',
+                      ),
+                      if (ownWork) ...[
+                        const SizedBox(height: 7),
+                        LinearProgressIndicator(
+                          value: activeWork.progress.clamp(0, 1).toDouble(),
+                        ),
+                        const SizedBox(height: 4),
+                        AppText(
+                          'В работе ${(activeWork.progress * 100).toStringAsFixed(0)}% • осталось ${state.featureDevelopmentRemainingHours(product.id).round()} командо-часов',
+                        ),
+                      ],
+                    ],
                   ),
                   trailing: FilledButton(
                     onPressed: activeWork == null
@@ -352,13 +388,57 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                             ),
                           )
                         : null,
-                    child: const AppText('Начать'),
+                    child: AppText(
+                      ownWork
+                          ? '${(activeWork.progress * 100).round()}%'
+                          : activeWork == null
+                          ? 'Начать'
+                          : 'Занято',
+                    ),
                   ),
                 );
               }),
             ],
           ),
         ),
+      if (product.stage == ProductStage.live) ...[
+        const SizedBox(height: 12),
+        AppCard(
+          hintTitle: 'Сравнение с рынком',
+          hintBody:
+              'Это ближайший ориентир в категории. Улучшения продукта должны сокращать разрыв по скорости, дизайну, безопасности, надёжности и полноте функций.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppText(
+                'Относительно ${competitor.productName}',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 10),
+              _row(
+                'Задержка',
+                '${product.speedMs.round()} ms / ${competitor.speedMs.round()} ms',
+              ),
+              _row(
+                'Дизайн',
+                '${product.designScore.round()} / ${competitor.designScore.round()}',
+              ),
+              _row(
+                'Безопасность',
+                '${product.securityScore.round()} / ${competitor.securityScore.round()}',
+              ),
+              _row(
+                'Надёжность',
+                '${percent(product.reliability, fractionDigits: 2)} / ${percent(competitor.reliability, fractionDigits: 2)}',
+              ),
+              _row(
+                'Функции',
+                '${percent(product.featureCoverage)} / 100%',
+              ),
+            ],
+          ),
+        ),
+      ],
     ]);
   }
 
@@ -590,7 +670,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                   ),
                   title: AppText(candidate.name),
                   subtitle: AppText(
-                    '${candidateRoleName(candidate)} • skill ${candidate.skill}'
+                    '${candidateRoleName(candidate)} • ${gradeName(candidate.grade)} • skill ${candidate.skill} • ${money(candidate.salary)}/мес.'
                     '${languageMatch.isEmpty ? '' : ' • ${languageMatch.join(', ')}'}',
                   ),
                   trailing: FilledButton(
@@ -653,13 +733,13 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
   Widget _marketing(Product product) {
     final state = widget.controller.state;
     final agencies = ProductStrategyCatalog.agencies;
-    final channels = ProductStrategyCatalog.channels
-        .where((item) => item.bestForCategories.contains(product.category))
-        .toList(growable: false);
+    final channels = ProductStrategyCatalog.channels;
     _agencyId ??= agencies.first.id;
-    _channelId ??= channels.isEmpty
-        ? ProductStrategyCatalog.channels.first.id
-        : channels.first.id;
+    _channelId ??= channels.first.id;
+    final selectedAgency = ProductStrategyCatalog.agencyById(_agencyId!);
+    final effectiveBudget = math
+        .max(_campaignBudget, selectedAgency.minimumBudget)
+        .toDouble();
     final campaigns = state.activeCampaignsFor(product.id);
     return _list([
       SectionHeader(
@@ -693,7 +773,16 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                     ),
                   )
                   .toList(growable: false),
-              onChanged: (value) => setState(() => _agencyId = value),
+              onChanged: (value) {
+                if (value == null) return;
+                final minimum = ProductStrategyCatalog.agencyById(
+                  value,
+                ).minimumBudget;
+                setState(() {
+                  _agencyId = value;
+                  _campaignBudget = math.max(_campaignBudget, minimum).toDouble();
+                });
+              },
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
@@ -702,10 +791,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               decoration: InputDecoration(
                 labelText: trContext(context, 'Канал'),
               ),
-              items:
-                  (channels.isEmpty
-                          ? ProductStrategyCatalog.channels
-                          : channels)
+              items: channels
                       .map(
                         (item) => DropdownMenuItem(
                           value: item.id,
@@ -721,28 +807,101 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               onChanged: (value) => setState(() => _channelId = value),
             ),
             const SizedBox(height: 12),
-            AppText('Бюджет: ${money(_campaignBudget)}'),
+            AppText('Бюджет: ${money(effectiveBudget)}'),
             Slider(
-              value: _campaignBudget,
-              min: 25000,
-              max: 1000000,
-              divisions: 39,
-              label: money(_campaignBudget),
+              value: effectiveBudget,
+              min: selectedAgency.minimumBudget,
+              max: math.max(selectedAgency.minimumBudget, 3000000).toDouble(),
+              divisions: 30,
+              label: money(effectiveBudget),
               onChanged: (value) => setState(() => _campaignBudget = value),
             ),
+            const SizedBox(height: 8),
+            const AppText(
+              'Прогноз по всем каналам',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 6),
+            ...channels.map((channel) {
+              final forecast = state.advertisingForecast(
+                product: product,
+                agencyId: selectedAgency.id,
+                channelId: channel.id,
+                budget: effectiveBudget,
+              );
+              final selected = channel.id == _channelId;
+              final fit = channel.bestForCategories.contains(product.category);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 7),
+                child: Material(
+                  color: selected
+                      ? AppColors.primary.withAlpha(18)
+                      : AppColors.surfaceMuted,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => setState(() => _channelId = channel.id),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            selected
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_off,
+                            color: selected
+                                ? AppColors.primary
+                                : AppColors.textMuted,
+                            size: 19,
+                          ),
+                          const SizedBox(width: 9),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                AppText(
+                                  channel.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                AppText(
+                                  '${compactNumber(forecast.impressions)} показов • ${compactNumber(forecast.clicks)} переходов • ${forecast.usersLow}–${forecast.usersHigh} пользователей',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                                AppText(
+                                  fit ? 'Хорошее попадание в категорию' : 'Аудитория подходит хуже — прогноз уже учитывает штраф',
+                                  style: TextStyle(
+                                    color: fit ? AppColors.green : AppColors.textMuted,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 4),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed:
                     product.stage == ProductStage.live &&
                         campaigns.length < 2 &&
-                        state.cash >= _campaignBudget
+                        state.cash >= effectiveBudget
                     ? () => widget.controller.dispatch(
                         StartAdvertisingCampaign(
                           productId: product.id,
                           agencyId: _agencyId!,
                           channelId: _channelId!,
-                          budget: _campaignBudget,
+                          budget: effectiveBudget,
                         ),
                       )
                     : null,

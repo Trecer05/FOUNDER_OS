@@ -132,7 +132,7 @@ class MoreScreen extends StatelessWidget {
           icon: Icons.business_center_outlined,
           title: 'Рынок и M&A',
           subtitle:
-              '${state.portfolioHoldings.length} внешних долей • ${state.acquiredCompanyIds.length} приобретений',
+              '${state.portfolioHoldings.length} внешних долей • ${state.acquiredRivalCount} компаний • ${state.acquiredCompanyIds.length} продуктов',
           onTap: () => _open(context, MarketScreen(controller: controller)),
         ),
         const SizedBox(height: 10),

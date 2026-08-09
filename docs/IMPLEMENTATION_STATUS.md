@@ -101,3 +101,26 @@ Before external distribution, complete physical-device UAT on representative iPh
 ```bash
 bash tools/verify_v12_2_pre_testflight.sh
 ```
+
+## v13 release-candidate hotfix
+
+Implemented after the full v13 regression log:
+
+- removed the duplicate finance-ledger entry for a client-contract advance;
+- made generated candidate cards addressable by stable widget keys;
+- collapsed the long post-release feature roadmap so monetization, pricing and advertising remain reachable without scrolling through every feature card;
+- hardened the hiring and subscription-price widget scenarios against lazy list construction;
+- changed the v13 verifier to run every gate and write a short stage-by-stage summary instead of stopping at the first failure.
+
+Verified in the archive environment:
+
+- v13 static release audit — passed;
+- v12.3 compatibility audit — passed;
+- verifier shell syntax — passed;
+- archive integrity and overlay structure — pending final package check.
+
+Requires the local Mac gate because this archive environment has no Flutter SDK:
+
+```bash
+bash tools/verify_v13_release_candidate.sh
+```

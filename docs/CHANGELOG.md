@@ -145,3 +145,16 @@ Added floating time controls, hosting plans, owned migration, dynamic stack sele
 - Optimized simulation projection lookup, immutable state queries, ticker drift handling, save coalescing, background snapshot encoding and UI rebuild scope.
 - Added atomic native snapshot backends in Swift/Kotlin with safe Dart fallback.
 - Added strict RU/EN presentation normalization and localization audit.
+
+## Unreleased — v13 release-candidate regression hotfix
+
+### Fixed
+
+- client-contract advances are recorded once in the finance ledger instead of being duplicated by the generic action recorder;
+- generated candidate widget tests now wait for the actual candidate card, not the matching text inside the search field;
+- subscription pricing remains reachable on products with a large feature roadmap.
+
+### Changed
+
+- the available-feature roadmap is collapsed by default and can be expanded on demand;
+- the v13 verifier runs all gates and writes `v13_verification_summary.txt` with a concise pass/fail result for every stage.

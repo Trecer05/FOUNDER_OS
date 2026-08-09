@@ -13,6 +13,11 @@ enum EmployeeRole {
   support,
 }
 
+/// Seniority is part of the labour market, not a fixed candidate template.
+/// It defines realistic compensation and skill bands while the actual values
+/// inside those bands are generated for every market refresh.
+enum EmployeeGrade { intern, junior, middle, senior }
+
 enum ProductCategory {
   aiAssistant,
   cloud,
@@ -69,6 +74,7 @@ class Candidate {
     required this.remote,
     this.languageIds = const <String>[],
     this.isHr = false,
+    this.grade = EmployeeGrade.middle,
   });
 
   final String id;
@@ -85,6 +91,7 @@ class Candidate {
   final bool remote;
   final List<String> languageIds;
   final bool isHr;
+  final EmployeeGrade grade;
 
   Employee toEmployee({int hiredAtMinutes = 0, double salaryMultiplier = 1}) =>
       Employee(
@@ -105,6 +112,7 @@ class Candidate {
         languageIds: languageIds,
         hiredAtMinutes: hiredAtMinutes,
         isHr: isHr,
+        grade: grade,
       );
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -122,6 +130,7 @@ class Candidate {
     'remote': remote,
     'languageIds': languageIds,
     'isHr': isHr,
+    'grade': grade.name,
   };
 
   factory Candidate.fromJson(Map<String, Object?> json) => Candidate(
@@ -140,6 +149,7 @@ class Candidate {
     languageIds:
         (json['languageIds'] as List?)?.cast<String>() ?? const <String>[],
     isHr: json['isHr'] as bool? ?? false,
+    grade: _employeeGradeFromJson(json),
   );
 }
 
@@ -162,6 +172,7 @@ class Employee {
     this.languageIds = const <String>[],
     this.hiredAtMinutes = 0,
     this.isHr = false,
+    this.grade = EmployeeGrade.middle,
   });
 
   final String id;
@@ -181,6 +192,7 @@ class Employee {
   final List<String> languageIds;
   final int hiredAtMinutes;
   final bool isHr;
+  final EmployeeGrade grade;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
@@ -200,6 +212,7 @@ class Employee {
     'languageIds': languageIds,
     'hiredAtMinutes': hiredAtMinutes,
     'isHr': isHr,
+    'grade': grade.name,
   };
 
   factory Employee.fromJson(Map<String, Object?> json) => Employee(
@@ -221,7 +234,25 @@ class Employee {
         (json['languageIds'] as List?)?.cast<String>() ?? const <String>[],
     hiredAtMinutes: (json['hiredAtMinutes'] as num?)?.toInt() ?? 0,
     isHr: json['isHr'] as bool? ?? false,
+    grade: _employeeGradeFromJson(json),
   );
+}
+
+EmployeeGrade _employeeGradeFromJson(Map<String, Object?> json) {
+  final raw = json['grade'] as String?;
+  for (final grade in EmployeeGrade.values) {
+    if (grade.name == raw) return grade;
+  }
+
+  // v12 and older snapshots did not persist a grade. Infer it from the
+  // strongest stable signal so old saves migrate without changing employees.
+  final skill = (json['skill'] as num?)?.toInt() ?? 70;
+  return switch (skill) {
+    < 45 => EmployeeGrade.intern,
+    < 63 => EmployeeGrade.junior,
+    < 79 => EmployeeGrade.middle,
+    _ => EmployeeGrade.senior,
+  };
 }
 
 class ProductBlueprint {

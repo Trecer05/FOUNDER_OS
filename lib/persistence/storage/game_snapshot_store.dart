@@ -1,4 +1,5 @@
 import 'dart:isolate';
+import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -39,7 +40,7 @@ class SharedPreferencesSnapshotFallbackStore implements SnapshotFallbackStore {
 ///
 /// iOS and Android use a native atomic file as the primary store.
 /// SharedPreferencesAsync remains a portable recovery and migration source.
-class GameSnapshotStore implements SnapshotStore {
+class GameSnapshotStore implements SnapshotStore, SaveSlotStore {
   GameSnapshotStore({
     SharedPreferencesAsync? preferences,
     SnapshotFallbackStore? fallbackStore,
@@ -54,6 +55,8 @@ class GameSnapshotStore implements SnapshotStore {
        _nativeBridge = nativeBridge ?? NativePerformanceBridge.instance;
 
   static const fallbackSnapshotKey = 'founder_os.snapshot.v10.fallback';
+  static const manualSlotIds = <String>['slot_1', 'slot_2', 'slot_3'];
+  static const _manualSlotPrefix = 'founder_os.manual_save.v1.';
 
   static const legacySnapshotKeys = <String>[
     'founder_os.snapshot.v8',
@@ -150,4 +153,62 @@ class GameSnapshotStore implements SnapshotStore {
       await _fallbackStore.remove(key);
     }
   }
+
+  String _manualSlotKey(String slotId) {
+    if (!manualSlotIds.contains(slotId)) {
+      throw ArgumentError.value(slotId, 'slotId', 'Unknown manual save slot');
+    }
+    return '$_manualSlotPrefix$slotId';
+  }
+
+  @override
+  Future<List<SaveSlotSummary>> listSlots() async {
+    final result = <SaveSlotSummary>[];
+    for (final slotId in manualSlotIds) {
+      final raw = await _fallbackStore.getString(_manualSlotKey(slotId));
+      if (raw == null || raw.isEmpty) continue;
+      try {
+        final payload = jsonDecode(raw) as Map<String, dynamic>;
+        final state = GameState.decode(payload['snapshot']! as String);
+        result.add(
+          SaveSlotSummary(
+            slotId: slotId,
+            companyName: state.companyProfile.companyName,
+            simulationMinutes: state.simulationMinutes,
+            cash: state.cash,
+            savedAt: DateTime.fromMillisecondsSinceEpoch(
+              (payload['savedAt']! as num).toInt(),
+            ),
+          ),
+        );
+      } on Object {
+        // A damaged manual slot must never make the autosave unusable.
+      }
+    }
+    return result;
+  }
+
+  @override
+  Future<void> saveSlot(String slotId, GameState state) async {
+    final encoded = await _encode(state);
+    await _fallbackStore.setString(
+      _manualSlotKey(slotId),
+      jsonEncode(<String, Object>{
+        'savedAt': DateTime.now().millisecondsSinceEpoch,
+        'snapshot': encoded,
+      }),
+    );
+  }
+
+  @override
+  Future<GameState?> loadSlot(String slotId) async {
+    final raw = await _fallbackStore.getString(_manualSlotKey(slotId));
+    if (raw == null || raw.isEmpty) return null;
+    final payload = jsonDecode(raw) as Map<String, dynamic>;
+    return GameState.decode(payload['snapshot']! as String);
+  }
+
+  @override
+  Future<void> deleteSlot(String slotId) =>
+      _fallbackStore.remove(_manualSlotKey(slotId));
 }

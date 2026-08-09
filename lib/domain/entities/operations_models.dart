@@ -175,6 +175,7 @@ extension ManagedEmployee on Employee {
       languageIds: languageIds,
       hiredAtMinutes: hiredAtMinutes,
       isHr: isHr,
+      grade: grade,
     );
   }
 }

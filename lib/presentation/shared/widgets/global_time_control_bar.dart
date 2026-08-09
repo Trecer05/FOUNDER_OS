@@ -106,6 +106,7 @@ class GlobalTimeControlBar extends StatelessWidget {
                             'Дата и время ${state.formattedDateTime}',
                           ),
                           text: state.formattedDateTime,
+                          fontSize: 13.5,
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -117,6 +118,7 @@ class GlobalTimeControlBar extends StatelessWidget {
                           ),
                           text: money(state.cash),
                           warning: state.cash < 0,
+                          fontSize: 12.5,
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -146,11 +148,13 @@ class _StatusPill extends StatelessWidget {
     required this.semanticLabel,
     required this.text,
     this.warning = false,
+    this.fontSize = 12,
   });
 
   final String semanticLabel;
   final String text;
   final bool warning;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -174,7 +178,7 @@ class _StatusPill extends StatelessWidget {
               color: warning ? AppColors.red : AppColors.text,
               decoration: TextDecoration.none,
               decorationColor: Colors.transparent,
-              fontSize: 12,
+              fontSize: fontSize,
               fontWeight: FontWeight.w900,
             ),
           ),

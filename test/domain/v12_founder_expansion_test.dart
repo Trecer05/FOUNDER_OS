@@ -108,7 +108,8 @@ void main() {
   test('HR auto-hire fills exact minimum headcount and no spare roles', () {
     var state = _configured(budget: 1200000);
     state = _website(state);
-    state = engine.reduce(state, const HireCandidate('c_hr_natalia'));
+    final hrId = state.candidates.singleWhere((candidate) => candidate.isHr).id;
+    state = engine.reduce(state, HireCandidate(hrId));
     final product = state.products.single;
     final required = state
         .roleRequirementsFor(product)
@@ -128,7 +129,7 @@ void main() {
         requirement.minimumCount,
       );
     }
-    expect(state.employeeById('c_hr_natalia')?.isHr, isTrue);
+    expect(state.employeeById(hrId)?.isHr, isTrue);
   });
 
   test('auto-hire without HR cannot mutate employees', () {
@@ -184,12 +185,12 @@ void main() {
     final rawOfficeRent = skilled.office.monthlyRent;
     expect(skilled.monthlyOfficeCost, lessThan(rawOfficeRent));
 
-    final candidate = skilled.candidateById('c_anna')!;
+    final candidate = skilled.candidates.firstWhere((item) => !item.isHr);
     final beforeCash = skilled.cash;
-    skilled = engine.reduce(skilled, const HireCandidate('c_anna'));
+    skilled = engine.reduce(skilled, HireCandidate(candidate.id));
     final charged = beforeCash - skilled.cash;
     expect(charged, lessThan(candidate.salary * 0.15));
-    expect(skilled.employeeById('c_anna')!.salary, lessThan(candidate.salary));
+    expect(skilled.employeeById(candidate.id)!.salary, lessThan(candidate.salary));
   });
 
   test(

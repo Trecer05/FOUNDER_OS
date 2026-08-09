@@ -60,7 +60,7 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
 
     _initialized = true;
     _lastAutosavedFourHourBlock = _state.simulationMinutes ~/ (4 * 60);
-    if (_startClock) {
+    if (_startClock && !_disposed) {
       _startTicker();
     }
   }
@@ -183,28 +183,30 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
     if (_startClock) {
       _stopTicker();
     }
-    // Drain every old autosave before clearing storage. After this point no
-    // snapshot from the previous company is allowed to win a race.
-    await saveNow();
-    _pendingSnapshot = null;
-    await _snapshotStore.clear();
-
-    _state = _freshInitialState();
-    _storageError = null;
-    _lastAutosavedFourHourBlock = _state.simulationMinutes ~/ (4 * 60);
-    _activeClock.reset();
-    _consumedClockSeconds = 0;
-    notifyListeners();
-
     try {
-      await _snapshotStore.save(_state);
-    } on Object catch (error) {
-      _storageError = 'Не удалось сохранить новую компанию: $error';
-      notifyListeners();
-    }
+      // Drain every old autosave before clearing storage. After this point no
+      // snapshot from the previous company is allowed to win a race.
+      await saveNow();
+      _pendingSnapshot = null;
+      await _snapshotStore.clear();
 
-    if (_startClock && !_disposed) {
-      _startTicker();
+      _state = _freshInitialState();
+      _storageError = null;
+      _lastAutosavedFourHourBlock = _state.simulationMinutes ~/ (4 * 60);
+      _activeClock.reset();
+      _consumedClockSeconds = 0;
+      notifyListeners();
+
+      try {
+        await _snapshotStore.save(_state);
+      } on Object catch (error) {
+        _storageError = 'Не удалось сохранить новую компанию: $error';
+        notifyListeners();
+      }
+    } finally {
+      if (_startClock && !_disposed) {
+        _startTicker();
+      }
     }
   }
 
@@ -231,22 +233,26 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
     if (_snapshotStore is! SaveSlotStore || _disposed) return false;
     final store = _snapshotStore as SaveSlotStore;
     if (_startClock) _stopTicker();
-    await saveNow();
-    final loaded = await store.loadSlot(slotId);
-    if (loaded == null) {
-      if (_startClock && !_disposed) _startTicker();
-      return false;
+    try {
+      await saveNow();
+      final loaded = await store.loadSlot(slotId);
+      if (loaded == null) {
+        return false;
+      }
+      _pendingSnapshot = null;
+      _state = loaded;
+      _storageError = null;
+      _lastAutosavedFourHourBlock = _state.simulationMinutes ~/ (4 * 60);
+      _activeClock.reset();
+      _consumedClockSeconds = 0;
+      notifyListeners();
+      await _snapshotStore.save(_state);
+      return true;
+    } finally {
+      if (_startClock && !_disposed) {
+        _startTicker();
+      }
     }
-    _pendingSnapshot = null;
-    _state = loaded;
-    _storageError = null;
-    _lastAutosavedFourHourBlock = _state.simulationMinutes ~/ (4 * 60);
-    _activeClock.reset();
-    _consumedClockSeconds = 0;
-    notifyListeners();
-    await _snapshotStore.save(_state);
-    if (_startClock && !_disposed) _startTicker();
-    return true;
   }
 
   Future<void> deleteSaveSlot(String slotId) async {

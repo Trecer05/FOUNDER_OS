@@ -689,16 +689,9 @@ class GameEngine {
     final days = deltaMinutes / 1440;
     final employees = state.employees
         .map((employee) {
-          final projects = state.assignmentsForEmployee(employee.id).length;
-          final contracts = state.contractEmployeeAssignments
-              .where(
-                (item) =>
-                    item.employeeId == employee.id &&
-                    state.contractById(item.contractId)?.status ==
-                        ContractStatus.active,
-              )
-              .length;
-          final parallelWork = projects + contracts;
+          final parallelWork = state.activeAssignmentCountForEmployee(
+            employee.id,
+          );
           final targetWorkload = math.min(100, 18 + parallelWork * 31).toInt();
           final current = employee.workload;
           final step = math.max(1, (days * 12).round());
@@ -4431,13 +4424,15 @@ class GameEngine {
     List<EmployeeRole> roles,
     int Function(Employee employee) metric,
   ) {
-    final matching = employees.where(
-      (employee) => roles.contains(employee.role),
-    );
-    if (matching.isEmpty) {
-      return 0;
+    var total = 0;
+    var count = 0;
+    for (final employee in employees) {
+      if (roles.contains(employee.role)) {
+        total += metric(employee);
+        count += 1;
+      }
     }
-    return matching.map(metric).reduce((a, b) => a + b) / matching.length;
+    return count == 0 ? 0 : total / count;
   }
 
   double _priceScore(double ownPrice, double competitorPrice) {

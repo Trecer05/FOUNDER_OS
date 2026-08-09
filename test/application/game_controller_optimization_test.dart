@@ -22,6 +22,29 @@ void main() {
     expect(store.saved!.encode(), controller.state.encode());
     expect(store.saveCount, lessThanOrEqualTo(2));
   });
+
+  testWidgets('failed slot load restarts the simulation clock', (tester) async {
+    final store = _FailingSlotStore();
+    final controller = GameController(
+      snapshotStore: store,
+      tickInterval: const Duration(milliseconds: 10),
+    );
+    try {
+      await controller.initialize();
+      controller.dispatch(const TogglePause());
+
+      await expectLater(controller.loadFromSlot('slot_1'), throwsStateError);
+      final before = controller.state.simulationMinutes;
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 1100)),
+      );
+      await tester.pump(const Duration(milliseconds: 10));
+
+      expect(controller.state.simulationMinutes, greaterThan(before));
+    } finally {
+      controller.dispose();
+    }
+  });
 }
 
 class _SlowStore implements SnapshotStore {
@@ -40,4 +63,31 @@ class _SlowStore implements SnapshotStore {
     await Future<void>.delayed(const Duration(milliseconds: 20));
     saved = state;
   }
+}
+
+class _FailingSlotStore implements SnapshotStore, SaveSlotStore {
+  GameState? saved;
+
+  @override
+  Future<void> clear() async => saved = null;
+
+  @override
+  Future<void> deleteSlot(String slotId) async {}
+
+  @override
+  Future<List<SaveSlotSummary>> listSlots() async => const <SaveSlotSummary>[];
+
+  @override
+  Future<GameState?> load() async => saved;
+
+  @override
+  Future<GameState?> loadSlot(String slotId) async {
+    throw StateError('damaged slot');
+  }
+
+  @override
+  Future<void> save(GameState state) async => saved = state;
+
+  @override
+  Future<void> saveSlot(String slotId, GameState state) async {}
 }

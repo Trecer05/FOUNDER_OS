@@ -246,7 +246,7 @@ class _TeamScreenState extends State<TeamScreen> {
                   (grade) => Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: AppText(gradeName(grade), translate: false),
+                      label: AppText(gradeName(grade)),
                       selected: _grade == grade,
                       onSelected: (_) => setState(() => _grade = grade),
                     ),

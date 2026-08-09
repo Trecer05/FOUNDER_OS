@@ -1238,7 +1238,6 @@ class _AdvertisingCampaignCardState extends State<_AdvertisingCampaignCard> {
                   value: item.id,
                   child: AppText(
                     item.name,
-                    translate: false,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1272,7 +1271,6 @@ class _AdvertisingCampaignCardState extends State<_AdvertisingCampaignCard> {
                   value: item.id,
                   child: AppText(
                     item.name,
-                    translate: false,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1428,7 +1426,8 @@ class _ContinuousImprovementCard extends StatelessWidget {
     final level = state.improvementLevel(product.id, option.type);
     final released = product.stage == ProductStage.live;
     final activeWork = state.activeFeatureDevelopmentFor(product.id);
-    final ownWork = activeWork != null &&
+    final ownWork =
+        activeWork != null &&
         activeWork.featureId.startsWith('__improvement_${option.type.name}_');
     final canStart = released && activeWork == null;
     final requiredHours = state.improvementRequiredHours(

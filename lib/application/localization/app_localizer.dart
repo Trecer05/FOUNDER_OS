@@ -5,6 +5,56 @@ import 'package:flutter/widgets.dart';
 import '../settings/display_preferences.dart';
 import 'glossary_english.dart';
 import 'v12_localization_lexicon.dart';
+import 'v13_english_lexicon.dart';
+
+final class _CompiledEnglishTemplate {
+  _CompiledEnglishTemplate(String source, this.target)
+    : source = source,
+      prefix = source.split(_marker).first,
+      suffix = source.split(_marker).last,
+      literalLength = source.replaceAll(_marker, '').length,
+      pattern = _compile(source);
+
+  static final RegExp _marker = RegExp(r'ZXQPH(\d+)QXZ');
+
+  final String source;
+  final String target;
+  final String prefix;
+  final String suffix;
+  final int literalLength;
+  final RegExp pattern;
+
+  static RegExp _compile(String source) {
+    final buffer = StringBuffer('^');
+    var cursor = 0;
+    for (final match in _marker.allMatches(source)) {
+      buffer.write(RegExp.escape(source.substring(cursor, match.start)));
+      buffer.write('(.*?)');
+      cursor = match.end;
+    }
+    buffer.write(RegExp.escape(source.substring(cursor)));
+    buffer.write(r'$');
+    return RegExp(buffer.toString(), dotAll: true);
+  }
+
+  String? translate(
+    String value,
+    String Function(String value) translateCapture,
+  ) {
+    if (prefix.isNotEmpty && !value.startsWith(prefix)) return null;
+    if (suffix.isNotEmpty && !value.endsWith(suffix)) return null;
+    final match = pattern.firstMatch(value);
+    if (match == null) return null;
+    final captures = <String>[
+      for (var index = 1; index <= match.groupCount; index++)
+        translateCapture(match.group(index) ?? ''),
+    ];
+    return target.replaceAllMapped(_marker, (marker) {
+      final index = int.parse(marker.group(1)!);
+      return index < captures.length ? captures[index] : marker.group(0)!;
+    });
+  }
+}
 
 /// Runtime localization adapter used while historic UI strings are extracted
 /// from the domain/content catalog. New UI should still pass explicit RU/EN
@@ -20,6 +70,73 @@ abstract final class AppLocalizer {
   static const int _cacheLimit = 768;
   static final LinkedHashMap<String, String> _translationCache =
       LinkedHashMap<String, String>();
+  static String _normalizeGeneratedLiteral(String value) => value
+      .replaceAll(r'\n', '\n')
+      .replaceAll(r'\r', '\r')
+      .replaceAll(r'\t', '\t');
+
+  static final Map<String, String> _v13ExactEnglish = <String, String>{
+    for (final entry in V13EnglishLexicon.exact.entries)
+      _normalizeGeneratedLiteral(entry.key): _normalizeGeneratedLiteral(
+        entry.value,
+      ),
+    for (final entry in V13EnglishLexicon.overrides.entries)
+      _normalizeGeneratedLiteral(entry.key): _normalizeGeneratedLiteral(
+        entry.value,
+      ),
+  };
+
+  static final Map<String, String> _v13TemplateOverrides = <String, String>{
+    for (final entry in V13EnglishLexicon.templateOverrides.entries)
+      _normalizeGeneratedLiteral(entry.key): _normalizeGeneratedLiteral(
+        entry.value,
+      ),
+  };
+
+  static final List<_CompiledEnglishTemplate> _v13Templates =
+      <_CompiledEnglishTemplate>[
+        for (final entry in V13EnglishLexicon.templates)
+          _CompiledEnglishTemplate(
+            _normalizeGeneratedLiteral(entry.source),
+            _v13TemplateOverrides[_normalizeGeneratedLiteral(entry.source)] ??
+                _normalizeGeneratedLiteral(entry.target),
+          ),
+      ]..sort(
+        (left, right) => right.literalLength.compareTo(left.literalLength),
+      );
+  static const Map<String, String> _cyrillicNameInitials = <String, String>{
+    'А': 'A',
+    'Б': 'B',
+    'В': 'V',
+    'Г': 'G',
+    'Д': 'D',
+    'Е': 'E',
+    'Ё': 'Yo',
+    'Ж': 'Zh',
+    'З': 'Z',
+    'И': 'I',
+    'Й': 'Y',
+    'К': 'K',
+    'Л': 'L',
+    'М': 'M',
+    'Н': 'N',
+    'О': 'O',
+    'П': 'P',
+    'Р': 'R',
+    'С': 'S',
+    'Т': 'T',
+    'У': 'U',
+    'Ф': 'F',
+    'Х': 'Kh',
+    'Ц': 'Ts',
+    'Ч': 'Ch',
+    'Ш': 'Sh',
+    'Щ': 'Shch',
+    'Ы': 'Y',
+    'Э': 'E',
+    'Ю': 'Yu',
+    'Я': 'Ya',
+  };
   static const Set<String> approvedRussianTerms = <String>{
     'activation',
     'ai',
@@ -670,6 +787,14 @@ abstract final class AppLocalizer {
     if (v12Exact != null) {
       return v12Exact;
     }
+    final v13Exact = _v13ExactEnglish[source];
+    if (v13Exact != null) {
+      return v13Exact;
+    }
+    final template = _translateV13Template(source);
+    if (template != null && !RegExp(r'[А-Яа-яЁё]').hasMatch(template)) {
+      return template;
+    }
     var result = source;
     final v12Phrases = V12LocalizationLexicon.phrases.keys.toList()
       ..sort((a, b) => b.length.compareTo(a.length));
@@ -706,10 +831,45 @@ abstract final class AppLocalizer {
         entry.value,
       );
     }
+    result = _replaceGeneratedEnglishWords(result);
     // Never expose a half-translated/transliterated hybrid such as
     // "Aktivnaya rabota". An untranslated Russian phrase is intentionally
     // obvious during QA and can be added to the authored lexicon.
     return RegExp(r'[А-Яа-яЁё]').hasMatch(result) ? source : result;
+  }
+
+  static String? _translateV13Template(String source) {
+    for (final template in _v13Templates) {
+      final value = template.translate(source, _translateCapturedEnglish);
+      if (value != null) return value;
+    }
+    return null;
+  }
+
+  static String _translateCapturedEnglish(String source) {
+    if (!RegExp(r'[А-Яа-яЁё]').hasMatch(source)) return source;
+    final exact =
+        glossaryEnglish[source] ??
+        _enExact[source] ??
+        V12LocalizationLexicon.exact[source] ??
+        _v13ExactEnglish[source];
+    if (exact != null) return exact;
+
+    return _replaceGeneratedEnglishWords(source);
+  }
+
+  static String _replaceGeneratedEnglishWords(String source) {
+    return source.replaceAllMapped(RegExp(r'[А-Яа-яЁё]+'), (match) {
+      final value = match.group(0)!;
+      final lower = value.toLowerCase();
+      return _enExact[value] ??
+          V12LocalizationLexicon.exact[value] ??
+          _v13ExactEnglish[value] ??
+          _enWords[lower] ??
+          V12LocalizationLexicon.words[lower] ??
+          (value.length == 1 ? _cyrillicNameInitials[value] : null) ??
+          value;
+    });
   }
 
   static String _preserveLeadingCase(String source, String value) {

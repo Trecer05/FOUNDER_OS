@@ -1,5 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:founder_os/application/localization/app_localizer.dart';
+import 'package:founder_os/application/localization/v13_english_lexicon.dart';
+
+String _normalizeGeneratedTemplate(String value) => value
+    .replaceAll(r'\n', '\n')
+    .replaceAll(r'\r', '\r')
+    .replaceAll(r'\t', '\t');
 
 void main() {
   test('Russian UI translates authored phrases without damaging tech copy', () {
@@ -83,5 +89,66 @@ void main() {
   test('missing English copy is never converted to pseudo-English', () {
     const source = 'Новая непереведённая фраза';
     expect(AppLocalizer.toEnglish(source), source);
+  });
+
+  test('complete English lexicon contains no Cyrillic output', () {
+    final cyrillic = RegExp(r'[А-Яа-яЁё]');
+    for (final entry in V13EnglishLexicon.exact.entries) {
+      expect(cyrillic.hasMatch(entry.value), isFalse, reason: entry.key);
+      expect(
+        cyrillic.hasMatch(AppLocalizer.toEnglish(entry.key)),
+        isFalse,
+        reason: entry.key,
+      );
+    }
+    for (final entry in V13EnglishLexicon.overrides.entries) {
+      expect(cyrillic.hasMatch(entry.value), isFalse, reason: entry.key);
+    }
+    for (final template in V13EnglishLexicon.templates) {
+      expect(
+        cyrillic.hasMatch(template.target),
+        isFalse,
+        reason: template.source,
+      );
+      final runtimeSource = _normalizeGeneratedTemplate(template.source);
+      expect(
+        cyrillic.hasMatch(AppLocalizer.toEnglish(runtimeSource)),
+        isFalse,
+        reason: template.source,
+      );
+    }
+    for (final entry in V13EnglishLexicon.templateOverrides.entries) {
+      expect(cyrillic.hasMatch(entry.value), isFalse, reason: entry.key);
+    }
+  });
+
+  test('English dynamic labels preserve values and translate the whole UI', () {
+    expect(AppLocalizer.toEnglish('Найм +20%'), 'Hiring +20%');
+    expect(AppLocalizer.toEnglish('Часы +45'), 'Hours +45');
+    expect(AppLocalizer.toEnglish('Новый проект • 2/6'), 'New project • 2/6');
+    expect(
+      AppLocalizer.toEnglish('Сохранение повреждено: invalid snapshot'),
+      'Save is corrupted: invalid snapshot',
+    );
+    expect(AppLocalizer.toEnglish('Сергей Третьяков'), 'Sergey Tretyakov');
+    expect(AppLocalizer.toEnglish('С'), 'S');
+  });
+
+  test('multiline dynamic hints use the runtime template representation', () {
+    expect(
+      AppLocalizer.toEnglish('Недоступно\n\nСледующий шаг: Недоступно'),
+      'Unavailable\n\nNext step: Unavailable',
+    );
+  });
+
+  test('nested candidate copy cannot leak Russian into English hints', () {
+    final result = AppLocalizer.toEnglish(
+      'Junior • Backend: Открывает автоматический подбор команды под проект. '
+      'Грейд задаёт вилку зарплаты и показателей, конкретный профиль сгенерирован для этой игры. '
+      'Языки: не указаны. Remote-кандидат не занимает офисное место.',
+    );
+    expect(RegExp(r'[А-Яа-яЁё]').hasMatch(result), isFalse);
+    expect(result, contains('Grade determines'));
+    expect(result, contains('Languages: not specified'));
   });
 }

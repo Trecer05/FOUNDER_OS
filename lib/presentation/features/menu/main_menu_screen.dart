@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
 import '../../../application/settings/display_preferences.dart';
+import '../../../application/localization/app_localizer.dart';
 import '../../shared/widgets/company_logo.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../../application/localization/app_text.dart';
@@ -39,13 +40,21 @@ class MainMenuScreen extends StatelessWidget {
                 shrinkWrap: true,
                 padding: const EdgeInsets.all(24),
                 children: [
-                  const Icon(Icons.rocket_launch_rounded, size: 48, color: AppColors.primary),
+                  const Icon(
+                    Icons.rocket_launch_rounded,
+                    size: 48,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(height: 14),
                   const AppText(
                     'FOUNDER.OS',
                     translate: false,
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: 1.2),
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                    ),
                   ),
                   const SizedBox(height: 5),
                   const AppText(
@@ -158,7 +167,11 @@ class _CompanyResume extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            CompanyLogo(logoId: state.companyProfile.logoId, size: 44, borderRadius: 12),
+            CompanyLogo(
+              logoId: state.companyProfile.logoId,
+              size: 44,
+              borderRadius: 12,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -172,7 +185,6 @@ class _CompanyResume extends StatelessWidget {
                   const SizedBox(height: 3),
                   AppText(
                     'День ${state.day} • ${money(state.cash)} • ${state.products.length} продуктов',
-                    translate: false,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -203,10 +215,18 @@ class _SettingsDialog extends StatelessWidget {
               children: [
                 DropdownButtonFormField<AppLanguage>(
                   initialValue: preferences.language,
-                  decoration: const InputDecoration(labelText: 'Language / Язык'),
+                  decoration: InputDecoration(
+                    labelText: trContext(context, 'Язык'),
+                  ),
                   items: const [
-                    DropdownMenuItem(value: AppLanguage.ru, child: Text('Русский')),
-                    DropdownMenuItem(value: AppLanguage.en, child: Text('English')),
+                    DropdownMenuItem(
+                      value: AppLanguage.ru,
+                      child: AppText('Русский'),
+                    ),
+                    DropdownMenuItem(
+                      value: AppLanguage.en,
+                      child: AppText('Английский'),
+                    ),
                   ],
                   onChanged: (value) {
                     if (value != null) preferences.setLanguage(value);
@@ -215,7 +235,9 @@ class _SettingsDialog extends StatelessWidget {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<DisplayCurrency>(
                   initialValue: preferences.currency,
-                  decoration: const InputDecoration(labelText: 'Валюта / Currency'),
+                  decoration: InputDecoration(
+                    labelText: trContext(context, 'Валюта'),
+                  ),
                   items: DisplayCurrency.values
                       .map(
                         (value) => DropdownMenuItem(

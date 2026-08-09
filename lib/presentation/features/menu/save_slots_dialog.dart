@@ -5,6 +5,7 @@ import '../../../app/theme/app_theme.dart';
 import '../../../persistence/storage/snapshot_store.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../../application/localization/app_text.dart';
+import '../../../application/localization/app_localizer.dart';
 
 enum SaveSlotDialogMode { save, load }
 
@@ -144,7 +145,6 @@ class _SaveSlotsDialogState extends State<_SaveSlotsDialog> {
                   if (summary != null)
                     AppText(
                       'День ${summary.simulationMinutes ~/ 1440 + 1} • ${money(summary.cash)} • ${_date(summary.savedAt)}',
-                      translate: false,
                       style: Theme.of(context).textTheme.bodySmall,
                     )
                   else
@@ -159,7 +159,7 @@ class _SaveSlotsDialogState extends State<_SaveSlotsDialog> {
             ),
             if (summary != null)
               IconButton(
-                tooltip: 'Удалить слот',
+                tooltip: trContext(context, 'Удалить слот'),
                 onPressed: busy ? null : () => _delete(slotId),
                 icon: const Icon(Icons.delete_outline),
               ),

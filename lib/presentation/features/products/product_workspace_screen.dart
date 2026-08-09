@@ -295,11 +295,12 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               width: double.infinity,
               child: FilledButton.icon(
                 key: const Key('release-from-development'),
-                onPressed: () => widget.controller.dispatch(
-                  LaunchProduct(product.id),
-                ),
+                onPressed: () =>
+                    widget.controller.dispatch(LaunchProduct(product.id)),
                 icon: const Icon(Icons.rocket_launch),
-                label: const AppText('Разработка завершена — выпустить продукт'),
+                label: const AppText(
+                  'Разработка завершена — выпустить продукт',
+                ),
               ),
             ),
           ),
@@ -354,7 +355,8 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               ...ProductImprovementType.values.map((type) {
                 final option = ProductEvolutionCatalog.improvementByType(type);
                 final level = state.improvementLevel(product.id, type);
-                final ownWork = activeWork != null &&
+                final ownWork =
+                    activeWork != null &&
                     activeWork.featureId.startsWith(
                       '__improvement_${type.name}_',
                     );
@@ -431,10 +433,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                 'Надёжность',
                 '${percent(product.reliability, fractionDigits: 2)} / ${percent(competitor.reliability, fractionDigits: 2)}',
               ),
-              _row(
-                'Функции',
-                '${percent(product.featureCoverage)} / 100%',
-              ),
+              _row('Функции', '${percent(product.featureCoverage)} / 100%'),
             ],
           ),
         ),
@@ -766,7 +765,6 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                       value: item.id,
                       child: AppText(
                         item.name,
-                        translate: false,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -780,7 +778,9 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                 ).minimumBudget;
                 setState(() {
                   _agencyId = value;
-                  _campaignBudget = math.max(_campaignBudget, minimum).toDouble();
+                  _campaignBudget = math
+                      .max(_campaignBudget, minimum)
+                      .toDouble();
                 });
               },
             ),
@@ -792,18 +792,17 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                 labelText: trContext(context, 'Канал'),
               ),
               items: channels
-                      .map(
-                        (item) => DropdownMenuItem(
-                          value: item.id,
-                          child: AppText(
-                            item.name,
-                            translate: false,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      )
-                      .toList(growable: false),
+                  .map(
+                    (item) => DropdownMenuItem(
+                      value: item.id,
+                      child: AppText(
+                        item.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
               onChanged: (value) => setState(() => _channelId = value),
             ),
             const SizedBox(height: 12),
@@ -872,9 +871,13 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                                 AppText(
-                                  fit ? 'Хорошее попадание в категорию' : 'Аудитория подходит хуже — прогноз уже учитывает штраф',
+                                  fit
+                                      ? 'Хорошее попадание в категорию'
+                                      : 'Аудитория подходит хуже — прогноз уже учитывает штраф',
                                   style: TextStyle(
-                                    color: fit ? AppColors.green : AppColors.textMuted,
+                                    color: fit
+                                        ? AppColors.green
+                                        : AppColors.textMuted,
                                     fontSize: 11,
                                   ),
                                 ),

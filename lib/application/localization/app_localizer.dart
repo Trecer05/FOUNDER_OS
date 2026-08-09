@@ -13,9 +13,9 @@ import 'v12_localization_lexicon.dart';
 /// The adapter has two strict guarantees:
 /// - RU presentation translates only authored UI phrases. Unknown Latin copy,
 ///   proper names, technical roles, units and promo codes remain untouched.
-/// - EN presentation contains no Cyrillic fallback. Known copy is translated;
-///   unknown proper/content names are transliterated rather than leaking a
-///   second alphabet into the English interface.
+/// - EN presentation uses authored translations. If a phrase is missing from
+///   the lexicon, it stays unchanged instead of being turned into unreadable
+///   pseudo-English by transliteration.
 abstract final class AppLocalizer {
   static const int _cacheLimit = 768;
   static final LinkedHashMap<String, String> _translationCache =
@@ -706,7 +706,10 @@ abstract final class AppLocalizer {
         entry.value,
       );
     }
-    return _transliterateRemainingCyrillic(result);
+    // Never expose a half-translated/transliterated hybrid such as
+    // "Aktivnaya rabota". An untranslated Russian phrase is intentionally
+    // obvious during QA and can be added to the authored lexicon.
+    return RegExp(r'[А-Яа-яЁё]').hasMatch(result) ? source : result;
   }
 
   static String _preserveLeadingCase(String source, String value) {
@@ -757,83 +760,6 @@ abstract final class AppLocalizer {
 
   static bool _isApprovedTerm(String value) =>
       approvedRussianTerms.contains(value.toLowerCase());
-
-  static String _transliterateRemainingCyrillic(String value) {
-    const map = <String, String>{
-      'А': 'A',
-      'Б': 'B',
-      'В': 'V',
-      'Г': 'G',
-      'Д': 'D',
-      'Е': 'E',
-      'Ё': 'Yo',
-      'Ж': 'Zh',
-      'З': 'Z',
-      'И': 'I',
-      'Й': 'Y',
-      'К': 'K',
-      'Л': 'L',
-      'М': 'M',
-      'Н': 'N',
-      'О': 'O',
-      'П': 'P',
-      'Р': 'R',
-      'С': 'S',
-      'Т': 'T',
-      'У': 'U',
-      'Ф': 'F',
-      'Х': 'Kh',
-      'Ц': 'Ts',
-      'Ч': 'Ch',
-      'Ш': 'Sh',
-      'Щ': 'Sch',
-      'Ъ': '',
-      'Ы': 'Y',
-      'Ь': '',
-      'Э': 'E',
-      'Ю': 'Yu',
-      'Я': 'Ya',
-      'а': 'a',
-      'б': 'b',
-      'в': 'v',
-      'г': 'g',
-      'д': 'd',
-      'е': 'e',
-      'ё': 'yo',
-      'ж': 'zh',
-      'з': 'z',
-      'и': 'i',
-      'й': 'y',
-      'к': 'k',
-      'л': 'l',
-      'м': 'm',
-      'н': 'n',
-      'о': 'o',
-      'п': 'p',
-      'р': 'r',
-      'с': 's',
-      'т': 't',
-      'у': 'u',
-      'ф': 'f',
-      'х': 'kh',
-      'ц': 'ts',
-      'ч': 'ch',
-      'ш': 'sh',
-      'щ': 'sch',
-      'ъ': '',
-      'ы': 'y',
-      'ь': '',
-      'э': 'e',
-      'ю': 'yu',
-      'я': 'ya',
-    };
-    final buffer = StringBuffer();
-    for (final rune in value.runes) {
-      final character = String.fromCharCode(rune);
-      buffer.write(map[character] ?? character);
-    }
-    return buffer.toString();
-  }
 }
 
 String trContext(BuildContext context, String source) {

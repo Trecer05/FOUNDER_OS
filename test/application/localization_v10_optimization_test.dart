@@ -49,12 +49,39 @@ void main() {
     );
   });
 
-  test('English UI never leaks Cyrillic', () {
+  test('authored English UI copy contains no Cyrillic', () {
     final result = AppLocalizer.toEnglish(
       'День 4 · Команда проекта · Вычислительная мощность · Переговоры',
     );
     expect(RegExp(r'[А-Яа-яЁё]').hasMatch(result), isFalse);
     expect(result, contains('Day'));
     expect(result.toLowerCase(), contains('project team'));
+  });
+
+  test('English overview uses authored copy instead of transliteration', () {
+    const expected = <String, String>{
+      'Операционная сводка': 'Operations overview',
+      'Выделено продуктам': 'Allocated to products',
+      'Активные контракты': 'Active contracts',
+      'Портфель внешних долей': 'External equity portfolio',
+      'Активная работа': 'Current work',
+      'Собственных продуктов пока нет.': 'No owned products yet.',
+      'Создайте первый продукт во вкладке «Продукты».':
+          'Create your first product in the Products tab.',
+      'Важные новости': 'Important news',
+      'Пока пусто.': 'Nothing yet.',
+      'Причины последних изменений': 'Reasons for recent changes',
+      'Лента объясняет решения и ограничения.':
+          'The feed explains decisions and constraints.',
+    };
+
+    for (final entry in expected.entries) {
+      expect(AppLocalizer.toEnglish(entry.key), entry.value, reason: entry.key);
+    }
+  });
+
+  test('missing English copy is never converted to pseudo-English', () {
+    const source = 'Новая непереведённая фраза';
+    expect(AppLocalizer.toEnglish(source), source);
   });
 }

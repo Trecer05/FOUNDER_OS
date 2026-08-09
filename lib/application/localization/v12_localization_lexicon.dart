@@ -4,6 +4,44 @@ abstract final class V12LocalizationLexicon {
     "Продукты": "Products",
     "Инфра": "Infrastructure",
     "Ещё": "More",
+    "Компания": "Company",
+    "Только сводные показатели. Метрики каждого продукта находятся в его карточке.":
+        "Company-level metrics only. Product metrics are available in each product card.",
+    "Доля основателя": "Founder ownership",
+    "Оценка": "Valuation",
+    "Загрузка серверов": "Server load",
+    "Положительный": "Positive",
+    "Операционная сводка": "Operations overview",
+    "Числа компании без смешивания отдельных систем.":
+        "Company totals, kept separate from individual systems.",
+    "Выделено продуктам": "Allocated to products",
+    "Активные контракты": "Active contracts",
+    "Портфель внешних долей": "External equity portfolio",
+    "Активная работа": "Current work",
+    "Собственных продуктов пока нет.": "No owned products yet.",
+    "Короткая сводка по разработке, команде, деньгам и состоянию каждого продукта.":
+        "A quick overview of development, team, finances, and product health.",
+    "Сводка по проектам": "Project overview",
+    "Здесь нет полной продуктовой аналитики. Карточка помогает быстро заметить остановившуюся разработку, нехватку ролей, убыток, устаревание или перегрузку. Нажмите на неё для подробностей.":
+        "This is not the full product analytics view. Use each card to spot stalled development, missing roles, losses, aging, or overload, then tap it for details.",
+    "Первый продукт": "First product",
+    "Откройте вкладку «Продукты», выберите категорию, стек и функции. Новый проект начнётся с 0% разработки.":
+        "Open the Products tab, then choose a category, stack, and features. A new project starts at 0% development.",
+    "Создайте первый продукт во вкладке «Продукты».":
+        "Create your first product in the Products tab.",
+    "Важные новости": "Important news",
+    "Пока пусто.": "Nothing yet.",
+    "Только события рынка, атак, сделок и релизов.":
+        "Market events, attacks, deals, and releases only.",
+    "Причины последних изменений": "Reasons for recent changes",
+    "Лента объясняет решения и ограничения.":
+        "The feed explains decisions and constraints.",
+    "Показывает стадию, размер команды, покрытие обязательных ролей, свежесть, пользователей и приблизительный прямой результат продукта без общих расходов компании.":
+        "Shows the stage, team size, required-role coverage, freshness, users, and the product's approximate direct result before company-wide costs.",
+    "Показывает прогресс разработки, назначенную команду и покрытие обязательных ролей. При нулевой скорости назначьте сотрудников в разделе «Операции».":
+        "Shows development progress, the assigned team, and required-role coverage. If development speed is zero, assign employees in Operations.",
+    "Откройте карточку, чтобы назначить команду и увидеть подробный ETA.":
+        "Open the card to assign a team and view the detailed ETA.",
     "Настройки": "Settings",
     "Новая игра": "New game",
     "Загрузить игру": "Load game",
@@ -228,6 +266,12 @@ abstract final class V12LocalizationLexicon {
   };
 
   static const Map<String, String> phrases = <String, String>{
+    "Сводка ": "Overview: ",
+    " в офисе": " on-site",
+    " мес.": " mo.",
+    " дн.": " d",
+    "/мес.": "/mo.",
+    "Эфф. ": "Efficiency ",
     "не хватает денег": "insufficient funds",
     "не хватает": "not enough",
     "заблокирован": "blocked",
@@ -330,7 +374,7 @@ abstract final class V12LocalizationLexicon {
     "кандидаты": "candidates",
     "кандидатов": "candidates",
     "роль": "role",
-    "роли": "role",
+    "роли": "roles",
     "ролей": "roles",
     "день": "day",
     "дней": "days",
@@ -421,6 +465,7 @@ abstract final class V12LocalizationLexicon {
     "контрактов": "contracts",
     "новости": "news",
     "новость": "news",
+    "свежесть": "freshness",
     "навык": "skill",
     "навыки": "skills",
     "навыков": "skills",

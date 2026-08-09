@@ -4,6 +4,7 @@ import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
 import '../../../domain/catalog/game_catalog.dart';
 import '../../../domain/commands/game_action.dart';
+import '../../../domain/entities/game_state.dart';
 import '../../../domain/entities/models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/compact_team_averages.dart';
@@ -89,7 +90,7 @@ class _TeamScreenState extends State<TeamScreen> {
           key: const Key('team-hr-status'),
           hintTitle: 'HR / People Partner',
           hintBody:
-              'Только нанятый HR открывает автоматический подбор команды. HR не считается Product Manager и не закрывает продуктовые дефициты.',
+              'Только нанятый HR открывает автоматический подбор команды. Грейд HR ограничивает грейд автоматически нанимаемых специалистов: intern нанимает intern, junior — до junior, middle — до middle, senior — любой грейд. HR не считается Product Manager и не закрывает продуктовые дефициты.',
           child: Builder(
             builder: (context) {
               final hiredHr = state.employees
@@ -109,7 +110,7 @@ class _TeamScreenState extends State<TeamScreen> {
                   const SizedBox(height: 6),
                   AppText(
                     hiredHr.isNotEmpty
-                        ? 'Нанят: ${hiredHr.map((item) => item.name).join(', ')}. Автоподбор доступен.'
+                        ? 'Нанят: ${hiredHr.map((item) => '${item.name} (${gradeName(item.grade)})').join(', ')}. Автоподбор доступен.'
                         : 'HR не нанят. Автоподбор проектов заблокирован.',
                   ),
                   if (hiredHr.isEmpty && hrCandidates.isNotEmpty) ...[
@@ -332,7 +333,7 @@ class _TeamScreenState extends State<TeamScreen> {
           ...state.employees.map(
             (employee) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: _EmployeeCard(employee: employee),
+              child: _EmployeeCard(state: state, employee: employee),
             ),
           ),
       ],
@@ -489,11 +490,15 @@ class _CandidateCard extends StatelessWidget {
 }
 
 class _EmployeeCard extends StatelessWidget {
-  const _EmployeeCard({required this.employee});
+  const _EmployeeCard({required this.state, required this.employee});
+  final GameState state;
   final Employee employee;
 
   @override
   Widget build(BuildContext context) {
+    final productivity = state.employeeProductivityPercent(employee);
+    final activeWorks = state.activeAssignmentCountForEmployee(employee.id);
+    final factors = state.employeeProductivityFactors(employee);
     return AppCard(
       hintTitle: 'Сотрудник ${employee.name}',
       hintBody:
@@ -543,6 +548,60 @@ class _EmployeeCard extends StatelessWidget {
                 (id) => _ValueChip(GameCatalog.languageById(id).name),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            key: Key('employee-productivity-${employee.id}'),
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: productivity >= 70
+                  ? AppColors.green.withAlpha(14)
+                  : AppColors.yellow.withAlpha(18),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: productivity >= 70
+                    ? AppColors.green.withAlpha(80)
+                    : AppColors.yellow.withAlpha(90),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: AppText(
+                        'Текущая продуктивность',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    AppText(
+                      '${productivity.round()}%',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                AppText(
+                  'Активных работ: $activeWorks. Назначения без текущей разработки или обновления не создают штраф.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 8),
+                ...factors.map(
+                  (factor) => Padding(
+                    padding: const EdgeInsets.only(bottom: 3),
+                    child: AppText(
+                      '• $factor',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

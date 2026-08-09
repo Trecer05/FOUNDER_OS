@@ -5,11 +5,12 @@ String money(double value) => DisplayPreferences.instance.formatMoney(value);
 
 String compactNumber(num value) {
   final absolute = value.abs();
+  final english = DisplayPreferences.instance.isEnglish;
   if (absolute >= 1000000) {
-    return '${(value / 1000000).toStringAsFixed(1)} млн';
+    return '${(value / 1000000).toStringAsFixed(1)} ${english ? 'M' : 'млн'}';
   }
   if (absolute >= 1000) {
-    return '${(value / 1000).toStringAsFixed(1)} тыс.';
+    return '${(value / 1000).toStringAsFixed(1)} ${english ? 'K' : 'тыс.'}';
   }
   return value.round().toString();
 }

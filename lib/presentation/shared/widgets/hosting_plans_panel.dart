@@ -78,17 +78,20 @@ class HostingPlansPanel extends StatelessWidget {
                       ),
                       if (current)
                         const Chip(label: AppText('Текущий'))
+                      else if (owned)
+                        const Chip(
+                          avatar: Icon(Icons.pie_chart_outline, size: 18),
+                          label: AppText('Миграция в «Мощностях»'),
+                        )
                       else
                         FilledButton(
                           key: Key('select-hosting-${plan.id}'),
                           onPressed: reasons.isEmpty
                               ? () => controller.dispatch(
-                                  owned
-                                      ? const MigrateToOwnedInfrastructure()
-                                      : RentHostingPlan(plan.id),
+                                  RentHostingPlan(plan.id),
                                 )
                               : null,
-                          child: AppText(owned ? 'Мигрировать' : 'Арендовать'),
+                          child: const AppText('Арендовать'),
                         ),
                     ],
                   ),
@@ -138,6 +141,13 @@ class HostingPlansPanel extends StatelessWidget {
                           ),
                         ),
                       ),
+                    ),
+                  ],
+                  if (owned && !current) ...[
+                    const SizedBox(height: 7),
+                    const AppText(
+                      'Кнопка миграции находится во вкладке «Мощности» рядом с распределением compute.',
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ],
                 ],

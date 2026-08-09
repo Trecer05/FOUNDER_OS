@@ -124,3 +124,19 @@ Requires the local Mac gate because this archive environment has no Flutter SDK:
 ```bash
 bash tools/verify_v13_release_candidate.sh
 ```
+
+## v14 publisher-UAT polish
+
+Implemented from physical-device publisher UAT:
+
+- closed remaining English-locale leaks from data-driven fragments and locale-aware compact-number suffixes;
+- moved owned-server migration to the compute-allocation tab;
+- made HR grade constrain automatic hires, reused existing staff first and added deterministic sourcing for the final missing role;
+- stopped inactive product assignments from reducing parallel efficiency;
+- added visible employee productivity percentages with concrete positive and negative factors;
+- made every credit tap show an immediate approval/refusal result;
+- restored monetization and subscription-price editing in the product workspace;
+- removed the duplicate advertising-channel dropdown;
+- added three high-density late-game server tiers with better cost per CU.
+
+Archive verification must run formatting, the full English audit, focused v14 tests, static analysis, the complete Flutter suite, an iOS Simulator build and an Android debug build before the patch is accepted.

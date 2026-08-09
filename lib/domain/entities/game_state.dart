@@ -246,7 +246,9 @@ class GameState {
       )];
 
   int activeAssignmentCountForEmployee(String employeeId) {
-    final productCount = assignmentsForEmployee(employeeId).length;
+    final productCount = assignmentsForEmployee(
+      employeeId,
+    ).where((item) => productHasActiveWork(item.productId)).length;
     final contractCount =
         (_index.contractAssignmentsByEmployee[employeeId] ??
                 const <ContractEmployeeAssignment>[])
@@ -257,6 +259,18 @@ class GameState {
             )
             .length;
     return productCount + contractCount;
+  }
+
+  bool productHasActiveWork(String productId) {
+    final product = productById(productId);
+    if (product == null || product.stage == ProductStage.failed) {
+      return false;
+    }
+    if (product.stage == ProductStage.development ||
+        product.stage == ProductStage.beta) {
+      return true;
+    }
+    return activeFeatureDevelopmentFor(productId) != null;
   }
 
   double parallelEfficiencyForEmployee(String employeeId) =>
@@ -275,6 +289,66 @@ class GameState {
       return 0;
     }
     return parallelEfficiencyForEmployee(employeeId) * 100;
+  }
+
+  double employeeBaseProductivityPercent(Employee employee) =>
+      (employee.skill * 0.40 +
+              employee.speed * 0.34 +
+              employee.quality * 0.18 +
+              employee.autonomy * 0.08)
+          .clamp(0, 100)
+          .toDouble();
+
+  double employeeMoraleProductivityMultiplier(Employee employee) =>
+      (0.90 + (employee.morale - 70) * 0.003).clamp(0.75, 1.09).toDouble();
+
+  double employeeWorkloadProductivityMultiplier(Employee employee) {
+    if (employee.workload <= 82) {
+      return 1;
+    }
+    return (1 - (employee.workload - 82) * 0.012).clamp(0.72, 1.0).toDouble();
+  }
+
+  double employeeCoreProductivityPercent(Employee employee) =>
+      (employeeBaseProductivityPercent(employee) *
+              employeeMoraleProductivityMultiplier(employee) *
+              employeeWorkloadProductivityMultiplier(employee))
+          .clamp(0, 109)
+          .toDouble();
+
+  double employeeProductivityPercent(Employee employee) =>
+      (employeeCoreProductivityPercent(employee) *
+              parallelEfficiencyForEmployee(employee.id))
+          .clamp(0, 109)
+          .toDouble();
+
+  List<String> employeeProductivityFactors(Employee employee) {
+    final factors = <String>[
+      'Навыки и грейд: база ${employeeBaseProductivityPercent(employee).round()}%',
+    ];
+    if (employee.morale >= 85) {
+      factors.add('Высокая мораль повышает продуктивность');
+    } else if (employee.morale < 65) {
+      factors.add('Низкая мораль снижает продуктивность');
+    } else {
+      factors.add('Мораль в норме');
+    }
+    if (employee.workload > 82) {
+      factors.add('Перегрузка ${employee.workload}% снижает продуктивность');
+    } else {
+      factors.add('Нагрузка без штрафа');
+    }
+    final activeWorks = activeAssignmentCountForEmployee(employee.id);
+    if (activeWorks > 1) {
+      factors.add(
+        '$activeWorks активные работы делят вклад до ${(parallelEfficiencyForEmployee(employee.id) * 100).round()}%',
+      );
+    } else if (activeWorks == 1) {
+      factors.add('Одна активная работа: штрафа за параллельность нет');
+    } else {
+      factors.add('Нет активной работы: сотрудник не создаёт вклад');
+    }
+    return List<String>.unmodifiable(factors);
   }
 
   List<Employee> employeesForProduct(String productId) =>
@@ -599,12 +673,7 @@ class GameState {
     final selectedLanguages = product.languageIds.toSet();
     var effectiveFte = 0.0;
     for (final employee in team) {
-      final productivity =
-          (employee.skill * 0.40 +
-              employee.speed * 0.34 +
-              employee.quality * 0.18 +
-              employee.autonomy * 0.08) /
-          100;
+      final productivity = employeeCoreProductivityPercent(employee) / 100;
       final phaseWeight = phase.criticalRoles.contains(employee.role)
           ? 1.0
           : engineeringRoles.contains(employee.role)
@@ -1093,7 +1162,8 @@ class GameState {
     final agencyMultiplier = (0.60 + agency.quality * 0.65)
         .clamp(0.75, 1.35)
         .toDouble();
-    final conversion = channelConversion *
+    final conversion =
+        channelConversion *
         agencyMultiplier *
         maturity *
         qualityFactor *
@@ -1210,7 +1280,9 @@ class GameState {
       (GameCatalog.productBlueprints.length * 0.70).ceil();
 
   int get releasedBlueprintCount {
-    final catalogIds = GameCatalog.productBlueprints.map((item) => item.id).toSet();
+    final catalogIds = GameCatalog.productBlueprints
+        .map((item) => item.id)
+        .toSet();
     return products
         .where(
           (product) =>
@@ -1224,7 +1296,8 @@ class GameState {
   }
 
   double get legacyProductProgress =>
-      (releasedBlueprintCount / math.max(1, requiredReleasedBlueprintsForLegacy))
+      (releasedBlueprintCount /
+              math.max(1, requiredReleasedBlueprintsForLegacy))
           .clamp(0, 1)
           .toDouble();
 
@@ -1238,8 +1311,9 @@ class GameState {
       .where((company) => marketCompanyFullyAcquired(company.id))
       .length;
 
-  int get remainingRivalCount =>
-      math.max(0, GameCatalog.marketCompanies.length - acquiredRivalCount).toInt();
+  int get remainingRivalCount => math
+      .max(0, GameCatalog.marketCompanies.length - acquiredRivalCount)
+      .toInt();
 
   bool get founderLegacyCompleted =>
       !gameOver && legacyProductRequirementMet && remainingRivalCount == 0;
@@ -1827,9 +1901,7 @@ class GameState {
       }
     }
     return GameCatalog.marketCompanies
-        .where(
-          (company) => employeeIds.contains('acq_${company.id}_lead'),
-        )
+        .where((company) => employeeIds.contains('acq_${company.id}_lead'))
         .map((company) => company.id)
         .toList(growable: false);
   }

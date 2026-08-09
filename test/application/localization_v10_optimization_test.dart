@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:founder_os/application/localization/app_localizer.dart';
 import 'package:founder_os/application/localization/v13_english_lexicon.dart';
+import 'package:founder_os/application/settings/display_preferences.dart';
+import 'package:founder_os/presentation/shared/widgets/formatters.dart';
 
 String _normalizeGeneratedTemplate(String value) => value
     .replaceAll(r'\n', '\n')
@@ -59,7 +61,11 @@ void main() {
     final result = AppLocalizer.toEnglish(
       'День 4 · Команда проекта · Вычислительная мощность · Переговоры',
     );
-    expect(RegExp(r'[А-Яа-яЁё]').hasMatch(result), isFalse);
+    expect(
+      RegExp(r'[А-Яа-яЁё]').hasMatch(result),
+      isFalse,
+      reason: 'source remained partially untranslated: $result',
+    );
     expect(result, contains('Day'));
     expect(result.toLowerCase(), contains('project team'));
   });
@@ -139,6 +145,30 @@ void main() {
       AppLocalizer.toEnglish('Недоступно\n\nСледующий шаг: Недоступно'),
       'Unavailable\n\nNext step: Unavailable',
     );
+  });
+
+  test('publisher UAT screenshot strings never leak Cyrillic in English', () {
+    final cyrillic = RegExp(r'[А-Яа-яЁё]');
+    for (final source in <String>[
+      '+ Дешёвый найм',
+      '− Ошибки растут вместе с кодовой базой',
+      'Исследование и требования • 0%',
+      '8.9 тыс. показов • 494 переходов • 48–142 пользователей',
+      'Плюсы: Дешёвый старт • Не нужен DevOps',
+      'Nova One → MERCURY.com • AI-автоматизация • интеграция ещё 12 дн. • рост +4% • compute ×1.16',
+      'Активная работа',
+      'Причины последних изменений',
+    ]) {
+      final translated = AppLocalizer.toEnglish(source);
+      expect(cyrillic.hasMatch(translated), isFalse, reason: source);
+    }
+  });
+
+  test('compact English metrics use K and M suffixes', () async {
+    await DisplayPreferences.instance.setLanguage(AppLanguage.en);
+    expect(compactNumber(8900), '8.9 K');
+    expect(compactNumber(260000000), '260.0 M');
+    await DisplayPreferences.instance.setLanguage(AppLanguage.ru);
   });
 
   test('nested candidate copy cannot leak Russian into English hints', () {

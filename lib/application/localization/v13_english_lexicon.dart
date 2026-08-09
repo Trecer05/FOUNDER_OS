@@ -9,6 +9,57 @@ class V13EnglishTemplate {
 
 abstract final class V13EnglishLexicon {
   static const Map<String, String> overrides = <String, String>{
+    'Плюсы': 'Pros',
+    'Минусы': 'Cons',
+    'Локализовать атаку': 'Contain the attack',
+    'Команда справится': 'Team available',
+    'Команда проекта': 'Project team',
+    'переходов': 'clicks',
+    'дн.': 'days',
+    'HR подбирает кандидатов не выше собственного грейда.':
+        'HR selects candidates at or below their own grade.',
+    'Активно': 'Active',
+    'Высокая мораль повышает продуктивность':
+        'High morale increases productivity',
+    'Высокоплотный GPU-узел для крупного inference. Даёт заметно больше compute на каждый рубль и rack unit.':
+        'High-density GPU node for large-scale inference. Provides much more compute per unit of cost and rack space.',
+    'Готовый кластер для нескольких растущих сервисов и тяжёлых баз данных. Экономичнее набора небольших серверов.':
+        'A ready cluster for several growing services and demanding databases. More efficient than a fleet of small servers.',
+    'Для найма недостающих специалистов нужен HR.':
+        'HR is required to hire missing specialists.',
+    'Изменение доступно сейчас.': 'A change is available now.',
+    'Кнопка миграции находится во вкладке «Мощности» рядом с распределением compute.':
+        'The migration button is in the Capacity tab next to compute allocation.',
+    'Кредит оформлен, деньги зачислены на баланс.':
+        'The loan was issued and the funds were added to cash.',
+    'Купите хотя бы один сервер.': 'Buy at least one server.',
+    'Миграция в «Мощностях»': 'Migrate in Capacity',
+    'Миграция на собственные серверы': 'Migration to owned servers',
+    'Миграция пока недоступна': 'Migration is not available yet',
+    'Мигрировать на свои серверы': 'Migrate to owned servers',
+    'Модель определяет формулу выручки. После релиза её можно менять раз в 30 игровых дней. Для подписки отдельно настраивается цена.':
+        'The model determines the revenue formula. After release, it can be changed once every 30 game days. Subscription pricing is configured separately.',
+    'Монетизация продукта': 'Product monetization',
+    'Мораль в норме': 'Morale is stable',
+    'Нагрузка без штрафа': 'Workload has no penalty',
+    'Наймите DevOps-инженера.': 'Hire a DevOps engineer.',
+    'Наймите Security Engineer.': 'Hire a Security Engineer.',
+    'Нет активной работы: сотрудник не создаёт вклад':
+        'No active work: the employee is not contributing',
+    'Низкая мораль снижает продуктивность': 'Low morale reduces productivity',
+    'Одна активная работа: штрафа за параллельность нет':
+        'One active work item: no parallel-work penalty',
+    'Переход на свои серверы': 'Switching to owned servers',
+    'Сверхмощный AI-кластер для большой модели и массового трафика. Требует серьёзного питания и охлаждения, но имеет лучшую стоимость CU.':
+        'A hyperscale AI cluster for large models and mass traffic. It requires substantial power and cooling but offers the best cost per CU.',
+    'Серверная не выдерживает rack, power или cooling.':
+        'The server room cannot support the required rack, power, or cooling.',
+    'Сначала арендуйте серверную и установите железо. После миграции арендованный hosting отключается, а продуктам становится доступна подготовленная физическая мощность.':
+        'Rent a server room and install hardware first. After migration, rented hosting is disabled and prepared physical compute becomes available to products.',
+    'Текущая продуктивность': 'Current productivity',
+    'Только нанятый HR открывает автоматический подбор команды. Грейд HR ограничивает грейд автоматически нанимаемых специалистов: intern нанимает intern, junior — до junior, middle — до middle, senior — любой грейд. HR не считается Product Manager и не закрывает продуктовые дефициты.':
+        'Only a hired HR unlocks automatic staffing. HR grade limits automatic hires: intern hires interns, junior up to junior, middle up to middle, and senior any grade. HR does not count as a Product Manager or fill product role gaps.',
+    'Условия кредита не изменились.': 'Loan terms did not change.',
     '0. CEO — тоже часть команды': '0. The CEO is part of the team too',
     'Автосохранение + 3 ручных слота': 'Autosave + 3 manual slots',
     'Операционка': 'Operations',
@@ -4142,9 +4193,48 @@ abstract final class V13EnglishLexicon {
       'Языковые слоты: ZXQPH0QXZ • база ZXQPH1QXZ • влияние framework ZXQPH2QXZZXQPH3QXZ',
       'Language slots: ZXQPH0QXZ • base ZXQPH1QXZ • framework adjustment ZXQPH2QXZZXQPH3QXZ',
     ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ активные работы делят вклад до ZXQPH1QXZ%',
+      'ZXQPH0QXZ active work items split contribution to ZXQPH1QXZ%',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: HR грейда ZXQPH1QXZ назначил из штата ZXQPH2QXZ и нанял ZXQPH3QXZ специалистов. HR подбирает кандидатов не выше собственного грейда; лишний запас не создаётся.',
+      'ZXQPH0QXZ: ZXQPH1QXZ HR assigned ZXQPH2QXZ existing employees and hired ZXQPH3QXZ specialists. HR selects candidates at or below their own grade; no spare headcount is created.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: HR грейда ZXQPH1QXZ не смог закрыть ZXQPH2QXZ мест. Проверьте бюджет и офисные места.',
+      'ZXQPH0QXZ: ZXQPH1QXZ HR could not fill ZXQPH2QXZ positions. Check the budget and available office seats.',
+    ),
+    V13EnglishTemplate(
+      'Активных работ: ZXQPH0QXZ. Назначения без текущей разработки или обновления не создают штраф.',
+      'Active work items: ZXQPH0QXZ. Assignments without current development or update work do not create a penalty.',
+    ),
+    V13EnglishTemplate(
+      'Навыки и грейд: база ZXQPH0QXZ%',
+      'Skills and grade: ZXQPH0QXZ% base',
+    ),
+    V13EnglishTemplate(
+      'Нужно ещё ZXQPH0QXZ на миграцию.',
+      'ZXQPH0QXZ more is required for migration.',
+    ),
+    V13EnglishTemplate(
+      'Перегрузка ZXQPH0QXZ% снижает продуктивность',
+      'ZXQPH0QXZ% overload reduces productivity',
+    ),
+    V13EnglishTemplate(
+      'Подготовлено ZXQPH0QXZ CU • стоимость перехода ZXQPH1QXZ.',
+      'Prepared: ZXQPH0QXZ CU • migration cost: ZXQPH1QXZ.',
+    ),
+    V13EnglishTemplate(
+      'Прогноз дохода: ZXQPH0QXZ – ZXQPH1QXZ / мес.',
+      'Revenue forecast: ZXQPH0QXZ–ZXQPH1QXZ/mo.',
+    ),
+    V13EnglishTemplate('ZXQPH0QXZ за CU', 'ZXQPH0QXZ per CU'),
   ];
 
   static const Map<String, String> templateOverrides = <String, String>{
+    'ZXQPH0QXZ показов • ZXQPH1QXZ переходов • ZXQPH2QXZ–ZXQPH3QXZ пользователей':
+        'ZXQPH0QXZ impressions • ZXQPH1QXZ clicks • ZXQPH2QXZ–ZXQPH3QXZ users',
     'Дата и время ZXQPH0QXZ': 'Date and time ZXQPH0QXZ',
     'Деньги компании ZXQPH0QXZ': 'Company cash ZXQPH0QXZ',
     'Сохранение повреждено: ZXQPH0QXZ': 'Save is corrupted: ZXQPH0QXZ',

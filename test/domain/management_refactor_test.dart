@@ -87,15 +87,26 @@ void main() {
 
     state = engine.reduce(
       state,
-      SetProductTeam(
-        productId: productId,
-        employeeIds: <String>[firstId],
-      ),
+      SetProductTeam(productId: productId, employeeIds: <String>[firstId]),
     );
 
     expect(
       state.employeesForProduct(productId).map((item) => item.id),
       <String>[firstId],
+    );
+
+    state = engine.reduce(
+      state,
+      ApplyProductImprovement(
+        productId: productId,
+        type: ProductImprovementType.performance,
+      ),
+    );
+    expect(
+      state.activeFeatureDevelopmentFor(productId),
+      isNotNull,
+      reason:
+          'The live product must have active work before parallel load is asserted.',
     );
 
     state = engine.reduce(
@@ -114,6 +125,8 @@ void main() {
       state.employeesForContract(contractId).map((item) => item.id).toSet(),
       <String>{firstId, secondId},
     );
+    expect(state.activeAssignmentCountForEmployee(firstId), 2);
+    expect(state.activeAssignmentCountForEmployee(secondId), 1);
     expect(
       state.employeeById(firstId)!.workload,
       greaterThan(state.employeeById(secondId)!.workload),
@@ -121,10 +134,7 @@ void main() {
 
     state = engine.reduce(
       state,
-      SetProductTeam(
-        productId: productId,
-        employeeIds: <String>[firstId],
-      ),
+      SetProductTeam(productId: productId, employeeIds: <String>[firstId]),
     );
 
     expect(state.employeesForProduct(productId).single.id, firstId);

@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## v14 — Publisher UAT polish
+
+- R7: старый тест параллельной работы теперь создаёт реальную активную доработку
+  live-продукта перед сравнением нагрузки продукта и контракта. Пассивное
+  назначение на выпущенный продукт по-прежнему не считается текущей работой.
+
+- Fixed remaining data-driven English localization leaks visible in device screenshots.
+- Moved owned-server migration beside compute allocation.
+- Added HR-grade hiring limits, existing-staff reuse and deterministic sourcing of missing roles.
+- Counted only genuine active work when applying parallel-work efficiency.
+- Added visible employee productivity and factor explanations.
+- Added immediate credit-action feedback.
+- Restored workspace monetization and subscription pricing controls.
+- Removed the duplicate advertising channel selector.
+- Added three high-density AI/enterprise server options with stronger compute economics.
+
 ## Unreleased — company simulation rework
 
 ### Added

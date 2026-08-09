@@ -64,6 +64,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
   String? _agencyId;
   String? _channelId;
   double _campaignBudget = 80000;
+  double? _priceDraft;
 
   Product? get _product =>
       widget.controller.state.productById(widget.productId);
@@ -733,6 +734,19 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
     final state = widget.controller.state;
     final agencies = ProductStrategyCatalog.agencies;
     final channels = ProductStrategyCatalog.channels;
+    final strategy = ProductStrategyCatalog.strategyFor(product.blueprintId);
+    final monetizationCooldown = state.monetizationCooldownRemainingDays(
+      product.id,
+    );
+    final revenueForecast = state.revenueForecastFor(product);
+    final blueprint = GameCatalog.blueprintById(product.blueprintId);
+    final minimumPrice = math.max(49, blueprint.basePrice * 0.25).toDouble();
+    final maximumPrice = math
+        .max(minimumPrice, blueprint.basePrice * 4)
+        .toDouble();
+    final priceValue = (_priceDraft ?? product.price)
+        .clamp(minimumPrice, maximumPrice)
+        .toDouble();
     _agencyId ??= agencies.first.id;
     _channelId ??= channels.first.id;
     final selectedAgency = ProductStrategyCatalog.agencyById(_agencyId!);
@@ -747,6 +761,87 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
         hintTitle: 'Отдельный рекламный раздел',
         hintBody:
             'Кампании сгруппированы отдельно от разработки. Перед запуском видны агентство, канал, бюджет и прогноз пользователей.',
+      ),
+      const SizedBox(height: 12),
+      AppCard(
+        key: const Key('workspace-monetization-controls'),
+        hintTitle: 'Монетизация продукта',
+        hintBody:
+            'Модель определяет формулу выручки. После релиза её можно менять раз в 30 игровых дней. Для подписки отдельно настраивается цена.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DropdownButtonFormField<MonetizationModel>(
+              key: ValueKey(
+                'workspace-monetization-${product.id}-${product.monetization.name}',
+              ),
+              initialValue: product.monetization,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: trContext(context, 'Модель монетизации'),
+                helperText: monetizationCooldown > 0
+                    ? trContext(
+                        context,
+                        'Следующая смена через $monetizationCooldown дн.',
+                      )
+                    : trContext(context, 'Изменение доступно сейчас.'),
+              ),
+              items: strategy.allowedMonetizationModels
+                  .map(
+                    (model) => DropdownMenuItem(
+                      value: model,
+                      child: AppText(monetizationName(model)),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged:
+                  product.stage == ProductStage.live && monetizationCooldown > 0
+                  ? null
+                  : (model) {
+                      if (model == null) return;
+                      widget.controller.dispatch(
+                        SetProductMonetization(
+                          productId: product.id,
+                          model: model,
+                        ),
+                      );
+                    },
+            ),
+            const SizedBox(height: 10),
+            AppText(
+              'Прогноз дохода: ${money(revenueForecast.low)} – ${money(revenueForecast.high)} / мес.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            if (product.stage == ProductStage.live &&
+                product.monetization == MonetizationModel.subscription) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Expanded(child: AppText('Цена подписки')),
+                  AppText(
+                    money(priceValue),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ],
+              ),
+              Slider(
+                key: const Key('workspace-subscription-price-slider'),
+                value: priceValue,
+                min: minimumPrice,
+                max: maximumPrice,
+                divisions: 20,
+                label: money(priceValue),
+                onChanged: (value) => setState(() => _priceDraft = value),
+                onChangeEnd: (value) {
+                  widget.controller.dispatch(
+                    SetProductPrice(productId: product.id, price: value),
+                  );
+                  setState(() => _priceDraft = null);
+                },
+              ),
+            ],
+          ],
+        ),
       ),
       const SizedBox(height: 12),
       AppCard(
@@ -783,27 +878,6 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                       .toDouble();
                 });
               },
-            ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              initialValue: _channelId,
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: trContext(context, 'Канал'),
-              ),
-              items: channels
-                  .map(
-                    (item) => DropdownMenuItem(
-                      value: item.id,
-                      child: AppText(
-                        item.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged: (value) => setState(() => _channelId = value),
             ),
             const SizedBox(height: 12),
             AppText('Бюджет: ${money(effectiveBudget)}'),

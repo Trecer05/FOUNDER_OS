@@ -37,16 +37,32 @@ void main() {
       state = engine.reduce(state, HireCandidate(candidate.id));
       expect(state.employeeById(candidate.id), isNotNull);
 
-      GameState withAssignments(int count) => state.copyWith(
-        employeeAssignments: <EmployeeAssignment>[
-          for (var index = 0; index < count; index += 1)
-            EmployeeAssignment(
-              employeeId: candidate.id,
-              productId: 'parallel_product_$index',
-              assignedAtMinutes: index,
+      GameState withAssignments(int count) {
+        var next = state;
+        for (var index = 0; index < count; index += 1) {
+          next = engine.reduce(
+            next,
+            CreateConfiguredProduct(
+              name: 'Parallel Product $index',
+              blueprintId: 'company_website',
+              frameworkId: 'static_web',
+              languageIds: const <String>['html_css'],
+              technologyIds: const <String>[],
+              featureIds: const <String>['landing_page'],
             ),
-        ],
-      );
+          );
+        }
+        return next.copyWith(
+          employeeAssignments: <EmployeeAssignment>[
+            for (var index = 0; index < count; index += 1)
+              EmployeeAssignment(
+                employeeId: candidate.id,
+                productId: next.products[index].id,
+                assignedAtMinutes: index,
+              ),
+          ],
+        );
+      }
 
       expect(withAssignments(1).parallelEfficiencyForEmployee(candidate.id), 1);
       expect(

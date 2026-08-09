@@ -93,6 +93,16 @@ abstract final class AppLocalizer {
       ),
   };
 
+  static final List<MapEntry<String, String>> _v13InlineEnglish =
+      _v13ExactEnglish.entries
+          .where(
+            (entry) =>
+                entry.key.length >= 3 &&
+                RegExp(r'[А-Яа-яЁё]').hasMatch(entry.key),
+          )
+          .toList(growable: false)
+        ..sort((left, right) => right.key.length.compareTo(left.key.length));
+
   static final List<_CompiledEnglishTemplate> _v13Templates =
       <_CompiledEnglishTemplate>[
         for (final entry in V13EnglishLexicon.templates)
@@ -608,6 +618,9 @@ abstract final class AppLocalizer {
     'переговоры с инвестором': 'investor negotiation',
     'ответ инвестора': 'investor response',
     'льготный срок': 'grace period',
+    'интеграция ещё': 'integration completes in',
+    'рост +': 'growth +',
+    'дн.': 'days',
     'частичная выплата': 'partial payout',
     'разработка функции': 'feature development',
     'готово': 'complete',
@@ -796,6 +809,7 @@ abstract final class AppLocalizer {
       return template;
     }
     var result = source;
+    result = _replaceV13InlineEnglish(result);
     final v12Phrases = V12LocalizationLexicon.phrases.keys.toList()
       ..sort((a, b) => b.length.compareTo(a.length));
     for (final phrase in v12Phrases) {
@@ -854,8 +868,20 @@ abstract final class AppLocalizer {
         V12LocalizationLexicon.exact[source] ??
         _v13ExactEnglish[source];
     if (exact != null) return exact;
+    var result = _replaceV13InlineEnglish(source);
+    result = _replaceGeneratedEnglishWords(result);
+    return result;
+  }
 
-    return _replaceGeneratedEnglishWords(source);
+  static String _replaceV13InlineEnglish(String source) {
+    var result = source;
+    for (final entry in _v13InlineEnglish) {
+      result = result.replaceAllMapped(
+        RegExp('(^|[^А-Яа-яЁё])${RegExp.escape(entry.key)}(?=[^А-Яа-яЁё]|\$)'),
+        (match) => '${match.group(1) ?? ''}${entry.value}',
+      );
+    }
+    return result;
   }
 
   static String _replaceGeneratedEnglishWords(String source) {

@@ -170,7 +170,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         width: double.infinity,
                         child: FilledButton.icon(
                           key: const Key('request-business-loan'),
-                          onPressed: () => widget.controller.dispatch(
+                          onPressed: () => _dispatchCreditWithFeedback(
+                            context,
                             const RequestBusinessLoan(),
                           ),
                           icon: const Icon(Icons.request_quote_outlined),
@@ -191,7 +192,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         width: double.infinity,
                         child: FilledButton.icon(
                           key: const Key('accept-emergency-loan'),
-                          onPressed: () => widget.controller.dispatch(
+                          onPressed: () => _dispatchCreditWithFeedback(
+                            context,
                             const AcceptEmergencyLoan(),
                           ),
                           icon: const Icon(Icons.account_balance_outlined),
@@ -439,6 +441,27 @@ class _FinanceScreenState extends State<FinanceScreen> {
         );
       },
     );
+  }
+
+  void _dispatchCreditWithFeedback(BuildContext context, GameAction action) {
+    final before = widget.controller.state;
+    widget.controller.dispatch(action);
+    final after = widget.controller.state;
+    final message =
+        after.feed.isNotEmpty &&
+            (before.feed.isEmpty || after.feed.first != before.feed.first)
+        ? after.feed.first
+        : after.activeLoan != null && before.activeLoan == null
+        ? 'Кредит оформлен, деньги зачислены на баланс.'
+        : 'Условия кредита не изменились.';
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const Key('credit-result-message'),
+          content: AppText(message),
+        ),
+      );
   }
 }
 

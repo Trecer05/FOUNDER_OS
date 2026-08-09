@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
 import '../../../domain/catalog/game_catalog.dart';
+import '../../../domain/catalog/v9_content_catalog.dart';
 import '../../../domain/commands/game_action.dart';
+import '../../../domain/entities/v9_models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/hosting_plans_panel.dart';
@@ -412,6 +414,9 @@ class _HardwareList extends StatelessWidget {
                         'SLA ${percent(hardware.hardwareReliability, fractionDigits: 2)}',
                       ),
                       _ValueChip(money(hardware.purchaseCost)),
+                      _ValueChip(
+                        '${money(hardware.purchaseCost / hardware.computeUnits)} за CU',
+                      ),
                       _ValueChip('${money(hardware.monthlyCost)}/мес.'),
                     ],
                   ),
@@ -447,11 +452,6 @@ class _AllocationList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = controller.state;
-    if (state.products.isEmpty) {
-      return const AppCard(
-        child: AppText('Создайте продукт, чтобы распределять мощности.'),
-      );
-    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -461,100 +461,193 @@ class _AllocationList extends StatelessWidget {
               'Выделено ${directPercent(state.totalAllocatedPercent)} из 100%. Каждый продукт использует только свой процент.',
         ),
         const SizedBox(height: 10),
-        AppCard(
-          child: Column(
+        _OwnedMigrationCard(controller: controller),
+        const SizedBox(height: 12),
+        if (state.products.isEmpty)
+          const AppCard(
+            child: AppText('Создайте продукт, чтобы распределять мощности.'),
+          )
+        else ...[
+          AppCard(
+            child: Column(
+              children: [
+                LinearProgressIndicator(
+                  value: (state.totalAllocatedPercent / 100)
+                      .clamp(0, 1)
+                      .toDouble(),
+                  color: state.totalAllocatedPercent <= 100
+                      ? AppColors.primary
+                      : AppColors.red,
+                ),
+                const SizedBox(height: 8),
+                ResponsiveInfoRow(
+                  'Всего Compute',
+                  '${state.totalComputeUnits.round()} CU',
+                ),
+                ResponsiveInfoRow(
+                  'Свободно',
+                  directPercent(100 - state.totalAllocatedPercent),
+                  last: true,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...state.products.map((product) {
+            final value =
+                drafts[product.id] ?? product.allocatedCapacityPercent;
+            final load = state.productServerLoad(product);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              AppText(
+                                product.name,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              AppText(
+                                '${categoryName(product.category)} • load ${percent(load, fractionDigits: 1)}',
+                              ),
+                            ],
+                          ),
+                        ),
+                        AppText(
+                          '${value.round()}%',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ],
+                    ),
+                    Slider(
+                      value: value.clamp(0, 100).toDouble(),
+                      min: 0,
+                      max: 100,
+                      divisions: 20,
+                      label: '${value.round()}%',
+                      onChanged: (next) => onDraftChanged(product.id, next),
+                      onChangeEnd: (next) {
+                        controller.dispatch(
+                          SetProductAllocation(
+                            productId: product.id,
+                            percent: next,
+                          ),
+                        );
+                        final applied = controller.state
+                            .productById(product.id)!
+                            .allocatedCapacityPercent;
+                        onDraftChanged(product.id, applied);
+                      },
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: AppText(
+                            'Доступно: ${state.allocatedComputeFor(product.id).round()} CU',
+                          ),
+                        ),
+                        AppText(
+                          'Нужно: ${state.productComputeDemand(product).round()} CU',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ],
+    );
+  }
+}
+
+class _OwnedMigrationCard extends StatelessWidget {
+  const _OwnedMigrationCard({required this.controller});
+
+  final GameController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = controller.state;
+    final ownedPlan = V9ContentCatalog.hostingPlans.firstWhere(
+      (plan) => plan.kind == HostingKind.owned,
+    );
+    final roles = state.employees.map((employee) => employee.role.name).toSet();
+    final reasons = <String>[
+      if (state.installedServers.isEmpty) 'Купите хотя бы один сервер.',
+      if (!state.infrastructureFitsRoom)
+        'Серверная не выдерживает rack, power или cooling.',
+      if (!roles.contains('devOps')) 'Наймите DevOps-инженера.',
+      if (!roles.contains('security')) 'Наймите Security Engineer.',
+      if (state.cash < ownedPlan.setupCost)
+        'Нужно ещё ${money(ownedPlan.setupCost - state.cash)} на миграцию.',
+    ];
+    final ready = reasons.isEmpty;
+    return AppCard(
+      key: const Key('owned-migration-capacity-card'),
+      hintTitle: 'Переход на свои серверы',
+      hintBody:
+          'Сначала арендуйте серверную и установите железо. После миграции арендованный hosting отключается, а продуктам становится доступна подготовленная физическая мощность.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              LinearProgressIndicator(
-                value: (state.totalAllocatedPercent / 100)
-                    .clamp(0, 1)
-                    .toDouble(),
-                color: state.totalAllocatedPercent <= 100
-                    ? AppColors.primary
-                    : AppColors.red,
+              const Expanded(
+                child: AppText(
+                  'Миграция на собственные серверы',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
               ),
-              const SizedBox(height: 8),
-              ResponsiveInfoRow(
-                'Всего Compute',
-                '${state.totalComputeUnits.round()} CU',
-              ),
-              ResponsiveInfoRow(
-                'Свободно',
-                directPercent(100 - state.totalAllocatedPercent),
-                last: true,
-              ),
+              if (state.usingOwnedInfrastructure)
+                const Chip(label: AppText('Активно')),
             ],
           ),
-        ),
-        const SizedBox(height: 12),
-        ...state.products.map((product) {
-          final value = drafts[product.id] ?? product.allocatedCapacityPercent;
-          final load = state.productServerLoad(product);
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            AppText(
-                              product.name,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            AppText(
-                              '${categoryName(product.category)} • load ${percent(load, fractionDigits: 1)}',
-                            ),
-                          ],
-                        ),
-                      ),
-                      AppText(
-                        '${value.round()}%',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ],
-                  ),
-                  Slider(
-                    value: value.clamp(0, 100).toDouble(),
-                    min: 0,
-                    max: 100,
-                    divisions: 20,
-                    label: '${value.round()}%',
-                    onChanged: (next) => onDraftChanged(product.id, next),
-                    onChangeEnd: (next) {
-                      controller.dispatch(
-                        SetProductAllocation(
-                          productId: product.id,
-                          percent: next,
-                        ),
-                      );
-                      final applied = controller.state
-                          .productById(product.id)!
-                          .allocatedCapacityPercent;
-                      onDraftChanged(product.id, applied);
-                    },
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AppText(
-                          'Доступно: ${state.allocatedComputeFor(product.id).round()} CU',
-                        ),
-                      ),
-                      AppText(
-                        'Нужно: ${state.productComputeDemand(product).round()} CU',
-                      ),
-                    ],
-                  ),
-                ],
+          const SizedBox(height: 6),
+          AppText(
+            'Подготовлено ${state.preparedComputeUnits.round()} CU • стоимость перехода ${money(ownedPlan.setupCost)}.',
+          ),
+          if (!state.usingOwnedInfrastructure && reasons.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ...reasons.map(
+              (reason) => Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: AppText(
+                  '• $reason',
+                  style: const TextStyle(color: AppColors.red),
+                ),
               ),
             ),
-          );
-        }),
-      ],
+          ],
+          if (!state.usingOwnedInfrastructure) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                key: const Key('migrate-to-owned-from-capacity'),
+                onPressed: ready
+                    ? () => controller.dispatch(
+                        const MigrateToOwnedInfrastructure(),
+                      )
+                    : null,
+                icon: const Icon(Icons.swap_horiz),
+                label: AppText(
+                  ready
+                      ? 'Мигрировать на свои серверы'
+                      : 'Миграция пока недоступна',
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

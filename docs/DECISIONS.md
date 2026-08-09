@@ -19,8 +19,9 @@
 
 - The founder is a real contributor to development but is not represented as an `Employee` record.
 - Founder capacity is shared across simultaneous development work.
-- Employees can participate in multiple active work items, with reduced per-work efficiency as workload increases.
-- HR automation fills only required role gaps and does not create spare headcount.
+- Employees may remain assigned to several products, but only products with current development/update work and active contracts count as parallel work. Inactive assignments do not reduce productivity.
+- Employee productivity is visible as a percentage and is derived from skill profile, morale, overload and the number of genuinely active work items.
+- HR automation reuses suitable existing staff first, fills only required role gaps and does not create spare headcount. The lead HR can hire candidates only at or below the HR's own grade.
 - Project and contract staffing rules are explicit and visible to the player.
 
 ## Products
@@ -42,6 +43,8 @@
 
 - Infrastructure is modeled through measurable capacity, cost and operational limits.
 - Rental hosting and owned hardware remain separate capacity models.
+- Owned-infrastructure migration is controlled from the compute-allocation surface, next to the capacity it activates.
+- Late-game owned hardware provides explicit high-density AI and enterprise tiers with improving cost per compute unit, balanced by rack, power and cooling requirements.
 - Office capacity applies to on-site employees; remote employees do not consume physical seats.
 - A remote-first company starts without office rent or physical seats.
 

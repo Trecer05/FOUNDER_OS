@@ -1431,19 +1431,18 @@ class GameEngine {
       ...state.candidates.map((item) => item.name),
       ...state.employees.map((item) => item.name),
     };
-    final additions = CandidateMarketCatalog.weeklyArrivals(
-      seed: state.rngSeed,
-      week: week,
-    )
-        .where(
-          (candidate) =>
-              !existingIds.contains(candidate.id) &&
-              !usedNames.contains(candidate.name),
-        )
-        .toList(growable: false);
+    final additions =
+        CandidateMarketCatalog.weeklyArrivals(seed: state.rngSeed, week: week)
+            .where(
+              (candidate) =>
+                  !existingIds.contains(candidate.id) &&
+                  !usedNames.contains(candidate.name),
+            )
+            .toList(growable: false);
     if (additions.isEmpty) return state;
     final market = <Candidate>[...state.candidates, ...additions];
-    final capped = market.length <= CandidateMarketCatalog.maximumVisibleCandidates
+    final capped =
+        market.length <= CandidateMarketCatalog.maximumVisibleCandidates
         ? market
         : market.sublist(
             market.length - CandidateMarketCatalog.maximumVisibleCandidates,
@@ -1541,10 +1540,11 @@ class GameEngine {
         .clamp(0, rivals.length - 1)
         .toInt();
     final company = rivals[companyIndex];
-    final matching = liveProducts
-        .where((product) => product.category == company.category)
-        .toList(growable: false)
-      ..sort((a, b) => b.users.compareTo(a.users));
+    final matching =
+        liveProducts
+            .where((product) => product.category == company.category)
+            .toList(growable: false)
+          ..sort((a, b) => b.users.compareTo(a.users));
     final target = matching.isEmpty ? null : matching.first;
     final actionRoll = _random01(state.rngSeed, counter++);
     final canThreatenControl =
@@ -2543,15 +2543,28 @@ class GameEngine {
   GameState _autoHireProjectTeam(GameState state, String productId) {
     final product = state.productById(productId);
     if (product == null) return state;
-    if (!state.employees.any((employee) => employee.isHr)) {
+    final hrEmployees =
+        state.employees
+            .where((employee) => employee.isHr)
+            .toList(growable: false)
+          ..sort((left, right) {
+            final grade = right.grade.index.compareTo(left.grade.index);
+            if (grade != 0) return grade;
+            final skill = right.skill.compareTo(left.skill);
+            if (skill != 0) return skill;
+            return left.id.compareTo(right.id);
+          });
+    if (hrEmployees.isEmpty) {
       return _withFeed(
         state,
         '${product.name}: автоматический подбор заблокирован — сначала наймите HR / People Partner в разделе «Команда».',
       );
     }
+    final leadHr = hrEmployees.first;
 
     var next = state;
     var hiredCount = 0;
+    var reusedCount = 0;
     final plan = state.roleRequirementsFor(product).toList(growable: false)
       ..sort((left, right) => left.role.index.compareTo(right.role.index));
 
@@ -2560,10 +2573,47 @@ class GameEngine {
           requirement.minimumCount -
           next.assignedRoleCount(productId, requirement.role);
       while (missing > 0) {
-        final candidates =
+        final availableEmployees =
+            next.employees
+                .where((employee) => !employee.isHr)
+                .where((employee) => employee.role == requirement.role)
+                .where(
+                  (employee) =>
+                      next.assignmentForEmployeeOnProduct(
+                        employee.id,
+                        productId,
+                      ) ==
+                      null,
+                )
+                .where(
+                  (employee) => next.canAssignEmployeeToMoreWork(employee.id),
+                )
+                .toList(growable: false)
+              ..sort((left, right) {
+                final activeWork = next
+                    .activeAssignmentCountForEmployee(left.id)
+                    .compareTo(next.activeAssignmentCountForEmployee(right.id));
+                if (activeWork != 0) return activeWork;
+                final productivity = next
+                    .employeeProductivityPercent(right)
+                    .compareTo(next.employeeProductivityPercent(left));
+                if (productivity != 0) return productivity;
+                return left.id.compareTo(right.id);
+              });
+        if (availableEmployees.isNotEmpty) {
+          next = _assignEmployee(next, availableEmployees.first.id, productId);
+          reusedCount += 1;
+          missing -= 1;
+          continue;
+        }
+
+        var candidates =
             next.candidates
                 .where((candidate) => !candidate.isHr)
                 .where((candidate) => candidate.role == requirement.role)
+                .where(
+                  (candidate) => candidate.grade.index <= leadHr.grade.index,
+                )
                 .where(
                   (candidate) =>
                       candidate.remote ||
@@ -2571,6 +2621,8 @@ class GameEngine {
                 )
                 .toList(growable: false)
               ..sort((left, right) {
+                final grade = right.grade.index.compareTo(left.grade.index);
+                if (grade != 0) return grade;
                 final leftLanguage =
                     left.languageIds.any(product.languageIds.contains) ? 1 : 0;
                 final rightLanguage =
@@ -2588,7 +2640,27 @@ class GameEngine {
                 return left.id.compareTo(right.id);
               });
 
-        if (candidates.isEmpty) break;
+        if (candidates.isEmpty) {
+          final sourced = CandidateMarketCatalog.sourceForHr(
+            seed: next.rngSeed,
+            role: requirement.role,
+            maximumGrade: leadHr.grade,
+            excludedIds: <String>{
+              ...next.candidates.map((candidate) => candidate.id),
+              ...next.employees.map((employee) => employee.id),
+            },
+            excludedNames: <String>{
+              ...next.candidates.map((candidate) => candidate.name),
+              ...next.employees.map((employee) => employee.name),
+            },
+            requireRemote: next.availableOfficeSeats <= 0,
+          );
+          if (sourced == null) break;
+          next = next.copyWith(
+            candidates: <Candidate>[...next.candidates, sourced],
+          );
+          candidates = <Candidate>[sourced];
+        }
         final candidate = candidates.first;
         final beforeEmployees = next.employees.length;
         next = _hireCandidateInternal(
@@ -2621,11 +2693,11 @@ class GameEngine {
 
     return _withFeed(
       next,
-      hiredCount == 0
+      hiredCount == 0 && reusedCount == 0
           ? remaining == 0
                 ? '${product.name}: минимальный состав уже закрыт. HR никого лишнего не нанял.'
-                : '${product.name}: HR не нашёл кандидатов на $remaining незакрытых мест.'
-          : '${product.name}: HR нанял ровно $hiredCount специалистов по минимальному плану проекта. Лишний запас не создаётся.',
+                : '${product.name}: HR грейда ${leadHr.grade.name} не смог закрыть $remaining мест. Проверьте бюджет и офисные места.'
+          : '${product.name}: HR грейда ${leadHr.grade.name} назначил из штата $reusedCount и нанял $hiredCount специалистов. HR подбирает кандидатов не выше собственного грейда; лишний запас не создаётся.',
     );
   }
 
@@ -2757,16 +2829,37 @@ class GameEngine {
       }
     }
 
-    for (final role in List<EmployeeRole>.of(remainingRoles)) {
-      final candidates =
+    final hrEmployees =
+        next.employees
+            .where((employee) => employee.isHr)
+            .toList(growable: false)
+          ..sort((left, right) {
+            final grade = right.grade.index.compareTo(left.grade.index);
+            if (grade != 0) return grade;
+            final skill = right.skill.compareTo(left.skill);
+            if (skill != 0) return skill;
+            return left.id.compareTo(right.id);
+          });
+    final leadHr = hrEmployees.isEmpty ? null : hrEmployees.first;
+
+    for (final role
+        in leadHr == null
+            ? const <EmployeeRole>[]
+            : List<EmployeeRole>.of(remainingRoles)) {
+      var candidates =
           next.candidates
               .where((candidate) => !candidate.isHr && candidate.role == role)
+              .where(
+                (candidate) => candidate.grade.index <= leadHr!.grade.index,
+              )
               .where(
                 (candidate) =>
                     candidate.remote || next.availableOfficeSeats > 0,
               )
               .toList(growable: false)
             ..sort((left, right) {
+              final grade = right.grade.index.compareTo(left.grade.index);
+              if (grade != 0) return grade;
               final l =
                   left.skill * 2 + left.speed + left.quality + left.reliability;
               final r =
@@ -2778,7 +2871,27 @@ class GameEngine {
               if (score != 0) return score;
               return left.salary.compareTo(right.salary);
             });
-      if (candidates.isEmpty) continue;
+      if (candidates.isEmpty) {
+        final sourced = CandidateMarketCatalog.sourceForHr(
+          seed: next.rngSeed,
+          role: role,
+          maximumGrade: leadHr!.grade,
+          excludedIds: <String>{
+            ...next.candidates.map((candidate) => candidate.id),
+            ...next.employees.map((employee) => employee.id),
+          },
+          excludedNames: <String>{
+            ...next.candidates.map((candidate) => candidate.name),
+            ...next.employees.map((employee) => employee.name),
+          },
+          requireRemote: next.availableOfficeSeats <= 0,
+        );
+        if (sourced == null) continue;
+        next = next.copyWith(
+          candidates: <Candidate>[...next.candidates, sourced],
+        );
+        candidates = <Candidate>[sourced];
+      }
       final candidate = candidates.first;
       final bonus = candidate.salary * 0.10 * next.founderSalaryMultiplier;
       if (next.cash < bonus) continue;
@@ -2837,6 +2950,7 @@ class GameEngine {
       next,
       '${template.name}: из штата назначено $reused, нанято $hired. '
       '${exactRoles.isEmpty ? 'Команда полностью укомплектована.' : 'Не все роли удалось закрыть.'} '
+      '${leadHr == null && exactRoles.isNotEmpty ? 'Для найма недостающих специалистов нужен HR.' : 'HR подбирает кандидатов не выше собственного грейда.'} '
       'Лишний состав не создаётся.',
     );
   }
@@ -3957,9 +4071,10 @@ class GameEngine {
       'm_browser' => 'privacy_browser',
       'm_work' => 'team_saas',
       'm_data' => 'community_platform',
-      _ => GameCatalog.productBlueprints
-          .firstWhere((item) => item.category == company.category)
-          .id,
+      _ =>
+        GameCatalog.productBlueprints
+            .firstWhere((item) => item.category == company.category)
+            .id,
     };
     final blueprint = GameCatalog.blueprintById(blueprintId);
     final product = Product(
@@ -4031,10 +4146,15 @@ class GameEngine {
       );
     }
     final productAlreadyOwned = state.acquiredCompanyIds.contains(company.id);
-    final existingStake = state.holdingByCompanyId(company.id)?.ownershipPercent ?? 0;
+    final existingStake =
+        state.holdingByCompanyId(company.id)?.ownershipPercent ?? 0;
     final equityAdjustedPrice = company.valuation * (1 - existingStake / 100);
     final remainingPrice = math
-        .max(0, equityAdjustedPrice - (productAlreadyOwned ? company.productPrice : 0))
+        .max(
+          0,
+          equityAdjustedPrice -
+              (productAlreadyOwned ? company.productPrice : 0),
+        )
         .toDouble();
     if (state.cash < remainingPrice) {
       return state;
@@ -4096,7 +4216,8 @@ class GameEngine {
         employees: <Employee>[...acquired.employees, ...generatedEmployees],
         fullyAcquiredCompanyIds: <String>[
           ...acquired.fullyAcquiredCompanyIds,
-          if (!acquired.fullyAcquiredCompanyIds.contains(company.id)) company.id,
+          if (!acquired.fullyAcquiredCompanyIds.contains(company.id))
+            company.id,
         ],
         portfolioHoldings: acquired.portfolioHoldings
             .where((holding) => holding.companyId != company.id)
@@ -4282,9 +4403,7 @@ class GameEngine {
       final preference =
           1 / (1 + math.exp(-(ownScore - competitorScore) / 8.5));
       final brandFactor =
-          (0.0015 +
-                  product.brandAwareness * 0.70 +
-                  product.brandTrust * 0.025)
+          (0.0015 + product.brandAwareness * 0.70 + product.brandTrust * 0.025)
               .clamp(0.001, 1.0)
               .toDouble();
       final organic =
@@ -4424,15 +4543,13 @@ class GameEngine {
     List<EmployeeRole> roles,
     int Function(Employee employee) metric,
   ) {
-    var total = 0;
-    var count = 0;
-    for (final employee in employees) {
-      if (roles.contains(employee.role)) {
-        total += metric(employee);
-        count += 1;
-      }
+    final matching = employees.where(
+      (employee) => roles.contains(employee.role),
+    );
+    if (matching.isEmpty) {
+      return 0;
     }
-    return count == 0 ? 0 : total / count;
+    return matching.map(metric).reduce((a, b) => a + b) / matching.length;
   }
 
   double _priceScore(double ownPrice, double competitorPrice) {

@@ -40,7 +40,8 @@ class SharedPreferencesSnapshotFallbackStore implements SnapshotFallbackStore {
 ///
 /// iOS and Android use a native atomic file as the primary store.
 /// SharedPreferencesAsync remains a portable recovery and migration source.
-class GameSnapshotStore implements SnapshotStore, SaveSlotStore {
+class GameSnapshotStore
+    implements SnapshotStore, SaveSlotStore, BankruptcyRecoveryStore {
   GameSnapshotStore({
     SharedPreferencesAsync? preferences,
     SnapshotFallbackStore? fallbackStore,
@@ -57,6 +58,8 @@ class GameSnapshotStore implements SnapshotStore, SaveSlotStore {
   static const fallbackSnapshotKey = 'founder_os.snapshot.v10.fallback';
   static const manualSlotIds = <String>['slot_1', 'slot_2', 'slot_3'];
   static const _manualSlotPrefix = 'founder_os.manual_save.v1.';
+  static const _recoverySlotPrefix = 'founder_os.weekly_recovery.v1.';
+  static const _recoverySlotCount = 3;
 
   static const legacySnapshotKeys = <String>[
     'founder_os.snapshot.v8',
@@ -152,6 +155,9 @@ class GameSnapshotStore implements SnapshotStore, SaveSlotStore {
     for (final key in legacySnapshotKeys) {
       await _fallbackStore.remove(key);
     }
+    for (var index = 0; index < _recoverySlotCount; index += 1) {
+      await _fallbackStore.remove('$_recoverySlotPrefix$index');
+    }
   }
 
   String _manualSlotKey(String slotId) {
@@ -211,4 +217,42 @@ class GameSnapshotStore implements SnapshotStore, SaveSlotStore {
   @override
   Future<void> deleteSlot(String slotId) =>
       _fallbackStore.remove(_manualSlotKey(slotId));
+
+  @override
+  Future<void> saveRecoveryCheckpoint(GameState state) async {
+    final week = state.simulationMinutes ~/ (7 * 1440);
+    final slot = week % _recoverySlotCount;
+    final encoded = await _encode(state);
+    await _fallbackStore.setString(
+      '$_recoverySlotPrefix$slot',
+      jsonEncode(<String, Object>{
+        'week': week,
+        'simulationMinutes': state.simulationMinutes,
+        'snapshot': encoded,
+      }),
+    );
+  }
+
+  @override
+  Future<GameState?> loadRecoveryCheckpoint({
+    required int beforeMinutes,
+  }) async {
+    GameState? best;
+    for (var index = 0; index < _recoverySlotCount; index += 1) {
+      final raw = await _fallbackStore.getString('$_recoverySlotPrefix$index');
+      if (raw == null || raw.isEmpty) continue;
+      try {
+        final payload = jsonDecode(raw) as Map<String, dynamic>;
+        final state = GameState.decode(payload['snapshot']! as String);
+        if (state.simulationMinutes <= beforeMinutes &&
+            (best == null ||
+                state.simulationMinutes > best.simulationMinutes)) {
+          best = state;
+        }
+      } on Object {
+        // One damaged rolling checkpoint must not block the other copies.
+      }
+    }
+    return best;
+  }
 }

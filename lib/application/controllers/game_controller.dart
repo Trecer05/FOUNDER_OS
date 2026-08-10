@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../domain/commands/game_action.dart';
 import '../../domain/entities/game_state.dart';
+import '../../domain/entities/models.dart';
 import '../../domain/simulation/engine/game_engine.dart';
 import '../../persistence/storage/snapshot_store.dart';
 
@@ -33,6 +34,7 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
   final Stopwatch _activeClock = Stopwatch();
   int _consumedClockSeconds = 0;
   int _lastAutosavedFourHourBlock = -1;
+  int _lastRecoveryWeek = -1;
   String? _storageError;
   bool _initialized = false;
   bool _disposed = false;
@@ -60,7 +62,15 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
 
     _initialized = true;
     _lastAutosavedFourHourBlock = _state.simulationMinutes ~/ (4 * 60);
-    if (_startClock && !_disposed) {
+    _lastRecoveryWeek = _state.simulationMinutes ~/ (7 * 1440);
+    if (_snapshotStore is BankruptcyRecoveryStore) {
+      unawaited(
+        (_snapshotStore as BankruptcyRecoveryStore).saveRecoveryCheckpoint(
+          _state,
+        ),
+      );
+    }
+    if (_startClock) {
       _startTicker();
     }
   }
@@ -119,6 +129,16 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
     }
 
     _state = next;
+    final recoveryWeek = next.simulationMinutes ~/ (7 * 1440);
+    if (recoveryWeek != _lastRecoveryWeek &&
+        _snapshotStore is BankruptcyRecoveryStore) {
+      _lastRecoveryWeek = recoveryWeek;
+      unawaited(
+        (_snapshotStore as BankruptcyRecoveryStore).saveRecoveryCheckpoint(
+          next,
+        ),
+      );
+    }
     if (_startClock && playSound) {
       unawaited(SystemSound.play(SystemSoundType.click));
     }
@@ -183,30 +203,33 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
     if (_startClock) {
       _stopTicker();
     }
+    // Drain every old autosave before clearing storage. After this point no
+    // snapshot from the previous company is allowed to win a race.
+    await saveNow();
+    _pendingSnapshot = null;
+    await _snapshotStore.clear();
+
+    _state = _freshInitialState();
+    _storageError = null;
+    _lastAutosavedFourHourBlock = _state.simulationMinutes ~/ (4 * 60);
+    _lastRecoveryWeek = _state.simulationMinutes ~/ (7 * 1440);
+    _activeClock.reset();
+    _consumedClockSeconds = 0;
+    notifyListeners();
+
     try {
-      // Drain every old autosave before clearing storage. After this point no
-      // snapshot from the previous company is allowed to win a race.
-      await saveNow();
-      _pendingSnapshot = null;
-      await _snapshotStore.clear();
-
-      _state = _freshInitialState();
-      _storageError = null;
-      _lastAutosavedFourHourBlock = _state.simulationMinutes ~/ (4 * 60);
-      _activeClock.reset();
-      _consumedClockSeconds = 0;
+      await _snapshotStore.save(_state);
+      if (_snapshotStore is BankruptcyRecoveryStore) {
+        await (_snapshotStore as BankruptcyRecoveryStore)
+            .saveRecoveryCheckpoint(_state);
+      }
+    } on Object catch (error) {
+      _storageError = 'Не удалось сохранить новую компанию: $error';
       notifyListeners();
+    }
 
-      try {
-        await _snapshotStore.save(_state);
-      } on Object catch (error) {
-        _storageError = 'Не удалось сохранить новую компанию: $error';
-        notifyListeners();
-      }
-    } finally {
-      if (_startClock && !_disposed) {
-        _startTicker();
-      }
+    if (_startClock && !_disposed) {
+      _startTicker();
     }
   }
 
@@ -243,6 +266,7 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
       _state = loaded;
       _storageError = null;
       _lastAutosavedFourHourBlock = _state.simulationMinutes ~/ (4 * 60);
+      _lastRecoveryWeek = _state.simulationMinutes ~/ (7 * 1440);
       _activeClock.reset();
       _consumedClockSeconds = 0;
       notifyListeners();
@@ -259,6 +283,39 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
     if (_snapshotStore is SaveSlotStore) {
       await (_snapshotStore as SaveSlotStore).deleteSlot(slotId);
     }
+  }
+
+  Future<bool> restoreWeekBeforeBankruptcy() async {
+    if (_snapshotStore is! BankruptcyRecoveryStore ||
+        _disposed ||
+        _state.criticalEvent != CriticalEventType.insolvency) {
+      return false;
+    }
+    if (_startClock) _stopTicker();
+    await saveNow();
+    final currentMinutes = _state.simulationMinutes;
+    final loaded = await (_snapshotStore as BankruptcyRecoveryStore)
+        .loadRecoveryCheckpoint(beforeMinutes: currentMinutes - 7 * 1440);
+    if (loaded == null) {
+      if (_startClock && !_disposed) _startTicker();
+      return false;
+    }
+    _pendingSnapshot = null;
+    _state = loaded.copyWith(
+      paused: true,
+      criticalEvent: CriticalEventType.none,
+      clearCriticalProductId: true,
+      gameOver: false,
+    );
+    _storageError = null;
+    _lastAutosavedFourHourBlock = _state.simulationMinutes ~/ (4 * 60);
+    _lastRecoveryWeek = _state.simulationMinutes ~/ (7 * 1440);
+    _activeClock.reset();
+    _consumedClockSeconds = 0;
+    notifyListeners();
+    await _snapshotStore.save(_state);
+    if (_startClock && !_disposed) _startTicker();
+    return true;
   }
 
   @override

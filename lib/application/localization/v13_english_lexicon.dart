@@ -9,6 +9,109 @@ class V13EnglishTemplate {
 
 abstract final class V13EnglishLexicon {
   static const Map<String, String> overrides = <String, String>{
+    '20 сгенерированных компаний. Один лидер держит эталон 100, остальные имеют разные функции и показатели.':
+        '20 generated companies. One leader sets the 100-point benchmark; the others have different features and metrics.',
+    '82% мощности без DevOps': '82% capacity without DevOps',
+    'HSM требует системный или mobile-язык: Rust, Go, Kotlin, Swift или Dart.':
+        'HSM requires a systems or mobile language: Rust, Go, Kotlin, Swift, or Dart.',
+    'RAM активного hosting': 'Active hosting RAM',
+    'RAM продукта': 'Product RAM',
+    'Storage продукта': 'Product storage',
+    'Выделено compute': 'Allocated compute',
+    'Remote: офисный бонус не применяется':
+        'Remote: office bonus does not apply',
+    '«Активная работа» — это выбранная доработка, функция, исправление бага или расширение стека. Это не скрытый режим ускорения.':
+        'An active work item is a selected improvement, feature, bug fix, or stack extension. It is not a hidden speed mode.',
+    'Баги продукта': 'Product bugs',
+    'Без DevOps доступно только 82% мощности':
+        'Only 82% capacity is available without DevOps',
+    'Бесплатный тариф / квота': 'Free tier / quota',
+    'Ваш лучший продукт участвует в общей таблице и может обойти лидера за счёт функций, скорости, свежести, доверия и аудитории.':
+        'Your best product joins the same ranking and can beat the leader through features, speed, freshness, trust, and audience.',
+    'Ваша компания': 'Your company',
+    'Вес 1 — minor, 3 — major, 7 — critical. Общий вес ухудшает latency, reliability, качество, churn и выручку. Исправление занимает время команды.':
+        'Weights are 1 for minor, 3 for major, and 7 for critical. Total weight harms latency, reliability, quality, churn, and revenue. Fixing defects takes team time.',
+    'Воскресенье': 'Sunday',
+    'Вс': 'Sun',
+    'Все доступные функции уже выпущены.':
+        'All available features have been released.',
+    'Вт': 'Tue',
+    'Вторник': 'Tuesday',
+    'Деградация API под нагрузкой': 'API degradation under load',
+    'Добавить': 'Add',
+    'Дополнительная технология может снизить latency, повысить стабильность или безопасность, но увеличивает стоимость сопровождения и compute.':
+        'An additional technology can reduce latency or improve reliability and security, but increases maintenance cost and compute.',
+    'Доступен': 'Available',
+    'Изменить название': 'Rename',
+    'Изменить название продукта': 'Rename product',
+    'Интенсивность монетизации': 'Monetization intensity',
+    'Исправить': 'Fix',
+    'Исправление бага': 'Bug fix',
+    'Каждая модель имеет собственный параметр: цену подписки, цену использования, рекламную нагрузку или комиссию. Более агрессивная настройка увеличивает доход, но рынок учитывает цену и доверие.':
+        'Each model has its own setting: subscription price, usage price, ad load, or fee. A more aggressive setting raises revenue, but the market also considers price and trust.',
+    'Комиссия с транзакции': 'Transaction fee',
+    'Критическая ошибка авторизации': 'Critical authorization error',
+    'Максимум для возраста продукта': 'Maximum for product age',
+    'Нагрузка упирается в самый дефицитный ресурс: CU, RAM или storage. Железо также ограничено U, power, cooling и сетью.':
+        'Load is constrained by the scarcest resource: CU, RAM, or storage. Hardware is also limited by rack units, power, cooling, and network.',
+    'Название': 'Name',
+    'Название продукта должно содержать 2–32 символа и быть уникальным.':
+        'A product name must contain 2–32 characters and be unique.',
+    'Настроек оплаты нет': 'No payment settings',
+    'Настройка коммерческой модели': 'Commercial model settings',
+    'Недельная контрольная точка ещё не успела создаться.':
+        'A weekly recovery checkpoint has not been created yet.',
+    'Некорректный повтор запроса': 'Invalid request retry',
+    'Нет очереди — команда свободна для новой задачи':
+        'No queue — the team is free for a new task',
+    'Новые функции не покупаются мгновенно: каждая занимает рабочие часы назначенной команды. Одновременно продукт ведёт одну техническую работу.':
+        'New features are not purchased instantly: each takes assigned-team work hours. A product can run one technical work item at a time.',
+    'Обновления возвращают свежесть только до возрастного потолка. После 180 дней потолок необратимо снижается; старый продукт придётся заменить новым поколением или продать.':
+        'Updates restore freshness only up to the age ceiling. After 180 days the ceiling falls irreversibly; an old product must eventually be replaced or sold.',
+    'Отказ основного сервиса': 'Primary service outage',
+    'Откатить на неделю': 'Roll back one week',
+    'Открытых дефектов нет.': 'No open defects.',
+    'Отправить на курс': 'Send to training',
+    'Ошибка локального кэша': 'Local cache error',
+    'Ошибочная обработка платежа': 'Incorrect payment processing',
+    'Пн': 'Mon',
+    'По фильтрам сотрудники не найдены.': 'No employees match the filters.',
+    'Повреждение пользовательских данных': 'User data corruption',
+    'Понедельник': 'Monday',
+    'Потеря состояния активной сессии': 'Active session state loss',
+    'Прогноз дохода': 'Revenue forecast',
+    'Пт': 'Fri',
+    'Пятница': 'Friday',
+    'Разработать': 'Develop',
+    'Расширение стека': 'Stack extension',
+    'Расширение стека после релиза': 'Post-release stack extension',
+    'Рекламная нагрузка': 'Ad load',
+    'Рыночный score': 'Market score',
+    'Сб': 'Sat',
+    'Сбой интерфейса на узком экране': 'Narrow-screen interface failure',
+    'Свежесть сейчас': 'Current freshness',
+    'Ср': 'Wed',
+    'Среда': 'Wednesday',
+    'Суббота': 'Saturday',
+    'Техническое устаревание': 'Technical obsolescence',
+    'Форсаж даёт +28% на 7 дней, затем команда 7 дней работает на −22%. Повторно включить его во время восстановления нельзя.':
+        'Crunch gives +28% for 7 days, followed by 7 days at −22%. It cannot be restarted during recovery.',
+    'Форсаж на неделю': 'One-week crunch',
+    'Функции после релиза': 'Post-release features',
+    'Цена за 1 000 операций': 'Price per 1,000 operations',
+    'Четверг': 'Thursday',
+    'Чт': 'Thu',
+    'активный канал': 'active link',
+    'доступно продуктам': 'available to products',
+    'критическую утечку': 'a critical breach',
+    'массовую DDoS-атаку': 'a large-scale DDoS attack',
+    'операционка закрыта': 'operations covered',
+    'On-site performance недоступен': 'On-site performance unavailable',
+    'серьёзный инцидент': 'a serious incident',
+    'собственная RAM': 'owned RAM',
+    'тепловой лимит': 'thermal limit',
+    'Уволить': 'Fire',
+    'Уволить сотрудника?': 'Fire employee?',
     'Плюсы': 'Pros',
     'Минусы': 'Cons',
     'Локализовать атаку': 'Contain the attack',
@@ -144,7 +247,6 @@ abstract final class V13EnglishLexicon {
         '.NET backend + React for enterprise.',
     '0 ₽/мес. • on-site мест нет • remote-сотрудники доступны.':
         '0 ₽ / month. • on-site places no • remote-employees available.',
-    '0. CEO — тоже часть команды': 'The CEO is also part of the team.',
     '1 000 кликов из 100 000 показов — CTR 1%.':
         '1,000 clicks out of 100,000 impressions is a 1% CTR.',
     '1 000 подписчиков по 500 ₽ дают около 500 000 ₽ MRR до скидок и churn.':
@@ -372,7 +474,6 @@ abstract final class V13EnglishLexicon {
     'workspace и роли': 'workspace and roles',
     '}: корпоративная AI отключена.': '}: Enterprise AI disabled.',
     'Абрамов': 'Abramov',
-    'Аванс': 'Advance',
     'Аванс по клиентскому контракту': 'Advance on a client contract',
     'Аванс приходит сразу, остаток — после сдачи.':
         'The advance comes immediately, the remainder - after the surrender.',
@@ -399,7 +500,6 @@ abstract final class V13EnglishLexicon {
         'Auto-selection covers only minimal role deficits; there are no redundant positions and a backup headcount.',
     'Автоподбор использует сотрудников из штата первым и нанимает только реально недостающие роли.':
         'Auto-recruitment employs staff first and hires only really missing roles.',
-    'Автосохранение + 3 ручных слота': 'Autosave + 3 handheld slots',
     'Агапов': 'Agapov',
     'Агентство': 'Agency',
     'адаптивная навигация': 'adaptive navigation',
@@ -598,7 +698,6 @@ abstract final class V13EnglishLexicon {
         'Alone, you can bring the product to the release, but profile employees accelerate the work at times.',
     'В первом релизе нужна хотя бы одна функция.':
         'In the first release, you need at least one function.',
-    'В работе': 'In progress',
     'В этом документе отделяем обязательные функции от идей для следующих релизов.':
         'This document separates the mandatory functions from the ideas for the next releases.',
     'Вадим': 'Vadim',
@@ -656,7 +755,6 @@ abstract final class V13EnglishLexicon {
         'Restore previous versions and deleted data.',
     'Время между действием пользователя и ответом продукта.':
         'The time between the user’s response and the product’s response.',
-    'Все': 'All',
     'Все грейды': 'All Grades.',
     'Все крупные функции реализованы. Продукт продолжает развиваться через постоянные технические улучшения выше.':
         'All major features are implemented. The product continues to evolve through constant technical improvements above.',
@@ -707,7 +805,6 @@ abstract final class V13EnglishLexicon {
     'Выплаты инвесторам': 'Payments to investors',
     'Выплаты инвесторам / мес.': 'Payments to investors/months.',
     'Выпустить': 'Release.',
-    'Выпустить продукт': 'Launch product',
     'выруч': 'revenue',
     'Выручка в месяц': 'Revenue per month',
     'Выручка минус все ежемесячные расходы.':
@@ -815,7 +912,6 @@ abstract final class V13EnglishLexicon {
     'Громов': 'Gromov',
     'Гусев': 'Gusev',
     'Давыдов': 'Davydov',
-    'Далее': 'Next',
     'Даниил': 'Daniil',
     'Данилов': 'Danilov',
     'Дарья': 'Darya',
@@ -866,7 +962,6 @@ abstract final class V13EnglishLexicon {
     'Дмитрий': 'Dmitriy',
     'До 4 активных работ на сотрудника. Эффективность: 1 работа 100%, 2 — 70%, 3 — 55%, 4 — 40%.':
         'Up to 4 active work per employee. Efficiency: 1 work 100%, 2 - 70%, 3 - 55%, 4 - 40%.',
-    'До дедлайна': 'Until the deadline.',
     'До принятия видно, хватает ли текущей команды. После принятия игра автоматически назначит наименее загруженных подходящих сотрудников.':
         'Before acceptance, you can see if the current team is enough. Once accepted, the game will automatically assign the least loaded suitable employees.',
     'Добавляйте функции в очередь разработки. Они требуют рабочих часов, но не отдельной покупки.':
@@ -1341,7 +1436,6 @@ abstract final class V13EnglishLexicon {
     'Логи, метрики, трассировка и профилирование.':
         'Logs, metrics, tracing and profiling.',
     'Логотип': 'Logo.',
-    'Локализовать атаку': 'Localize the attack',
     'Локальная разблокировка чувствительных действий.':
         'Local unlocking of sensitive actions.',
     'Лояльность сотрудников компании. Важна для удержания сильных специалистов.':
@@ -1416,7 +1510,6 @@ abstract final class V13EnglishLexicon {
     'Минимальный состав закрыт': 'Minimum composition closed',
     'Минимальный состав закрыт. Лишние должности под этот продукт не предлагаются.':
         'The minimum staff is closed. No extra posts are offered for this product.',
-    'Минусы': 'Cons',
     'Миронов': 'Mironov',
     'Михаил': 'Mikhail',
     'Михайлов': 'Mikhaylov',
@@ -1444,7 +1537,6 @@ abstract final class V13EnglishLexicon {
     'Модель, evaluation, prompts и качество ответов.':
         'Model, evaluation, prompts and quality of responses.',
     'Модерация': 'Moderation',
-    'Можно подключить': 'Available',
     'Можно покупать доли, отдельные продукты или компании целиком.':
         'You can buy shares, individual products or companies as a whole.',
     'Можно сохранить текущую компанию':
@@ -1502,7 +1594,6 @@ abstract final class V13EnglishLexicon {
         'Press the card for details. The command button applies the changes in one atomic action, so the intermediate checkboxes don\'t change state.',
     'Нажмите на карточку, чтобы назначить команду и увидеть ETA.':
         'Click on the card to assign a command and see the ETA.',
-    'Назад': 'Back',
     'Назаров': 'Nazarov',
     'Название и фреймворк': 'Title and framework',
     'Название компании': 'Name of the company',
@@ -1709,7 +1800,6 @@ abstract final class V13EnglishLexicon {
     'Ольга': 'Olga',
     'Опасная зона: ещё одна крупная сделка может опустить долю ниже 50%.':
         'Danger Zone: Another big deal could drop the share below 50%.',
-    'Операционка': 'Operator.',
     'Операционная сводка': 'Operational summary',
     'Операционные команды': 'Operational teams',
     'Операционный менеджер': 'Operations manager',
@@ -1858,7 +1948,6 @@ abstract final class V13EnglishLexicon {
     'Персональные настройки и долгосрочный контекст.':
         'Personal settings and long-term context.',
     'Персональные рекомендации': 'Personal recommendations',
-    'Песочница': 'Sandbox',
     'Петров': 'Petrov',
     'Пики без ручного scale': 'Peaks without manual scale',
     'Питание, охлаждение и обслуживание': 'Nutrition, cooling and maintenance',
@@ -1873,7 +1962,6 @@ abstract final class V13EnglishLexicon {
     'плотность информации': 'information density',
     'Плохая activation ломает воронку сразу после регистрации.':
         'Bad activation breaks the funnel immediately after registration.',
-    'Плюсы': 'Pluses',
     'По выбранному фильтру событий нет.':
         'There are no events on the selected filter.',
     'По фильтрам кандидаты не найдены.':
@@ -1977,7 +2065,6 @@ abstract final class V13EnglishLexicon {
         'Helps you understand the urgency of cutting or raising money.',
     'Понимает workflow разработчиков.':
         'Understands the workflow of developers.',
-    'Понятно': 'Got it',
     'Понятное состояние систем в реальном времени.':
         'Understandable state of systems in real time.',
     'Попов': 'Popov',
@@ -2007,7 +2094,6 @@ abstract final class V13EnglishLexicon {
         'Once released, it is always available, even when all major roadmap features have already been implemented.',
     'После релиза модель можно менять раз в 30 игровых дней.':
         'After the release, the model can be changed every 30 game days.',
-    'После сдачи': 'After the change',
     'После сделки продукт уйдёт из портфеля, а его команда освободится.':
         'After the transaction, the product will leave the portfolio, and his team will be released.',
     'Последнего конкурента можно поглотить только после самостоятельного релиза 70% каталога.':
@@ -2470,12 +2556,9 @@ abstract final class V13EnglishLexicon {
     'Сообщества и роли': 'Communities and roles',
     'Сообщества, постоянные голосовые комнаты, чаты и безопасная модерация.':
         'Communities, permanent voice rooms, chat rooms and secure moderation.',
-    'Сорван': 'Freak.',
-    'Сорвано': 'Failed',
     'Сорокин': 'Sorokin',
     'Сортировка': 'Sorting',
     'Соседи делят ресурсы': 'Neighbors share resources',
-    'Состав': 'Composition',
     'Состояние продукта сериализуется версионированно и не зависит от порядка коллекций.':
         'The state of the product is serialized versioned and does not depend on the order of the collections.',
     'Состояние, влияющее на деньги и прогресс, нельзя хранить только внутри виджета.':
@@ -2526,7 +2609,6 @@ abstract final class V13EnglishLexicon {
         'References to sources next to statements.',
     'Стабильная культура и отдельные зоны для команд.':
         'A stable culture and separate zones for teams.',
-    'Стандарт': 'Standard',
     'Старт': 'Start.',
     'Стартовый бюджет': 'Start-up budget',
     'Статус': 'Status.',
@@ -2734,9 +2816,7 @@ abstract final class V13EnglishLexicon {
         'The function isn\'t bought instantly. The assigned team performs work hours, and the company pays for salaries and infrastructure.',
     'Фёдор': 'Fyodor',
     'Фёдоров': 'Fyodorov',
-    'Хардкор': 'hardcore',
     'Харитонов': 'Kharitonov',
-    'Хватает': 'Enough.',
     'Хорошее попадание в категорию': 'Good hit in the category',
     'Хороший B2B web': 'A good B2B web',
     'Хостинг и серверы': 'Hosting and servers',
@@ -4230,6 +4310,124 @@ abstract final class V13EnglishLexicon {
       'Revenue forecast: ZXQPH0QXZ–ZXQPH1QXZ/mo.',
     ),
     V13EnglishTemplate('ZXQPH0QXZ за CU', 'ZXQPH0QXZ per CU'),
+    V13EnglishTemplate(
+      'Latency сейчас ZXQPH0QXZ ms • доступно ZXQPH1QXZ',
+      'Current latency ZXQPH0QXZ ms • available ZXQPH1QXZ',
+    ),
+    V13EnglishTemplate(
+      'Product Manager: +ZXQPH0QXZ% к производительности по грейду.',
+      'Product Manager: +ZXQPH0QXZ% productivity based on grade.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ завершил программу «ZXQPH1QXZ» и повышен до ZXQPH2QXZ.',
+      'ZXQPH0QXZ completed “ZXQPH1QXZ” and was promoted to ZXQPH2QXZ.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ пережила ZXQPH1QXZ. По оценке рынка, сервис временно потерял около ZXQPH2QXZ пользователей и часть доверия.',
+      'ZXQPH0QXZ suffered ZXQPH1QXZ. The market estimates that the service temporarily lost about ZXQPH2QXZ users and some trust.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ переименован в ZXQPH1QXZ.',
+      'ZXQPH0QXZ was renamed to ZXQPH1QXZ.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ – ZXQPH1QXZ / мес.',
+      'ZXQPH0QXZ–ZXQPH1QXZ / mo.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ • performance +ZXQPH1QXZ • ZXQPH2QXZ/мес.',
+      'ZXQPH0QXZ • performance +ZXQPH1QXZ • ZXQPH2QXZ/mo.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ • найден ZXQPH1QXZ',
+      'ZXQPH0QXZ • found ZXQPH1QXZ',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: интеграция ZXQPH1QXZ займёт ZXQPH2QXZ рабочих часов.',
+      'ZXQPH0QXZ: integrating ZXQPH1QXZ will take ZXQPH2QXZ work hours.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: исправлен баг «ZXQPH1QXZ».',
+      'ZXQPH0QXZ: bug “ZXQPH1QXZ” was fixed.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: исправление «ZXQPH1QXZ» займёт ZXQPH2QXZ рабочих часов.',
+      'ZXQPH0QXZ: fixing “ZXQPH1QXZ” will take ZXQPH2QXZ work hours.',
+    ),
+    V13EnglishTemplate('ZXQPH0QXZ: кибератака', 'ZXQPH0QXZ: cyberattack'),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: лимит стека ZXQPH1QXZ технологий исчерпан.',
+      'ZXQPH0QXZ: the ZXQPH1QXZ-technology stack limit has been reached.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: найден ZXQPH1QXZ баг «ZXQPH2QXZ». Вес дефекта ZXQPH3QXZ.',
+      'ZXQPH0QXZ: found a ZXQPH1QXZ bug “ZXQPH2QXZ”. Defect weight: ZXQPH3QXZ.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: настройки монетизации обновлены.',
+      'ZXQPH0QXZ: monetization settings updated.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: параметр монетизации установлен на ZXQPH1QXZ.',
+      'ZXQPH0QXZ: monetization setting changed to ZXQPH1QXZ.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: релизу нужен активный hosting или собственные серверы.',
+      'ZXQPH0QXZ: release requires active hosting or owned servers.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: технология ZXQPH1QXZ введена в эксплуатацию.',
+      'ZXQPH0QXZ: technology ZXQPH1QXZ is now in production.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: у бесплатной модели нет платного параметра.',
+      'ZXQPH0QXZ: the free model has no paid setting.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: форсаж включён. 7 дней +28% скорости, затем 7 дней −22% на восстановление.',
+      'ZXQPH0QXZ: crunch enabled. 7 days at +28% speed, followed by 7 recovery days at −22%.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: форсаж недоступен — нужна команда без активного восстановления.',
+      'ZXQPH0QXZ: crunch is unavailable — the team must finish recovery first.',
+    ),
+    V13EnglishTemplate(
+      'Восстановление: −22% ещё ZXQPH0QXZ дн.',
+      'Recovery: −22% for ZXQPH0QXZ more days.',
+    ),
+    V13EnglishTemplate(
+      'Доступно к разработке: ZXQPH0QXZ',
+      'Available to develop: ZXQPH0QXZ',
+    ),
+    V13EnglishTemplate('Исправлен баг: ZXQPH0QXZ', 'Bug fixed: ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'Открыто ZXQPH0QXZ • вес ZXQPH1QXZ • исправлено ZXQPH2QXZ',
+      'Open ZXQPH0QXZ • weight ZXQPH1QXZ • fixed ZXQPH2QXZ',
+    ),
+    V13EnglishTemplate(
+      'Офис ZXQPH0QXZ: ×ZXQPH1QXZ только для on-site',
+      'Office ZXQPH0QXZ: ×ZXQPH1QXZ for on-site only',
+    ),
+    V13EnglishTemplate('Рейтинг: ZXQPH0QXZ', 'Rank: ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'Стек • ZXQPH0QXZ технологий',
+      'Stack • ZXQPH0QXZ technologies',
+    ),
+    V13EnglishTemplate('Стек: ZXQPH0QXZ', 'Stack: ZXQPH0QXZ'),
+    V13EnglishTemplate('Уволить • ZXQPH0QXZ', 'Fire • ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ покинет все продукты и контракты. Компенсация: ZXQPH1QXZ.',
+      'ZXQPH0QXZ will leave every product and contract. Severance: ZXQPH1QXZ.',
+    ),
+    V13EnglishTemplate(
+      'Форсаж: +28% ещё ZXQPH0QXZ дн.',
+      'Crunch: +28% for ZXQPH0QXZ more days.',
+    ),
+    V13EnglishTemplate(
+      'Функции • установлено ZXQPH0QXZ',
+      'Features • ZXQPH0QXZ installed',
+    ),
+    V13EnglishTemplate('нагрузка ZXQPH0QXZ', 'load ZXQPH0QXZ'),
   ];
 
   static const Map<String, String> templateOverrides = <String, String>{

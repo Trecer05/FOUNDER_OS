@@ -28,6 +28,14 @@ import '../../shared/widgets/scoped_listenable_builder.dart';
 import '../../../application/localization/app_localizer.dart';
 
 String _safeActiveWorkTitle(String featureId) {
+  if (featureId.startsWith('__bug_')) {
+    return 'Исправление бага';
+  }
+  if (featureId.startsWith('__technology_')) {
+    final id = featureId.substring('__technology_'.length);
+    final matches = GameCatalog.technologies.where((item) => item.id == id);
+    return matches.isEmpty ? 'Расширение стека' : matches.first.name;
+  }
   if (featureId.startsWith('__improvement_')) {
     final payload = featureId.substring('__improvement_'.length);
     final separator = payload.lastIndexOf('_');
@@ -68,7 +76,7 @@ class ProductDetailScreen extends StatelessWidget {
             body: Center(child: AppText('Продукт не найден')),
           );
         }
-        final competitor = GameCatalog.competitorFor(product.category);
+        final competitor = state.competitorsForCategory(product.category).first;
         final framework = GameCatalog.frameworkById(product.frameworkId);
         final load = state.productServerLoad(product);
         final strategy = ProductStrategyCatalog.strategyFor(

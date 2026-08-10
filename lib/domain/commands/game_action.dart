@@ -93,11 +93,35 @@ class SellProduct extends GameAction {
   final String productId;
 }
 
+class RenameProduct extends GameAction {
+  const RenameProduct({required this.productId, required this.name});
+
+  final String productId;
+  final String name;
+}
+
 class AddProductFeature extends GameAction {
   const AddProductFeature({required this.productId, required this.featureId});
 
   final String productId;
   final String featureId;
+}
+
+class AddProductTechnology extends GameAction {
+  const AddProductTechnology({
+    required this.productId,
+    required this.technologyId,
+  });
+
+  final String productId;
+  final String technologyId;
+}
+
+class FixProductBug extends GameAction {
+  const FixProductBug({required this.productId, required this.bugId});
+
+  final String productId;
+  final String bugId;
 }
 
 class SetAiDeploymentMode extends GameAction {
@@ -141,6 +165,24 @@ class SetProductPrice extends GameAction {
 
   final String productId;
   final double price;
+}
+
+class SetProductMonetizationSettings extends GameAction {
+  const SetProductMonetizationSettings({
+    required this.productId,
+    required this.intensity,
+    required this.freeTierPercent,
+  });
+
+  final String productId;
+  final double intensity;
+  final double freeTierPercent;
+}
+
+class StartProductCrunch extends GameAction {
+  const StartProductCrunch(this.productId);
+
+  final String productId;
 }
 
 class SetProductMarketingBudget extends GameAction {

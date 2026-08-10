@@ -151,13 +151,24 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Реклама'));
+    await tester.tap(find.text('Монетизация'));
     await tester.pumpAndSettle();
 
     expect(
       find.byKey(const Key('workspace-monetization-controls')),
       findsOneWidget,
     );
+    expect(
+      find.byKey(
+        ValueKey(
+          'workspace-monetization-${product.id}-${product.monetization.name}',
+        ),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Реклама'));
+    await tester.pumpAndSettle();
+
     expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
     expect(find.text('Прогноз по всем каналам'), findsOneWidget);
   });

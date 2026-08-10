@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## v15 — Long-term competition and recovery
+
+- Reduced player cyberattack probability to one third and added deterministic cyber incidents for rival companies.
+- Added rotating weekly bankruptcy checkpoints and a one-click rollback to the newest save at least seven game days old.
+- Enlarged the global date/time control and added the weekday.
+- Made VPS usable without DevOps at 82% effective capacity; managed hosting remains fully operated.
+- Reworked infrastructure summaries into a compact two-column grid and added CPU, RAM and storage constraints to server configurations and product load.
+- Added 20 deterministic competitors per product category, varied feature sets, a 100-point leader and a unified ranking table the player can overtake.
+- Increased paid acquisition and exposed post-release feature work, stack expansion, weighted bugs and bug fixing.
+- Added product renaming after release and persisted release time, bug backlog and fixed-bug count in snapshot schema v13.
+- Moved monetization into its own product workspace section with model-specific price, intensity and free-tier controls.
+- Added filters for hired employees plus training, grade promotion and confirmed dismissal actions. Product Manager bonus now scales from intern to senior.
+- Added an on-site-only productivity bonus that increases with office tier.
+- Clarified active work and added a one-week crunch mode: +28% for seven days, followed by a seven-day −22% recovery period.
+- Added irreversible technical aging after 180 days so mature products eventually require replacement, sale or a new generation.
+- Enabled HSM for Dart mobile products.
+- Fixed the second-product release button: a ready product with zero allocation now receives a visible release error when no infrastructure exists, or atomically reserves 10% capacity when infrastructure is available.
+
 ## v14 — Publisher UAT polish
 
 - R7: старый тест параллельной работы теперь создаёт реальную активную доработку
@@ -174,3 +192,22 @@ Added floating time controls, hosting plans, owned migration, dynamic stack sele
 
 - the available-feature roadmap is collapsed by default and can be expanded on demand;
 - the v13 verifier runs all gates and writes `v13_verification_summary.txt` with a concise pass/fail result for every stage.
+
+
+## Unreleased — v15 R3 verification hotfix
+
+### Fixed
+
+- bankruptcy rollback dialog now checks both `State.mounted` and `dialogContext.mounted` after the async restore call before using either context, clearing `use_build_context_synchronously` under `flutter analyze`;
+- v15 static audit now locks this async-context safety invariant so the analyzer regression cannot silently return.
+
+
+## Unreleased — v15 R4 full-suite compatibility hotfix
+
+### Fixed
+
+- failed save-slot loading always restarts the simulation clock through `try/finally`;
+- the first lightweight company website no longer trips a RAM overload on Shared Launch before finance/loan logic can run;
+- severe infrastructure load still triggers the 135% critical event, but the market-quality penalty is capped at that boundary so product quality is not inverted by an already-fatal overload value;
+- the larger weekday/date/time display is rendered as one rich undecorated text block and no longer breaks the v10 global-bar UX regression;
+- added a focused compatibility suite covering the four failures that first appeared when R3 reached the complete Flutter test suite.

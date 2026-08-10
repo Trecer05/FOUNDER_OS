@@ -33,7 +33,7 @@ class GlobalTimeControlBar extends StatelessWidget {
             container: true,
             label: tr('Глобальное управление временем и деньгами'),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 620, minHeight: 48),
+              constraints: const BoxConstraints(maxWidth: 620, minHeight: 58),
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: AppColors.surface.withAlpha(238),
@@ -105,8 +105,10 @@ class GlobalTimeControlBar extends StatelessWidget {
                           semanticLabel: tr(
                             'Дата и время ${state.formattedDateTime}',
                           ),
-                          text: state.formattedDateTime,
-                          fontSize: 13.5,
+                          text:
+                              '${tr(state.shortWeekdayName)} • ${state.formattedDate}',
+                          subtitle: state.formattedTime,
+                          fontSize: 14.5,
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -149,12 +151,14 @@ class _StatusPill extends StatelessWidget {
     required this.text,
     this.warning = false,
     this.fontSize = 12,
+    this.subtitle,
   });
 
   final String semanticLabel;
   final String text;
   final bool warning;
   final double fontSize;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -171,17 +175,51 @@ class _StatusPill extends StatelessWidget {
         ),
         child: FittedBox(
           fit: BoxFit.scaleDown,
-          child: AppText(
-            text,
-            maxLines: 1,
-            style: TextStyle(
-              color: warning ? AppColors.red : AppColors.text,
-              decoration: TextDecoration.none,
-              decorationColor: Colors.transparent,
-              fontSize: fontSize,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
+          child: subtitle == null
+              ? AppText(
+                  text,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: warning ? AppColors.red : AppColors.text,
+                    decoration: TextDecoration.none,
+                    decorationColor: Colors.transparent,
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w900,
+                  ),
+                )
+              : AppText.rich(
+                  TextSpan(
+                    children: <InlineSpan>[
+                      TextSpan(
+                        text: text,
+                        style: TextStyle(
+                          color: warning ? AppColors.red : AppColors.text,
+                          decoration: TextDecoration.none,
+                          decorationColor: Colors.transparent,
+                          fontSize: fontSize,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      TextSpan(
+                        text: '\n$subtitle',
+                        style: TextStyle(
+                          color: warning ? AppColors.red : AppColors.textMuted,
+                          decoration: TextDecoration.none,
+                          decorationColor: Colors.transparent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  style: const TextStyle(
+                    decoration: TextDecoration.none,
+                    decorationColor: Colors.transparent,
+                  ),
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  translate: false,
+                ),
         ),
       ),
     );

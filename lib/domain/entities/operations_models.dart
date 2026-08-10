@@ -2,6 +2,30 @@ import 'models.dart';
 
 enum TrainingFocus { engineering, quality, security, leadership }
 
+class ProductCrunchPeriod {
+  const ProductCrunchPeriod({
+    required this.productId,
+    required this.startedAtMinutes,
+  });
+
+  final String productId;
+  final int startedAtMinutes;
+
+  int get boostEndsAtMinutes => startedAtMinutes + 7 * 1440;
+  int get recoveryEndsAtMinutes => startedAtMinutes + 14 * 1440;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'productId': productId,
+    'startedAtMinutes': startedAtMinutes,
+  };
+
+  factory ProductCrunchPeriod.fromJson(Map<String, Object?> json) =>
+      ProductCrunchPeriod(
+        productId: json['productId']! as String,
+        startedAtMinutes: (json['startedAtMinutes']! as num).toInt(),
+      );
+}
+
 class EmployeeAssignment {
   const EmployeeAssignment({
     required this.employeeId,
@@ -156,6 +180,8 @@ extension ManagedEmployee on Employee {
     int? loyalty,
     int? morale,
     int? workload,
+    bool? remote,
+    EmployeeGrade? grade,
   }) {
     return Employee(
       id: id,
@@ -171,11 +197,11 @@ extension ManagedEmployee on Employee {
       loyalty: loyalty ?? this.loyalty,
       morale: morale ?? this.morale,
       workload: workload ?? this.workload,
-      remote: remote,
+      remote: remote ?? this.remote,
       languageIds: languageIds,
       hiredAtMinutes: hiredAtMinutes,
       isHr: isHr,
-      grade: grade,
+      grade: grade ?? this.grade,
     );
   }
 }

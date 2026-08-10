@@ -1,5 +1,16 @@
 # Product and Engineering Decisions
 
+## v15 systemic decisions
+
+- Long-term profitability is not permanent: release age imposes an irreversible freshness ceiling after 180 days, while ordinary updates only recover recency up to that ceiling.
+- Product defects are persistent weighted entities (`minor=1`, `major=3`, `critical=7`) that affect latency, reliability, quality, churn and revenue until the team completes a real fix task.
+- Post-release feature, technology, improvement and bug work share one technical queue so every change consumes team time and remains explainable.
+- Each category has one deterministic 100-point market leader and nineteen varied rivals. The player uses the same visible scoring table and may exceed 100 through stronger product execution.
+- VPS is self-service rather than blocked: without DevOps it provides 82% of nominal compute. Managed hosting includes operations in its price; owned infrastructure still requires operational specialists.
+- Owned-server capacity is constrained by compute, memory, storage, rack, power, cooling and network. Product overload is defined by the scarcest allocated resource.
+- Bankruptcy recovery uses three rotating weekly checkpoints separate from the active autosave. Recovery never silently overwrites the current game; it is an explicit insolvency action.
+- Rival cyber incidents are stored as deterministic news and reduce the affected rival's displayed users and market score.
+
 ## Product structure
 
 - The interface is list-first and centered on managing company entities rather than a single action dashboard.
@@ -72,3 +83,12 @@
 - Changes must pass formatting, static analysis, focused regression tests, the full Flutter test suite and `git diff --check`.
 - Platform build checks cover iOS Simulator and Android.
 - Physical-device UAT is required before external distribution.
+
+
+## V15 R4 — совместимость новой ресурсной модели со старой экономикой
+
+- `company_website` остаётся первым лёгким продуктом: его базовая RAM-потребность ниже полноценного SaaS, чтобы `shared_launch` выдерживал базовый сайт при стандартном первом распределении 30% без мгновенной critical overload.
+- Multi-resource load по-прежнему определяется самым дефицитным из compute/RAM/storage. Никакой ресурс не исключён из расчёта.
+- В market-метриках overload-штраф ограничен диапазоном от 82% до critical threshold 135%. Нагрузка выше 135% всё равно немедленно создаёт `serverOverload` и ставит симуляцию на паузу, поэтому дополнительное обрушение activation/retention сверх этого порога не несёт игрового смысла и не должно инвертировать сравнение качества продуктов.
+- Неудачная загрузка ручного save slot обязана восстанавливать simulation ticker через `finally`, независимо от ошибки storage.
+- День недели, дата и время остаются визуально двухуровневыми, но рендерятся одним rich-text блоком, чтобы сохранить старый UX-контракт и избежать дублирования `Text`-узлов.

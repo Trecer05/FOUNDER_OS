@@ -16,7 +16,7 @@ void main() {
   test('new company is unconfigured and starts without an office bill', () {
     final state = GameState.initial();
 
-    expect(state.snapshotVersion, 12);
+    expect(state.snapshotVersion, 13);
     expect(state.companyProfile.configured, isFalse);
     expect(state.selectedOfficeId, 'remote_first');
     expect(state.office.monthlyRent, 0);
@@ -190,7 +190,10 @@ void main() {
     skilled = engine.reduce(skilled, HireCandidate(candidate.id));
     final charged = beforeCash - skilled.cash;
     expect(charged, lessThan(candidate.salary * 0.15));
-    expect(skilled.employeeById(candidate.id)!.salary, lessThan(candidate.salary));
+    expect(
+      skilled.employeeById(candidate.id)!.salary,
+      lessThan(candidate.salary),
+    );
   });
 
   test(
@@ -312,7 +315,7 @@ void main() {
 
     final migrated = GameState.decode(jsonEncode(json));
 
-    expect(migrated.snapshotVersion, 12);
+    expect(migrated.snapshotVersion, 13);
     expect(migrated.companyProfile.configured, isTrue);
     expect(migrated.selectedOfficeId, 'remote_first');
   });

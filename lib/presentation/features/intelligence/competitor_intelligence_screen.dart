@@ -28,9 +28,7 @@ class _CompetitorIntelligenceScreenState
     final state = widget.controller.state;
     final categories = ProductCategory.values;
     final selected = _category ?? categories.first;
-    final competitors = GameCatalog.competitors
-        .where((item) => item.category == selected)
-        .toList(growable: false);
+    final competitors = state.competitorsForCategory(selected);
     final segments = GameCatalog.marketSegments
         .where((item) => item.category == selected)
         .toList(growable: false);
@@ -71,17 +69,18 @@ class _CompetitorIntelligenceScreenState
           ),
           const SizedBox(height: 16),
           SectionHeader(
-            title: 'Лидеры: ${categoryName(selected)}',
+            title: 'Рейтинг: ${categoryName(selected)}',
             subtitle: ownBest == null
-                ? 'Своего продукта в этой категории пока нет.'
-                : 'Ваш лучший продукт: ${ownBest.name}, quality ${ownBest.qualityScore.round()}/100.',
+                ? '20 сгенерированных компаний. Один лидер держит эталон 100, остальные имеют разные функции и показатели.'
+                : 'Ваш лучший продукт участвует в общей таблице и может обойти лидера за счёт функций, скорости, свежести, доверия и аудитории.',
           ),
           const SizedBox(height: 10),
-          ...competitors.map(
-            (competitor) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _CompetitorCard(competitor: competitor, own: ownBest),
-            ),
+          _MarketRankingTable(
+            competitors: competitors,
+            own: ownBest,
+            ownFreshness: ownBest == null
+                ? 0
+                : state.productFreshnessScore(ownBest),
           ),
           const SizedBox(height: 18),
           const SectionHeader(
@@ -102,103 +101,120 @@ class _CompetitorIntelligenceScreenState
   }
 }
 
-class _CompetitorCard extends StatelessWidget {
-  const _CompetitorCard({required this.competitor, required this.own});
+class _MarketRankingTable extends StatelessWidget {
+  const _MarketRankingTable({
+    required this.competitors,
+    required this.own,
+    required this.ownFreshness,
+  });
 
-  final CompetitorBenchmark competitor;
+  final List<CompetitorBenchmark> competitors;
   final Product? own;
+  final double ownFreshness;
 
   @override
   Widget build(BuildContext context) {
+    final rows = <_RankingRow>[
+      for (final competitor in competitors)
+        _RankingRow(
+          name: competitor.productName,
+          company: competitor.companyName,
+          score: competitor.marketScore,
+          features: competitor.featureIds.length,
+          latency: competitor.speedMs,
+          users: competitor.users,
+          own: false,
+        ),
+      if (own != null)
+        _RankingRow(
+          name: own!.name,
+          company: 'Ваша компания',
+          score: GameCatalog.productMarketScore(own!, ownFreshness),
+          features: own!.featureIds.length,
+          latency: own!.speedMs,
+          users: own!.users,
+          own: true,
+        ),
+    ]..sort((left, right) => right.score.compareTo(left.score));
     return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppText(
-            competitor.productName,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          AppText(
-            '${competitor.companyName} • ${compactNumber(competitor.users)} пользователей • ${money(competitor.monthlyPrice)}/мес.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 12),
-          _Comparison(
-            label: 'Latency',
-            competitorValue: '${competitor.speedMs.round()} ms',
-            ownValue: own == null ? '—' : '${own!.speedMs.round()} ms',
-            ownBetter: own != null && own!.speedMs < competitor.speedMs,
-          ),
-          _Comparison(
-            label: 'Design',
-            competitorValue: '${competitor.designScore.round()}/100',
-            ownValue: own == null ? '—' : '${own!.designScore.round()}/100',
-            ownBetter: own != null && own!.designScore > competitor.designScore,
-          ),
-          _Comparison(
-            label: 'Security',
-            competitorValue: '${competitor.securityScore.round()}/100',
-            ownValue: own == null ? '—' : '${own!.securityScore.round()}/100',
-            ownBetter:
-                own != null && own!.securityScore > competitor.securityScore,
-          ),
-          _Comparison(
-            label: 'Reliability',
-            competitorValue: percent(competitor.reliability, fractionDigits: 2),
-            ownValue: own == null
-                ? '—'
-                : percent(own!.reliability, fractionDigits: 2),
-            ownBetter: own != null && own!.reliability > competitor.reliability,
-          ),
-        ],
+      padding: const EdgeInsets.all(8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columnSpacing: 18,
+          horizontalMargin: 8,
+          columns: const <DataColumn>[
+            DataColumn(label: AppText('#')),
+            DataColumn(label: AppText('Продукт')),
+            DataColumn(label: AppText('Score')),
+            DataColumn(label: AppText('Функции')),
+            DataColumn(label: AppText('Latency')),
+            DataColumn(label: AppText('Пользователи')),
+          ],
+          rows: rows.indexed
+              .map((entry) {
+                final rank = entry.$1 + 1;
+                final row = entry.$2;
+                final style = TextStyle(
+                  color: row.own ? AppColors.primary : AppColors.text,
+                  fontWeight: row.own ? FontWeight.w900 : FontWeight.w600,
+                );
+                return DataRow(
+                  cells: <DataCell>[
+                    DataCell(AppText('$rank', style: style)),
+                    DataCell(
+                      SizedBox(
+                        width: 150,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AppText(row.name, maxLines: 1, style: style),
+                            AppText(
+                              row.company,
+                              maxLines: 1,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      AppText(row.score.toStringAsFixed(1), style: style),
+                    ),
+                    DataCell(AppText('${row.features}', style: style)),
+                    DataCell(
+                      AppText('${row.latency.round()} ms', style: style),
+                    ),
+                    DataCell(AppText(compactNumber(row.users), style: style)),
+                  ],
+                );
+              })
+              .toList(growable: false),
+        ),
       ),
     );
   }
 }
 
-class _Comparison extends StatelessWidget {
-  const _Comparison({
-    required this.label,
-    required this.competitorValue,
-    required this.ownValue,
-    required this.ownBetter,
+class _RankingRow {
+  const _RankingRow({
+    required this.name,
+    required this.company,
+    required this.score,
+    required this.features,
+    required this.latency,
+    required this.users,
+    required this.own,
   });
 
-  final String label;
-  final String competitorValue;
-  final String ownValue;
-  final bool ownBetter;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        children: [
-          Expanded(child: AppText(label)),
-          AppText(
-            ownValue,
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              color: ownBetter ? AppColors.green : AppColors.text,
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8),
-            child: AppText('vs', style: TextStyle(color: AppColors.textMuted)),
-          ),
-          SizedBox(
-            width: 86,
-            child: AppText(
-              competitorValue,
-              textAlign: TextAlign.end,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  final String name;
+  final String company;
+  final double score;
+  final int features;
+  final double latency;
+  final int users;
+  final bool own;
 }
 
 class _SegmentCard extends StatelessWidget {

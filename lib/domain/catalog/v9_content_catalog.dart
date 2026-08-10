@@ -61,9 +61,12 @@ abstract final class V9ContentCatalog {
       reliability: 0.994,
       scalability: 0.52,
       strengths: <String>['Выделенные ресурсы', 'Root-доступ'],
-      weaknesses: <String>['Нужны обновления и резервные копии'],
+      weaknesses: <String>[
+        'Без DevOps доступно только 82% мощности',
+        'Нужны обновления и резервные копии',
+      ],
       risks: <String>['Один узел — единая точка отказа'],
-      requiredRoles: <String>['devOps'],
+      requiredRoles: <String>[],
     ),
     HostingPlan(
       id: 'managed_scale',

@@ -130,13 +130,13 @@ abstract final class ProductConfigurationResolver {
     }
     if (technology.id == 'hsm' &&
         !languages.any(
-          const <String>{'rust', 'go', 'kotlin', 'swift'}.contains,
+          const <String>{'rust', 'go', 'kotlin', 'swift', 'dart'}.contains,
         )) {
       return const TechnologyAvailability(
         enabled: false,
         mandatory: false,
         reason:
-            'HSM требует системный или mobile-язык: Rust, Go, Kotlin или Swift.',
+            'HSM требует системный или mobile-язык: Rust, Go, Kotlin, Swift или Dart.',
         nextStep: 'Добавьте подходящий язык или уберите HSM.',
       );
     }

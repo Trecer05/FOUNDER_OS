@@ -49,11 +49,18 @@ class GameEngine {
       CreateConfiguredProduct() => _createProduct(state, action),
       LaunchProduct() => _launchProduct(state, action.productId),
       SellProduct() => _sellProduct(state, action.productId),
+      RenameProduct() => _renameProduct(state, action.productId, action.name),
       AddProductFeature() => _addProductFeature(
         state,
         action.productId,
         action.featureId,
       ),
+      AddProductTechnology() => _addProductTechnology(
+        state,
+        action.productId,
+        action.technologyId,
+      ),
+      FixProductBug() => _fixProductBug(state, action.productId, action.bugId),
       SetAiDeploymentMode() => _setAiDeploymentMode(
         state,
         action.productId,
@@ -83,6 +90,13 @@ class GameEngine {
         action.productId,
         action.price,
       ),
+      SetProductMonetizationSettings() => _setProductMonetizationSettings(
+        state,
+        action.productId,
+        action.intensity,
+        action.freeTierPercent,
+      ),
+      StartProductCrunch() => _startProductCrunch(state, action.productId),
       SetProductMarketingBudget() => _setMarketingBudget(
         state,
         action.productId,
@@ -420,6 +434,7 @@ class GameEngine {
             ProductImprovementType.reliability,
           );
           final freshnessPenalty = state.productStalenessPenalty(product);
+          final bugPenalty = state.productBugPenalty(product);
           final aiQualityBonus = state.productAiQualityBoost(product.id);
 
           final speedMs =
@@ -429,6 +444,7 @@ class GameEngine {
                         performanceLevel,
                       ) *
                       (1 + overload * 1.8) *
+                      (1 + bugPenalty * 0.55) *
                       (1 - math.min(0.18, teamQuality / 900)))
                   .clamp(45, 25000)
                   .toDouble();
@@ -454,7 +470,8 @@ class GameEngine {
                       reliabilityOption.reliabilityDelta * reliabilityLevel +
                       performanceOption.reliabilityDelta * performanceLevel +
                       algorithmOption.reliabilityDelta * algorithmLevel -
-                      overload * 0.035)
+                      overload * 0.035 -
+                      bugPenalty * 0.085)
                   .clamp(0.50, 0.9999)
                   .toDouble();
 
@@ -470,7 +487,8 @@ class GameEngine {
                 algorithmOption.qualityDelta * algorithmLevel +
                 designOption.qualityDelta * designLevel +
                 securityOption.qualityDelta * securityLevel +
-                reliabilityOption.qualityDelta * reliabilityLevel,
+                reliabilityOption.qualityDelta * reliabilityLevel -
+                bugPenalty * 26,
             retentionBonus:
                 algorithmOption.retentionDelta * algorithmLevel +
                 designOption.retentionDelta * designLevel +
@@ -484,7 +502,9 @@ class GameEngine {
               state.aiDeploymentModeFor(product.id) ==
                   AiDeploymentMode.publicMarket;
           final potentialNewUsers =
-              (publicAi ? outcome.monthlyNewUsers : 0) * monthFraction;
+              (publicAi ? outcome.monthlyNewUsers : 0) *
+              (1 - freshnessPenalty * 0.90) *
+              monthFraction;
           final churnedUsers =
               product.users * outcome.churnRate * monthFraction;
           final nextUsers = math
@@ -692,13 +712,29 @@ class GameEngine {
           final parallelWork = state.activeAssignmentCountForEmployee(
             employee.id,
           );
-          final targetWorkload = math.min(100, 18 + parallelWork * 31).toInt();
+          final crunchMultipliers = state
+              .assignmentsForEmployee(employee.id)
+              .map((item) => state.productCrunchMultiplier(item.productId))
+              .toList(growable: false);
+          final inCrunch = crunchMultipliers.any((value) => value > 1);
+          final inRecovery = crunchMultipliers.any((value) => value < 1);
+          final targetWorkload = math
+              .min(
+                100,
+                18 +
+                    parallelWork * 31 +
+                    (inCrunch ? 18 : 0) -
+                    (inRecovery ? 10 : 0),
+              )
+              .toInt();
           final current = employee.workload;
           final step = math.max(1, (days * 12).round());
           final workload = current < targetWorkload
               ? math.min(targetWorkload, current + step).toInt()
               : math.max(targetWorkload, current - step).toInt();
-          final moraleDelta = workload >= 82
+          final moraleDelta = inCrunch
+              ? -math.max(1, (days * 4).round())
+              : workload >= 82
               ? -math.max(1, (days * 3).round())
               : workload <= 48
               ? math.max(0, (days * 1.5).round())
@@ -947,6 +983,66 @@ class GameEngine {
         continue;
       }
       final product = products[productIndex];
+      if (work.featureId.startsWith('__bug_')) {
+        final bugId = work.featureId.substring('__bug_'.length);
+        final bugMatches = product.openBugs.where((item) => item.id == bugId);
+        if (bugMatches.isEmpty) continue;
+        final bug = bugMatches.first;
+        products[productIndex] = product.copyWith(
+          openBugs: product.openBugs
+              .where((item) => item.id != bugId)
+              .toList(growable: false),
+          fixedBugCount: product.fixedBugCount + 1,
+          reliability: math.min(0.9999, product.reliability + 0.002).toDouble(),
+        );
+        updates.add(
+          ProductUpdateRecord(
+            productId: product.id,
+            updatedAtMinutes: state.simulationMinutes,
+            reason: 'Исправлен баг: ${bug.title}',
+          ),
+        );
+        messages.add('${product.name}: исправлен баг «${bug.title}».');
+        continue;
+      }
+      if (work.featureId.startsWith('__technology_')) {
+        final technologyId = work.featureId.substring('__technology_'.length);
+        final matches = GameCatalog.technologies.where(
+          (item) => item.id == technologyId,
+        );
+        if (matches.isEmpty || product.technologyIds.contains(technologyId)) {
+          continue;
+        }
+        final technology = matches.first;
+        final technologyIds = <String>[...product.technologyIds, technology.id];
+        final projection = ProductProjectionCache.estimate(
+          blueprintId: product.blueprintId,
+          frameworkId: product.frameworkId,
+          languageIds: product.languageIds,
+          technologyIds: technologyIds,
+          featureIds: product.featureIds,
+        );
+        products[productIndex] = product.copyWith(
+          technologyIds: technologyIds,
+          speedMs: projection.speedMs,
+          securityScore: projection.securityScore,
+          reliability: projection.reliability,
+          qualityScore: projection.qualityScore,
+          monthlyCost: projection.monthlyTechCost,
+          computeMultiplier: projection.computeMultiplier,
+        );
+        updates.add(
+          ProductUpdateRecord(
+            productId: product.id,
+            updatedAtMinutes: state.simulationMinutes,
+            reason: 'Стек: ${technology.name}',
+          ),
+        );
+        messages.add(
+          '${product.name}: технология ${technology.name} введена в эксплуатацию.',
+        );
+        continue;
+      }
       if (work.featureId.startsWith('__improvement_')) {
         final payload = work.featureId.substring('__improvement_'.length);
         final separator = payload.lastIndexOf('_');
@@ -1469,9 +1565,19 @@ class GameEngine {
       next = rivalMove.state;
       nextCounter = rivalMove.counter;
     }
+    final rivalCyberRoll = _random01(next.rngSeed, nextCounter++);
+    if (rivalCyberRoll < 0.035) {
+      final rivalIncident = _simulateRivalSecurityIncident(next, nextCounter);
+      next = rivalIncident.state;
+      nextCounter = rivalIncident.counter;
+    }
     if (liveProducts.isEmpty) {
       return _DailyResult(next, nextCounter);
     }
+
+    final bugs = _generateProductBugs(next, liveProducts, nextCounter);
+    next = bugs.state;
+    nextCounter = bugs.counter;
 
     if (day % 7 == 0 && next.investorOffers.isEmpty) {
       final inbound = _maybeGenerateInboundOffer(
@@ -1514,7 +1620,8 @@ class GameEngine {
                       scaleRisk -
                       physicalProtection,
                 ) *
-                next.productIncidentMultiplier(target.id))
+                next.productIncidentMultiplier(target.id) /
+                3)
             .clamp(0.0005, 0.45)
             .toDouble();
 
@@ -1522,6 +1629,120 @@ class GameEngine {
       next = _triggerSecurityIncident(next, target.id);
     }
     return _DailyResult(next, nextCounter);
+  }
+
+  _DailyResult _simulateRivalSecurityIncident(GameState state, int counter) {
+    final rivals = ProductCategory.values
+        .expand(
+          (category) => GameCatalog.competitorsFor(category, state.rngSeed),
+        )
+        .toList(growable: false);
+    if (rivals.isEmpty) return _DailyResult(state, counter);
+    final roll = _random01(state.rngSeed, counter++);
+    final index = (roll * rivals.length)
+        .floor()
+        .clamp(0, rivals.length - 1)
+        .toInt();
+    final rival = rivals[index];
+    final severityRoll = _random01(state.rngSeed, counter++);
+    final severity = severityRoll < 0.12
+        ? 'критическую утечку'
+        : severityRoll < 0.46
+        ? 'серьёзный инцидент'
+        : 'массовую DDoS-атаку';
+    final usersLost = math.max(
+      1200,
+      (rival.users * (0.002 + severityRoll * 0.008)).round(),
+    );
+    return _DailyResult(
+      _withNews(
+        state,
+        NewsItem(
+          id: 'rival_security_${rival.id}_${state.simulationMinutes}',
+          kind: NewsKind.security,
+          title: '${rival.productName}: кибератака',
+          body:
+              '${rival.companyName} пережила $severity. По оценке рынка, сервис временно потерял около $usersLost пользователей и часть доверия.',
+          simulationMinutes: state.simulationMinutes,
+          critical: false,
+        ),
+      ),
+      counter,
+    );
+  }
+
+  _DailyResult _generateProductBugs(
+    GameState state,
+    List<Product> liveProducts,
+    int counter,
+  ) {
+    var products = List<Product>.of(state.products);
+    final messages = <String>[];
+    for (final source in liveProducts) {
+      final index = products.indexWhere((item) => item.id == source.id);
+      if (index < 0) continue;
+      final product = products[index];
+      if (product.openBugs.length >= 8) continue;
+      final ageDays = state.productAgeDays(product);
+      final assigned = state.employeesForProduct(product.id);
+      final qaQuality = _roleAverage(assigned, const <EmployeeRole>[
+        EmployeeRole.qa,
+      ], (employee) => employee.quality);
+      final baseChance = ageDays <= 60 ? 0.055 : 0.018;
+      final qualityProtection = product.qualityScore / 100 * 0.025;
+      final qaProtection = qaQuality / 100 * 0.018;
+      final chance = (baseChance - qualityProtection - qaProtection)
+          .clamp(0.004, 0.07)
+          .toDouble();
+      final roll = _random01(state.rngSeed, counter++);
+      if (roll >= chance) continue;
+      final severityRoll = _random01(state.rngSeed, counter++);
+      final severity = severityRoll < 0.08
+          ? ProductBugSeverity.critical
+          : severityRoll < 0.38
+          ? ProductBugSeverity.major
+          : ProductBugSeverity.minor;
+      final titles = switch (severity) {
+        ProductBugSeverity.minor => const <String>[
+          'Сбой интерфейса на узком экране',
+          'Некорректный повтор запроса',
+          'Ошибка локального кэша',
+        ],
+        ProductBugSeverity.major => const <String>[
+          'Потеря состояния активной сессии',
+          'Деградация API под нагрузкой',
+          'Ошибочная обработка платежа',
+        ],
+        ProductBugSeverity.critical => const <String>[
+          'Повреждение пользовательских данных',
+          'Критическая ошибка авторизации',
+          'Отказ основного сервиса',
+        ],
+      };
+      final titleRoll = _random01(state.rngSeed, counter++);
+      final title =
+          titles[(titleRoll * titles.length)
+              .floor()
+              .clamp(0, titles.length - 1)
+              .toInt()];
+      final bug = ProductBug(
+        id: 'bug_${product.id}_${state.simulationMinutes}_${product.fixedBugCount + product.openBugs.length}',
+        title: title,
+        severity: severity,
+        openedAtMinutes: state.simulationMinutes,
+      );
+      products[index] = product.copyWith(
+        openBugs: <ProductBug>[...product.openBugs, bug],
+      );
+      messages.add(
+        '${product.name}: найден ${severity.name} баг «$title». Вес дефекта ${bug.weight}.',
+      );
+    }
+    var next = state.copyWith(products: products);
+    for (final message in messages) {
+      next = _withFeed(next, message);
+    }
+    return _DailyResult(next, counter);
   }
 
   _DailyResult _simulateRivalMove(
@@ -1623,7 +1844,10 @@ class GameEngine {
         return leftScore.compareTo(rightScore);
       });
     final product = ranked.first;
-    final competitor = GameCatalog.competitorFor(product.category);
+    final competitor = GameCatalog.competitorsFor(
+      product.category,
+      state.rngSeed,
+    ).first;
     final competitorScore =
         competitor.designScore * 0.28 +
         competitor.securityScore * 0.30 +
@@ -2100,11 +2324,39 @@ class GameEngine {
     final product = state.productById(productId);
     if (product == null ||
         product.stage != ProductStage.development ||
-        product.developmentProgress < 1 ||
-        product.allocatedCapacityPercent <= 0) {
+        product.developmentProgress < 1) {
       return state;
     }
-    final updated = state.products
+    final allocation = product.allocatedCapacityPercent;
+    var preparedProducts = state.products;
+    if (allocation <= 0) {
+      if (state.totalComputeUnits <= 0) {
+        return _withFeed(
+          state,
+          '${product.name}: релизу нужен активный hosting или собственные серверы.',
+        );
+      }
+      const reserve = 10.0;
+      final donorTotal = state.products
+          .where((item) => item.id != productId)
+          .fold<double>(0, (sum, item) => sum + item.allocatedCapacityPercent);
+      preparedProducts = state.products
+          .map((item) {
+            if (item.id == productId) {
+              return item.copyWith(allocatedCapacityPercent: reserve);
+            }
+            if (donorTotal <= 0) return item;
+            final reduction =
+                reserve * item.allocatedCapacityPercent / donorTotal;
+            return item.copyWith(
+              allocatedCapacityPercent: math
+                  .max(0, item.allocatedCapacityPercent - reduction)
+                  .toDouble(),
+            );
+          })
+          .toList(growable: false);
+    }
+    final updated = preparedProducts
         .map(
           (item) => item.id == productId
               ? item.copyWith(
@@ -2120,6 +2372,7 @@ class GameEngine {
                       ? 0.08
                       : 0.03,
                   brandTrust: math.max(0.04, item.brandTrust).toDouble(),
+                  releasedAtMinutes: state.simulationMinutes,
                 )
               : item,
         )
@@ -2148,6 +2401,88 @@ class GameEngine {
         simulationMinutes: state.simulationMinutes,
         critical: false,
       ),
+    );
+  }
+
+  GameState _setProductMonetizationSettings(
+    GameState state,
+    String productId,
+    double intensity,
+    double freeTierPercent,
+  ) {
+    final product = state.productById(productId);
+    if (product == null || product.stage != ProductStage.live) return state;
+    final normalizedIntensity = intensity.clamp(0.1, 1.0).toDouble();
+    final normalizedFreeTier = freeTierPercent.clamp(0, 0.9).toDouble();
+    return _withFeed(
+      state.copyWith(
+        products: state.products
+            .map(
+              (item) => item.id == productId
+                  ? item.copyWith(
+                      monetizationIntensity: normalizedIntensity,
+                      freeTierPercent: normalizedFreeTier,
+                    )
+                  : item,
+            )
+            .toList(growable: false),
+      ),
+      '${product.name}: настройки монетизации обновлены.',
+    );
+  }
+
+  GameState _startProductCrunch(GameState state, String productId) {
+    final product = state.productById(productId);
+    if (product == null ||
+        product.stage == ProductStage.failed ||
+        !state.canStartProductCrunch(productId) ||
+        state.employeesForProduct(productId).isEmpty) {
+      return _withFeed(
+        state,
+        '${product?.name ?? 'Продукт'}: форсаж недоступен — нужна команда без активного восстановления.',
+      );
+    }
+    return _withFeed(
+      state.copyWith(
+        productCrunchPeriods: <ProductCrunchPeriod>[
+          ...state.productCrunchPeriods,
+          ProductCrunchPeriod(
+            productId: productId,
+            startedAtMinutes: state.simulationMinutes,
+          ),
+        ],
+      ),
+      '${product.name}: форсаж включён. 7 дней +28% скорости, затем 7 дней −22% на восстановление.',
+    );
+  }
+
+  GameState _renameProduct(GameState state, String productId, String rawName) {
+    final product = state.productById(productId);
+    final name = rawName.trim();
+    if (product == null ||
+        product.stage == ProductStage.failed ||
+        name.length < 2 ||
+        name.length > 32 ||
+        state.products.any(
+          (item) =>
+              item.id != productId &&
+              item.name.toLowerCase() == name.toLowerCase(),
+        )) {
+      return _withFeed(
+        state,
+        'Название продукта должно содержать 2–32 символа и быть уникальным.',
+      );
+    }
+    if (product.name == name) return state;
+    return _withFeed(
+      state.copyWith(
+        products: state.products
+            .map(
+              (item) => item.id == productId ? item.copyWith(name: name) : item,
+            )
+            .toList(growable: false),
+      ),
+      '${product.name} переименован в $name.',
     );
   }
 
@@ -2193,6 +2528,101 @@ class GameEngine {
         ],
       ),
       '${product.name}: «${feature.name}» добавлена в разработку. Нужно ${requiredHours.round()} рабочих часов; отдельной покупки нет, расходы идут через зарплаты и инфраструктуру.',
+    );
+  }
+
+  GameState _addProductTechnology(
+    GameState state,
+    String productId,
+    String technologyId,
+  ) {
+    final product = state.productById(productId);
+    if (product == null ||
+        product.stage != ProductStage.live ||
+        product.technologyIds.contains(technologyId)) {
+      return state;
+    }
+    if (state.activeFeatureDevelopmentFor(productId) != null) {
+      return _withFeed(
+        state,
+        '${product.name}: сначала завершите текущую техническую работу.',
+      );
+    }
+    final technology = GameCatalog.technologyById(technologyId);
+    final availability = ProductConfigurationResolver.availability(
+      frameworkId: product.frameworkId,
+      languageIds: product.languageIds,
+      selectedTechnologyIds: product.technologyIds,
+      technology: technology,
+    );
+    final limit = ProductConfigurationResolver.technologyLimit(
+      state: state,
+      blueprintId: product.blueprintId,
+      frameworkId: product.frameworkId,
+      featureIds: product.featureIds,
+      selectedTechnologyIds: product.technologyIds,
+    );
+    if (!availability.enabled ||
+        product.technologyIds.length >= limit.allowed) {
+      return _withFeed(
+        state,
+        availability.reason ??
+            '${product.name}: лимит стека ${limit.allowed} технологий исчерпан.',
+      );
+    }
+    final requiredHours = math
+        .max(30, technology.developmentCost / 520 * 1.4)
+        .toDouble();
+    return _withFeed(
+      state.copyWith(
+        productFeatureDevelopments: <ProductFeatureDevelopment>[
+          ...state.productFeatureDevelopments,
+          ProductFeatureDevelopment(
+            productId: product.id,
+            featureId: '__technology_${technology.id}',
+            startedAtMinutes: state.simulationMinutes,
+            requiredHours: requiredHours,
+            progress: 0,
+          ),
+        ],
+      ),
+      '${product.name}: интеграция ${technology.name} займёт ${requiredHours.round()} рабочих часов.',
+    );
+  }
+
+  GameState _fixProductBug(GameState state, String productId, String bugId) {
+    final product = state.productById(productId);
+    if (product == null ||
+        product.stage != ProductStage.live ||
+        !product.openBugs.any((bug) => bug.id == bugId)) {
+      return state;
+    }
+    if (state.activeFeatureDevelopmentFor(productId) != null) {
+      return _withFeed(
+        state,
+        '${product.name}: сначала завершите текущую техническую работу.',
+      );
+    }
+    final bug = product.openBugs.firstWhere((item) => item.id == bugId);
+    final requiredHours = switch (bug.severity) {
+      ProductBugSeverity.minor => 16.0,
+      ProductBugSeverity.major => 42.0,
+      ProductBugSeverity.critical => 90.0,
+    };
+    return _withFeed(
+      state.copyWith(
+        productFeatureDevelopments: <ProductFeatureDevelopment>[
+          ...state.productFeatureDevelopments,
+          ProductFeatureDevelopment(
+            productId: product.id,
+            featureId: '__bug_${bug.id}',
+            startedAtMinutes: state.simulationMinutes,
+            requiredHours: requiredHours,
+            progress: 0,
+          ),
+        ],
+      ),
+      '${product.name}: исправление «${bug.title}» займёт ${requiredHours.round()} рабочих часов.',
     );
   }
 
@@ -2363,13 +2793,24 @@ class GameEngine {
             ),
           ]
         : state.monetizationChanges;
+    final blueprint = GameCatalog.blueprintById(product.blueprintId);
+    final defaultSetting = switch (model) {
+      MonetizationModel.free => 0.0,
+      MonetizationModel.subscription => blueprint.basePrice,
+      MonetizationModel.usageBased => math.max(25, blueprint.basePrice * 0.08),
+      MonetizationModel.advertising => 1.2,
+      MonetizationModel.transactionFee => 2.5,
+    };
     return _withFeed(
       state.copyWith(
         monetizationChanges: changes,
         products: state.products
             .map(
               (item) => item.id == productId
-                  ? item.copyWith(monetization: model)
+                  ? item.copyWith(
+                      monetization: model,
+                      price: defaultSetting.toDouble(),
+                    )
                   : item,
             )
             .toList(growable: false),
@@ -2386,18 +2827,40 @@ class GameEngine {
         'Цена подписки меняется только у выпущенного продукта.',
       );
     }
-    if (product.monetization != MonetizationModel.subscription) {
+    if (product.monetization == MonetizationModel.free) {
       return _withFeed(
         state,
-        '${product.name}: сначала выберите модель «Подписка».',
+        '${product.name}: у бесплатной модели нет платного параметра.',
       );
     }
     final blueprint = GameCatalog.blueprintById(product.blueprintId);
-    final minimum = math.max(49, blueprint.basePrice * 0.25).toDouble();
-    final maximum = math.max(minimum, blueprint.basePrice * 4).toDouble();
+    final (minimum, maximum) = switch (product.monetization) {
+      MonetizationModel.subscription => (
+        math.max(49, blueprint.basePrice * 0.25).toDouble(),
+        math.max(49, blueprint.basePrice * 4).toDouble(),
+      ),
+      MonetizationModel.usageBased => (5.0, 500.0),
+      MonetizationModel.advertising => (0.5, 4.0),
+      MonetizationModel.transactionFee => (0.5, 10.0),
+      MonetizationModel.free => (0.0, 0.0),
+    };
     final normalized = price.clamp(minimum, maximum).toDouble();
     if ((normalized - product.price).abs() < 0.5) {
       return state;
+    }
+    if (product.monetization != MonetizationModel.subscription) {
+      return _withFeed(
+        state.copyWith(
+          products: state.products
+              .map(
+                (item) => item.id == productId
+                    ? item.copyWith(price: normalized)
+                    : item,
+              )
+              .toList(growable: false),
+        ),
+        '${product.name}: параметр монетизации установлен на ${normalized.toStringAsFixed(1)}.',
+      );
     }
     final forecast = state.priceImpactForecast(product, normalized);
     final change = ProductPriceChange(
@@ -3178,8 +3641,17 @@ class GameEngine {
     if (employee == null || state.cash < program.cost) {
       return state;
     }
+    final nextSkill = math
+        .min(100, employee.skill + program.skillDelta)
+        .toInt();
+    final promotedGrade = switch (employee.grade) {
+      EmployeeGrade.intern when nextSkill >= 45 => EmployeeGrade.junior,
+      EmployeeGrade.junior when nextSkill >= 63 => EmployeeGrade.middle,
+      EmployeeGrade.middle when nextSkill >= 79 => EmployeeGrade.senior,
+      _ => employee.grade,
+    };
     final updated = employee.managedCopyWith(
-      skill: math.min(100, employee.skill + program.skillDelta).toInt(),
+      skill: nextSkill,
       speed: math.min(100, employee.speed + program.speedDelta).toInt(),
       quality: math.min(100, employee.quality + program.qualityDelta).toInt(),
       autonomy: math
@@ -3192,6 +3664,7 @@ class GameEngine {
           .min(100, employee.reliability + program.reliabilityDelta)
           .toInt(),
       morale: math.min(100, employee.morale + 3).toInt(),
+      grade: promotedGrade,
     );
     return _withFeed(
       state.copyWith(
@@ -3200,7 +3673,9 @@ class GameEngine {
             .map((item) => item.id == employeeId ? updated : item)
             .toList(growable: false),
       ),
-      '${employee.name} завершил программу «${program.name}» за ${program.cost.round()} ₽.',
+      promotedGrade == employee.grade
+          ? '${employee.name} завершил программу «${program.name}» за ${program.cost.round()} ₽.'
+          : '${employee.name} завершил программу «${program.name}» и повышен до ${promotedGrade.name}.',
     );
   }
 
@@ -4114,6 +4589,7 @@ class GameEngine {
       allocatedCapacityPercent: math.min(18, freeAllocation).toDouble(),
       computeMultiplier: 1.25,
       createdAtMinutes: state.simulationMinutes,
+      releasedAtMinutes: state.simulationMinutes,
       acquired: true,
     );
     return _withNews(
@@ -4366,7 +4842,10 @@ class GameEngine {
     required double retentionBonus,
     required double freshnessPenalty,
   }) {
-    final competitor = GameCatalog.competitorFor(product.category);
+    final competitor = GameCatalog.competitorsFor(
+      product.category,
+      state.rngSeed,
+    ).first;
     final segments = GameCatalog.marketSegments
         .where((segment) => segment.category == product.category)
         .toList(growable: false);
@@ -4424,7 +4903,9 @@ class GameEngine {
         .fold<double>(0, (sum, feature) => sum + feature.retentionDelta)
         .clamp(0, 0.24)
         .toDouble();
-    final overload = math.max(0, state.productServerLoad(product) - 0.82);
+    final overload = math
+        .min(0.53, math.max(0, state.productServerLoad(product) - 0.82))
+        .toDouble();
     final activation =
         (0.12 +
                 designScore / 330 +
@@ -4489,12 +4970,18 @@ class GameEngine {
     required double reliability,
     required double ecosystemBoost,
   }) {
+    final payingShare = 1 - product.freeTierPercent;
+    final intensity = product.monetizationIntensity;
     final base = switch (product.monetization) {
       MonetizationModel.free => 0.0,
-      MonetizationModel.subscription => mau * product.price * 0.092,
-      MonetizationModel.usageBased => mau * product.price * 0.061,
-      MonetizationModel.advertising => mau * 34.0,
-      MonetizationModel.transactionFee => mau * product.price * 0.18,
+      MonetizationModel.subscription =>
+        mau * payingShare * product.price * (0.075 + intensity * 0.035),
+      MonetizationModel.usageBased =>
+        mau * payingShare * product.price * (0.045 + intensity * 0.032),
+      MonetizationModel.advertising =>
+        mau * (9 + intensity * 27) * math.max(0.02, product.price),
+      MonetizationModel.transactionFee =>
+        mau * (7 + intensity * 13) * product.price,
     };
     return base * reliability * (1 + ecosystemBoost * 0.55);
   }

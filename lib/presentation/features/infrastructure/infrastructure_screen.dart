@@ -91,55 +91,79 @@ class _InfrastructureScreenState extends State<InfrastructureScreen> {
           const SizedBox(height: 18),
           const SectionHeader(
             title: 'Текущая конфигурация',
-            subtitle: 'Физические ограничения считаются в U, kW, Gbps и CU.',
+            subtitle:
+                'Нагрузка упирается в самый дефицитный ресурс: CU, RAM или storage. Железо также ограничено U, power, cooling и сетью.',
           ),
           const SizedBox(height: 10),
           AppCard(
-            child: Column(
-              children: [
-                ResponsiveInfoRow(
-                  'Офис',
-                  '${state.office.name} • аренда ${money(state.office.monthlyRent)}/мес. • списание ${money(state.monthlyOfficeCost)}/мес.',
-                ),
-                ResponsiveInfoRow(
-                  'Сотрудники',
-                  '${state.onSiteEmployeeCount}/${state.office.capacity} в офисе • ${state.remoteEmployeeCount} remote',
-                ),
-                ResponsiveInfoRow('Hosting', state.hostingPlan.name),
-                ResponsiveInfoRow(
-                  'Серверная',
-                  '${state.serverRoom.name} • аренда ${money(state.serverRoom.monthlyRent)}/мес. • ${state.usingOwnedInfrastructure ? 'активна' : 'подготовка к миграции'}',
-                ),
-                ResponsiveInfoRow(
-                  'Rack',
-                  '${state.usedRackUnits.toStringAsFixed(0)} / ${state.serverRoom.rackUnits} U',
-                ),
-                ResponsiveInfoRow(
-                  'Power',
-                  '${state.usedPowerKw.toStringAsFixed(1)} / ${state.serverRoom.powerKw.toStringAsFixed(1)} kW',
-                ),
-                ResponsiveInfoRow(
-                  'Cooling',
-                  '${state.usedCoolingKw.toStringAsFixed(1)} / ${state.serverRoom.coolingKw.toStringAsFixed(1)} kW',
-                ),
-                ResponsiveInfoRow(
-                  'Network',
-                  '${state.totalNetworkGbps.toStringAsFixed(1)} Gbps',
-                ),
-                ResponsiveInfoRow(
-                  'Активный Compute',
-                  '${state.totalComputeUnits.round()} CU',
-                ),
-                ResponsiveInfoRow(
-                  'Серверы в резерве',
-                  '${state.preparedComputeUnits.round()} CU • ${state.usingOwnedInfrastructure ? 'активны' : 'не учитываются до миграции'}',
-                ),
-                ResponsiveInfoRow(
-                  'Общая загрузка',
-                  percent(state.serverLoad, fractionDigits: 1),
-                  last: true,
-                ),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final width = (constraints.maxWidth - 10) / 2;
+                final items = <_InfrastructureStat>[
+                  _InfrastructureStat(
+                    'Офис',
+                    state.office.name,
+                    '${money(state.monthlyOfficeCost)}/мес.',
+                  ),
+                  _InfrastructureStat(
+                    'Сотрудники',
+                    '${state.onSiteEmployeeCount}/${state.office.capacity} office',
+                    '${state.remoteEmployeeCount} remote',
+                  ),
+                  _InfrastructureStat(
+                    'Hosting',
+                    state.hostingPlan.name,
+                    state.hostingPlan.kind == HostingKind.vps &&
+                            !state.hasDevOps
+                        ? '82% мощности без DevOps'
+                        : 'операционка закрыта',
+                  ),
+                  _InfrastructureStat(
+                    'Серверная',
+                    state.serverRoom.name,
+                    '${money(state.monthlyServerRoomCost)}/мес.',
+                  ),
+                  _InfrastructureStat(
+                    'Compute',
+                    '${state.totalComputeDemand.round()} / ${state.totalComputeUnits.round()} CU',
+                    'нагрузка ${percent(state.serverLoad)}',
+                  ),
+                  _InfrastructureStat(
+                    'Memory',
+                    '${state.totalMemoryGb.round()} GB',
+                    state.usingOwnedInfrastructure
+                        ? 'собственная RAM'
+                        : 'RAM активного hosting',
+                  ),
+                  _InfrastructureStat(
+                    'Storage',
+                    '${state.totalStorageGb.round()} GB',
+                    'доступно продуктам',
+                  ),
+                  _InfrastructureStat(
+                    'Rack / Power',
+                    '${state.usedRackUnits.round()}/${state.serverRoom.rackUnits} U',
+                    '${state.usedPowerKw.toStringAsFixed(1)}/${state.serverRoom.powerKw.toStringAsFixed(1)} kW',
+                  ),
+                  _InfrastructureStat(
+                    'Cooling',
+                    '${state.usedCoolingKw.toStringAsFixed(1)}/${state.serverRoom.coolingKw.toStringAsFixed(1)} kW',
+                    'тепловой лимит',
+                  ),
+                  _InfrastructureStat(
+                    'Network',
+                    '${state.totalNetworkGbps.toStringAsFixed(1)} Gbps',
+                    'активный канал',
+                  ),
+                ];
+                return Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: items
+                      .map((item) => SizedBox(width: width, child: item))
+                      .toList(growable: false),
+                );
+              },
             ),
           ),
         ],
@@ -167,6 +191,16 @@ class _OfficesList extends StatelessWidget {
         const SizedBox(height: 10),
         ...GameCatalog.offices.map((office) {
           final current = office.id == state.selectedOfficeId;
+          final productivityBoost = office.id == 'remote_first'
+              ? 0
+              : (((1.02 +
+                                    office.comfortScore / 1000 +
+                                    (office.communicationEfficiency - 0.90) *
+                                        0.25)
+                                .clamp(1.0, 1.20) -
+                            1) *
+                        100)
+                    .round();
           final canRent =
               office.capacity >= state.onSiteEmployeeCount &&
               state.cash >= office.deposit;
@@ -222,6 +256,11 @@ class _OfficesList extends StatelessWidget {
                       ),
                       _ValueChip(
                         'Бонус к найму +${(office.hiringBoostPercent * 100).round()}%',
+                      ),
+                      _ValueChip(
+                        office.id == 'remote_first'
+                            ? 'On-site performance недоступен'
+                            : 'On-site performance +$productivityBoost%',
                       ),
                       _ValueChip('Престиж ${office.prestigeScore}/100'),
                       _ValueChip('Депозит ${money(office.deposit)}'),
@@ -406,6 +445,8 @@ class _HardwareList extends StatelessWidget {
                     runSpacing: 7,
                     children: [
                       _ValueChip('${hardware.computeUnits.round()} CU'),
+                      _ValueChip('${hardware.memoryGb.round()} GB RAM'),
+                      _ValueChip('${hardware.storageGb.round()} GB storage'),
                       _ValueChip('${hardware.rackUnits} U'),
                       _ValueChip('Power ${hardware.powerKw} kW'),
                       _ValueChip('Heat ${hardware.heatKw} kW'),
@@ -545,15 +586,18 @@ class _AllocationList extends StatelessWidget {
                         onDraftChanged(product.id, applied);
                       },
                     ),
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
                       children: [
-                        Expanded(
-                          child: AppText(
-                            'Доступно: ${state.allocatedComputeFor(product.id).round()} CU',
-                          ),
+                        _ValueChip(
+                          'CU ${state.productComputeDemand(product).round()} / ${state.allocatedComputeFor(product.id).round()}',
                         ),
-                        AppText(
-                          'Нужно: ${state.productComputeDemand(product).round()} CU',
+                        _ValueChip(
+                          'RAM ${state.productMemoryDemand(product).round()} / ${state.allocatedMemoryFor(product.id).round()} GB',
+                        ),
+                        _ValueChip(
+                          'Storage ${state.productStorageDemand(product).round()} / ${state.allocatedStorageFor(product.id).round()} GB',
                         ),
                       ],
                     ),
@@ -646,6 +690,47 @@ class _OwnedMigrationCard extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _InfrastructureStat extends StatelessWidget {
+  const _InfrastructureStat(this.label, this.value, this.note);
+
+  final String label;
+  final String value;
+  final String note;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 92),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppText(label, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 5),
+          AppText(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 3),
+          AppText(
+            note,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
         ],
       ),
     );

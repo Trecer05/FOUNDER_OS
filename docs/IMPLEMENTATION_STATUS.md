@@ -1,5 +1,32 @@
 # IMPLEMENTATION STATUS
 
+## v15 package status — long-term competition and recovery
+
+Implemented:
+
+- snapshot schema v13 with product release time and weighted bug persistence;
+- rotating weekly bankruptcy recovery;
+- lower player attack frequency and rival cyber incidents;
+- 20 competitors per category and a unified ranking;
+- post-release features, stack expansion, bug fixing and product renaming;
+- model-specific monetization surface;
+- CPU/RAM/storage infrastructure economics and compact responsive summary;
+- employee filters, courses, promotions and dismissal;
+- grade-based Product Manager bonus;
+- on-site-only office productivity tiers and a visible crunch/recovery cycle;
+- paid-acquisition rebalance and irreversible product aging;
+- Dart/HSM compatibility;
+- deterministic second-product release capacity reservation;
+- focused v15 domain and recovery tests plus full English-locale coverage.
+
+Archive-environment checks completed:
+
+- release-content audit — passed;
+- full English-locale audit — passed;
+- Dart delimiter scan — passed.
+
+The atomic macOS installer runs formatting, focused v15 regressions, `flutter analyze`, the complete Flutter test suite, iOS Simulator and Android debug builds, and `git diff --check`. It restores every touched file if any gate fails.
+
 ## Current baseline
 
 **FOUNDER.OS v12.2 — pre-TestFlight**
@@ -140,3 +167,25 @@ Implemented from physical-device publisher UAT:
 - added three high-density late-game server tiers with better cost per CU.
 
 Archive verification must run formatting, the full English audit, focused v14 tests, static analysis, the complete Flutter suite, an iOS Simulator build and an Android debug build before the patch is accepted.
+
+
+## v15 R3 verification hotfix
+
+- V15 domain regressions: passed in user Mac verifier before this hotfix (15/15).
+- Bankruptcy recovery regression: passed.
+- Snapshot migration regressions: passed (26 tests).
+- V14 workspace regressions: passed (4/4).
+- Remaining blocker from that run was one `flutter analyze` lint in `founder_dashboard.dart`; R3 fixes it with explicit mounted guards and adds a static-audit invariant.
+- Full analyzer, complete Flutter suite, iOS Simulator build, Android build and final diff check must still pass on the user Mac before V15 is considered verified.
+
+
+## v15 R4 full-suite compatibility hotfix
+
+After R3 reached the complete Flutter suite, four legacy regressions were isolated and fixed without removing V15 mechanics:
+
+- failed manual-slot load now restarts the simulation ticker from `finally`;
+- a basic `company_website` uses a lightweight RAM baseline so `shared_launch` does not trigger an unrelated critical overload at the default first-product allocation;
+- market overload contribution to activation/retention/churn is capped at the same 135% critical-load boundary that stops the simulation, preserving product-quality ordering before the stop;
+- the global date/weekday/time pill is rendered as one rich text block, preserving the larger V15 typography while satisfying the existing undecorated-text UX contract.
+
+A focused `v15_full_suite_compatibility_test.dart` now runs before snapshot/workspace/full-suite gates and reproduces all four regressions. R4 still requires the local Mac verifier to complete the full Flutter suite, iOS Simulator build, Android build and final diff check before V15 is marked verified.

@@ -80,7 +80,7 @@ require("lib/presentation/features/products/product_workspace_screen.dart", "О�
 require("lib/presentation/shared/widgets/metric_card.dart", "доля основателя", "founder share hint")
 require("lib/presentation/shared/widgets/metric_card.dart", "загрузка сервер", "server load hint")
 require("lib/presentation/shared/widgets/metric_card.dart", "оценк", "valuation hint")
-require("lib/presentation/shared/widgets/global_time_control_bar.dart", "fontSize: 13.5", "larger date/time")
+require("lib/presentation/shared/widgets/global_time_control_bar.dart", "fontSize: 14.5", "larger date/time")
 
 # Rival scale and non-calendar-template behaviour.
 market_pairs = re.findall(r"MarketCompany\(.*?valuation: ([0-9.]+),.*?users: ([0-9]+),", game, re.S)

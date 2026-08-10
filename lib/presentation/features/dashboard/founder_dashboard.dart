@@ -188,7 +188,11 @@ class _FounderDashboardState extends State<FounderDashboard> {
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => AlertDialog(
-          icon: const Icon(Icons.emoji_events_outlined, color: AppColors.yellow, size: 46),
+          icon: const Icon(
+            Icons.emoji_events_outlined,
+            color: AppColors.yellow,
+            size: 46,
+          ),
           title: const AppText('Founder Legacy завершён'),
           content: AppText(
             'Вы самостоятельно выпустили ${state.releasedBlueprintCount} направлений и поглотили всех ${state.acquiredRivalCount} крупных конкурентов. Это полноценный финал кампании — компанию можно продолжить развивать в свободном режиме.',
@@ -230,6 +234,30 @@ class _FounderDashboardState extends State<FounderDashboard> {
         title: AppText(content.title),
         content: AppText(content.body),
         actions: [
+          if (event == CriticalEventType.insolvency)
+            OutlinedButton.icon(
+              key: const Key('restore-week-before-bankruptcy'),
+              onPressed: () async {
+                final restored = await widget.controller
+                    .restoreWeekBeforeBankruptcy();
+                if (!mounted) return;
+                if (!dialogContext.mounted) return;
+                if (restored) {
+                  Navigator.of(dialogContext).pop();
+                  if (mounted) setState(() => _tab = 0);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: AppText(
+                        'Недельная контрольная точка ещё не успела создаться.',
+                      ),
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.restore_rounded),
+              label: const AppText('Откатить на неделю'),
+            ),
           if (event == CriticalEventType.lostControl ||
               event == CriticalEventType.insolvency)
             FilledButton(

@@ -13,6 +13,7 @@ import '../../../domain/entities/models.dart';
 import '../../../domain/entities/v12_game_state_extensions.dart';
 import '../../../domain/entities/product_evolution_models.dart';
 import '../../../domain/explainability/staffing_deficit_resolver.dart';
+import '../../../domain/explainability/product_configuration_resolver.dart';
 import '../../../domain/simulation/product_projection_cache.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
@@ -29,6 +30,7 @@ enum _WorkspaceSection {
   development,
   team,
   marketing,
+  monetization,
   metrics,
   infrastructure,
 }
@@ -65,6 +67,8 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
   String? _channelId;
   double _campaignBudget = 80000;
   double? _priceDraft;
+  double? _intensityDraft;
+  double? _freeTierDraft;
 
   Product? get _product =>
       widget.controller.state.productById(widget.productId);
@@ -76,7 +80,17 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
       return const Scaffold(body: Center(child: AppText('Продукт не найден')));
     }
     return Scaffold(
-      appBar: AppBar(title: AppText(product.name), actions: const <Widget>[]),
+      appBar: AppBar(
+        title: AppText(product.name),
+        actions: [
+          IconButton(
+            key: const Key('rename-product'),
+            tooltip: trContext(context, 'Изменить название'),
+            onPressed: () => _showRenameProduct(product),
+            icon: const Icon(Icons.edit_outlined),
+          ),
+        ],
+      ),
       body: Column(
         children: <Widget>[
           _SectionRail(
@@ -115,6 +129,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
     _WorkspaceSection.development => _development(product),
     _WorkspaceSection.team => _team(product),
     _WorkspaceSection.marketing => _marketing(product),
+    _WorkspaceSection.monetization => _monetization(product),
     _WorkspaceSection.metrics => _metrics(product),
     _WorkspaceSection.infrastructure => _infrastructure(product),
   };
@@ -262,7 +277,25 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
     final phase = state.developmentPhaseFor(product);
     final capacity = state.totalDevelopmentCapacityFor(product);
     final activeWork = state.activeFeatureDevelopmentFor(product.id);
-    final competitor = GameCatalog.competitorFor(product.category);
+    final competitor = state.competitorsForCategory(product.category).first;
+    final availableFeatures = GameCatalog.features
+        .where(
+          (feature) =>
+              feature.supportedCategories.contains(product.category) &&
+              !product.featureIds.contains(feature.id),
+        )
+        .toList(growable: false);
+    final availableTechnologies = GameCatalog.technologies
+        .where((technology) => !product.technologyIds.contains(technology.id))
+        .where(
+          (technology) => ProductConfigurationResolver.availability(
+            frameworkId: product.frameworkId,
+            languageIds: product.languageIds,
+            selectedTechnologyIds: product.technologyIds,
+            technology: technology,
+          ).enabled,
+        )
+        .toList(growable: false);
     return _list([
       SectionHeader(
         title: 'Разработка',
@@ -333,8 +366,41 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             _row(
               'Активная работа',
               activeWork == null
-                  ? 'Нет'
+                  ? 'Нет очереди — команда свободна для новой задачи'
                   : '${_workName(activeWork.featureId)} ${(activeWork.progress * 100).round()}%',
+            ),
+            const SizedBox(height: 8),
+            AppText(
+              '«Активная работа» — это выбранная доработка, функция, исправление бага или расширение стека. Это не скрытый режим ускорения.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: AppText(
+                    state.productCrunchStatus(product.id),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+                FilledButton.icon(
+                  key: const Key('start-product-crunch'),
+                  onPressed:
+                      state.canStartProductCrunch(product.id) &&
+                          state.employeesForProduct(product.id).isNotEmpty
+                      ? () => widget.controller.dispatch(
+                          StartProductCrunch(product.id),
+                        )
+                      : null,
+                  icon: const Icon(Icons.bolt),
+                  label: const AppText('Форсаж на неделю'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            AppText(
+              'Форсаж даёт +28% на 7 дней, затем команда 7 дней работает на −22%. Повторно включить его во время восстановления нельзя.',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
         ),
@@ -407,6 +473,154 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
       if (product.stage == ProductStage.live) ...[
         const SizedBox(height: 12),
         AppCard(
+          key: const Key('post-release-roadmap'),
+          hintTitle: 'Функции после релиза',
+          hintBody:
+              'Новые функции не покупаются мгновенно: каждая занимает рабочие часы назначенной команды. Одновременно продукт ведёт одну техническую работу.',
+          child: ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.zero,
+            title: AppText(
+              'Функции • установлено ${product.featureIds.length}',
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            subtitle: AppText(
+              availableFeatures.isEmpty
+                  ? 'Все доступные функции уже выпущены.'
+                  : 'Доступно к разработке: ${availableFeatures.length}',
+            ),
+            children: availableFeatures
+                .take(20)
+                .map(
+                  (feature) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: AppText(feature.name),
+                    subtitle: AppText(feature.description),
+                    trailing: FilledButton(
+                      onPressed: activeWork == null
+                          ? () => widget.controller.dispatch(
+                              AddProductFeature(
+                                productId: product.id,
+                                featureId: feature.id,
+                              ),
+                            )
+                          : null,
+                      child: const AppText('Разработать'),
+                    ),
+                  ),
+                )
+                .toList(growable: false),
+          ),
+        ),
+        const SizedBox(height: 12),
+        AppCard(
+          key: const Key('post-release-stack-expansion'),
+          hintTitle: 'Расширение стека после релиза',
+          hintBody:
+              'Дополнительная технология может снизить latency, повысить стабильность или безопасность, но увеличивает стоимость сопровождения и compute.',
+          child: ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.zero,
+            title: AppText(
+              'Стек • ${product.technologyIds.length} технологий',
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            subtitle: AppText(
+              'Latency сейчас ${product.speedMs.round()} ms • доступно ${availableTechnologies.length}',
+            ),
+            children: availableTechnologies
+                .take(16)
+                .map(
+                  (technology) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: AppText(technology.name),
+                    subtitle: AppText(
+                      '${technology.description} • performance +${technology.performanceDelta.toStringAsFixed(0)} • ${money(technology.monthlyCost)}/мес.',
+                    ),
+                    trailing: FilledButton(
+                      onPressed: activeWork == null
+                          ? () => widget.controller.dispatch(
+                              AddProductTechnology(
+                                productId: product.id,
+                                technologyId: technology.id,
+                              ),
+                            )
+                          : null,
+                      child: const AppText('Добавить'),
+                    ),
+                  ),
+                )
+                .toList(growable: false),
+          ),
+        ),
+        const SizedBox(height: 12),
+        AppCard(
+          key: const Key('product-bug-backlog'),
+          hintTitle: 'Баги продукта',
+          hintBody:
+              'Вес 1 — minor, 3 — major, 7 — critical. Общий вес ухудшает latency, reliability, качество, churn и выручку. Исправление занимает время команды.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppText(
+                'Открыто ${product.openBugs.length} • вес ${state.productBugWeight(product)} • исправлено ${product.fixedBugCount}',
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              if (product.openBugs.isEmpty) ...[
+                const SizedBox(height: 8),
+                const AppText('Открытых дефектов нет.'),
+              ] else
+                ...product.openBugs.map(
+                  (bug) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(child: AppText('${bug.weight}')),
+                    title: AppText(bug.title),
+                    subtitle: AppText(
+                      '${bug.severity.name} • найден ${state.formatDateAt(bug.openedAtMinutes)}',
+                    ),
+                    trailing: FilledButton(
+                      onPressed: activeWork == null
+                          ? () => widget.controller.dispatch(
+                              FixProductBug(
+                                productId: product.id,
+                                bugId: bug.id,
+                              ),
+                            )
+                          : null,
+                      child: const AppText('Исправить'),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const AppText(
+                'Техническое устаревание',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 8),
+              _row(
+                'Свежесть сейчас',
+                '${state.productFreshnessScore(product).round()}/100',
+              ),
+              _row(
+                'Максимум для возраста продукта',
+                '${state.productFreshnessCeiling(product).round()}/100',
+              ),
+              AppText(
+                'Обновления возвращают свежесть только до возрастного потолка. После 180 дней потолок необратимо снижается; старый продукт придётся заменить новым поколением или продать.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        AppCard(
           hintTitle: 'Сравнение с рынком',
           hintBody:
               'Это ближайший ориентир в категории. Улучшения продукта должны сокращать разрыв по скорости, дизайну, безопасности, надёжности и полноте функций.',
@@ -434,7 +648,14 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                 'Надёжность',
                 '${percent(product.reliability, fractionDigits: 2)} / ${percent(competitor.reliability, fractionDigits: 2)}',
               ),
-              _row('Функции', '${percent(product.featureCoverage)} / 100%'),
+              _row(
+                'Функции',
+                '${product.featureIds.length} / ${competitor.featureIds.length}',
+              ),
+              _row(
+                'Рыночный score',
+                '${GameCatalog.productMarketScore(product, state.productFreshnessScore(product)).toStringAsFixed(1)} / ${competitor.marketScore.toStringAsFixed(0)}',
+              ),
             ],
           ),
         ),
@@ -486,9 +707,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             }
             return right.skill.compareTo(left.skill);
           });
-    final hasProductManager = team.any(
-      (employee) => employee.role == EmployeeRole.productManager,
-    );
+    final productManagerBonus = state.productManagerBonusPercentFor(product.id);
     final founderCapacity = state.founderDevelopmentCapacityFor(product);
 
     return _list([
@@ -518,12 +737,12 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               ),
               trailing: const Chip(label: AppText('CEO')),
             ),
-            if (hasProductManager)
-              const Padding(
-                padding: EdgeInsets.only(top: 6),
+            if (productManagerBonus > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
                 child: AppText(
-                  'Product Manager в команде: +15% к производительности разработки.',
-                  style: TextStyle(
+                  'Product Manager: +${(productManagerBonus * 100).round()}% к производительности по грейду.',
+                  style: const TextStyle(
                     color: AppColors.green,
                     fontWeight: FontWeight.w800,
                   ),
@@ -730,23 +949,195 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
     ]);
   }
 
+  Widget _monetization(Product product) {
+    final state = widget.controller.state;
+    final strategy = ProductStrategyCatalog.strategyFor(product.blueprintId);
+    final cooldown = state.monetizationCooldownRemainingDays(product.id);
+    final forecast = state.revenueForecastFor(product);
+    final blueprint = GameCatalog.blueprintById(product.blueprintId);
+    final (minimum, maximum, divisions) = switch (product.monetization) {
+      MonetizationModel.subscription => (
+        math.max(49, blueprint.basePrice * 0.25).toDouble(),
+        math.max(49, blueprint.basePrice * 4).toDouble(),
+        20,
+      ),
+      MonetizationModel.usageBased => (5.0, 500.0, 33),
+      MonetizationModel.advertising => (0.5, 4.0, 35),
+      MonetizationModel.transactionFee => (0.5, 10.0, 38),
+      MonetizationModel.free => (0.0, 1.0, 1),
+    };
+    final value = (_priceDraft ?? product.price)
+        .clamp(minimum, maximum)
+        .toDouble();
+    final intensity = (_intensityDraft ?? product.monetizationIntensity)
+        .clamp(0.1, 1.0)
+        .toDouble();
+    final freeTier = (_freeTierDraft ?? product.freeTierPercent)
+        .clamp(0, 0.9)
+        .toDouble();
+    final settingLabel = switch (product.monetization) {
+      MonetizationModel.free => 'Настроек оплаты нет',
+      MonetizationModel.subscription => 'Цена подписки',
+      MonetizationModel.usageBased => 'Цена за 1 000 операций',
+      MonetizationModel.advertising => 'Рекламная нагрузка',
+      MonetizationModel.transactionFee => 'Комиссия с транзакции',
+    };
+    String formatSetting(double setting) => switch (product.monetization) {
+      MonetizationModel.subscription ||
+      MonetizationModel.usageBased => money(setting),
+      MonetizationModel.advertising => '×${setting.toStringAsFixed(1)}',
+      MonetizationModel.transactionFee => '${setting.toStringAsFixed(1)}%',
+      MonetizationModel.free => '—',
+    };
+    return _list([
+      SectionHeader(
+        title: 'Монетизация',
+        subtitle: monetizationName(product.monetization),
+        hintTitle: 'Настройка коммерческой модели',
+        hintBody:
+            'Каждая модель имеет собственный параметр: цену подписки, цену использования, рекламную нагрузку или комиссию. Более агрессивная настройка увеличивает доход, но рынок учитывает цену и доверие.',
+      ),
+      const SizedBox(height: 12),
+      AppCard(
+        key: const Key('workspace-monetization-controls'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DropdownButtonFormField<MonetizationModel>(
+              key: ValueKey(
+                'workspace-monetization-${product.id}-${product.monetization.name}',
+              ),
+              initialValue: product.monetization,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: trContext(context, 'Модель монетизации'),
+                helperText: cooldown > 0
+                    ? trContext(context, 'Следующая смена через $cooldown дн.')
+                    : trContext(context, 'Изменение доступно сейчас.'),
+              ),
+              items: strategy.allowedMonetizationModels
+                  .map(
+                    (model) => DropdownMenuItem(
+                      value: model,
+                      child: AppText(monetizationName(model)),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: product.stage == ProductStage.live && cooldown > 0
+                  ? null
+                  : (model) {
+                      if (model == null) return;
+                      setState(() => _priceDraft = null);
+                      widget.controller.dispatch(
+                        SetProductMonetization(
+                          productId: product.id,
+                          model: model,
+                        ),
+                      );
+                    },
+            ),
+            const SizedBox(height: 12),
+            _row(
+              'Прогноз дохода',
+              '${money(forecast.low)} – ${money(forecast.high)} / мес.',
+            ),
+            if (product.monetization != MonetizationModel.free) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: AppText(settingLabel)),
+                  AppText(
+                    formatSetting(value),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ],
+              ),
+              Slider(
+                key: Key('workspace-monetization-setting-${product.id}'),
+                value: value,
+                min: minimum,
+                max: maximum,
+                divisions: divisions,
+                label: formatSetting(value),
+                onChanged: (next) => setState(() => _priceDraft = next),
+                onChangeEnd: (next) {
+                  widget.controller.dispatch(
+                    SetProductPrice(productId: product.id, price: next),
+                  );
+                  setState(() => _priceDraft = null);
+                },
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Expanded(child: AppText('Интенсивность монетизации')),
+                  AppText(
+                    percent(intensity),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ],
+              ),
+              Slider(
+                key: Key('workspace-monetization-intensity-${product.id}'),
+                value: intensity,
+                min: 0.1,
+                max: 1,
+                divisions: 18,
+                label: percent(intensity),
+                onChanged: (next) => setState(() => _intensityDraft = next),
+                onChangeEnd: (next) {
+                  widget.controller.dispatch(
+                    SetProductMonetizationSettings(
+                      productId: product.id,
+                      intensity: next,
+                      freeTierPercent: freeTier,
+                    ),
+                  );
+                  setState(() => _intensityDraft = null);
+                },
+              ),
+              if (product.monetization == MonetizationModel.subscription ||
+                  product.monetization == MonetizationModel.usageBased) ...[
+                Row(
+                  children: [
+                    const Expanded(child: AppText('Бесплатный тариф / квота')),
+                    AppText(
+                      percent(freeTier),
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ],
+                ),
+                Slider(
+                  key: Key('workspace-free-tier-${product.id}'),
+                  value: freeTier,
+                  min: 0,
+                  max: 0.9,
+                  divisions: 18,
+                  label: percent(freeTier),
+                  onChanged: (next) => setState(() => _freeTierDraft = next),
+                  onChangeEnd: (next) {
+                    widget.controller.dispatch(
+                      SetProductMonetizationSettings(
+                        productId: product.id,
+                        intensity: intensity,
+                        freeTierPercent: next,
+                      ),
+                    );
+                    setState(() => _freeTierDraft = null);
+                  },
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    ]);
+  }
+
   Widget _marketing(Product product) {
     final state = widget.controller.state;
     final agencies = ProductStrategyCatalog.agencies;
     final channels = ProductStrategyCatalog.channels;
-    final strategy = ProductStrategyCatalog.strategyFor(product.blueprintId);
-    final monetizationCooldown = state.monetizationCooldownRemainingDays(
-      product.id,
-    );
-    final revenueForecast = state.revenueForecastFor(product);
-    final blueprint = GameCatalog.blueprintById(product.blueprintId);
-    final minimumPrice = math.max(49, blueprint.basePrice * 0.25).toDouble();
-    final maximumPrice = math
-        .max(minimumPrice, blueprint.basePrice * 4)
-        .toDouble();
-    final priceValue = (_priceDraft ?? product.price)
-        .clamp(minimumPrice, maximumPrice)
-        .toDouble();
     _agencyId ??= agencies.first.id;
     _channelId ??= channels.first.id;
     final selectedAgency = ProductStrategyCatalog.agencyById(_agencyId!);
@@ -761,87 +1152,6 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
         hintTitle: 'Отдельный рекламный раздел',
         hintBody:
             'Кампании сгруппированы отдельно от разработки. Перед запуском видны агентство, канал, бюджет и прогноз пользователей.',
-      ),
-      const SizedBox(height: 12),
-      AppCard(
-        key: const Key('workspace-monetization-controls'),
-        hintTitle: 'Монетизация продукта',
-        hintBody:
-            'Модель определяет формулу выручки. После релиза её можно менять раз в 30 игровых дней. Для подписки отдельно настраивается цена.',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            DropdownButtonFormField<MonetizationModel>(
-              key: ValueKey(
-                'workspace-monetization-${product.id}-${product.monetization.name}',
-              ),
-              initialValue: product.monetization,
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: trContext(context, 'Модель монетизации'),
-                helperText: monetizationCooldown > 0
-                    ? trContext(
-                        context,
-                        'Следующая смена через $monetizationCooldown дн.',
-                      )
-                    : trContext(context, 'Изменение доступно сейчас.'),
-              ),
-              items: strategy.allowedMonetizationModels
-                  .map(
-                    (model) => DropdownMenuItem(
-                      value: model,
-                      child: AppText(monetizationName(model)),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged:
-                  product.stage == ProductStage.live && monetizationCooldown > 0
-                  ? null
-                  : (model) {
-                      if (model == null) return;
-                      widget.controller.dispatch(
-                        SetProductMonetization(
-                          productId: product.id,
-                          model: model,
-                        ),
-                      );
-                    },
-            ),
-            const SizedBox(height: 10),
-            AppText(
-              'Прогноз дохода: ${money(revenueForecast.low)} – ${money(revenueForecast.high)} / мес.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            if (product.stage == ProductStage.live &&
-                product.monetization == MonetizationModel.subscription) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  const Expanded(child: AppText('Цена подписки')),
-                  AppText(
-                    money(priceValue),
-                    style: const TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                ],
-              ),
-              Slider(
-                key: const Key('workspace-subscription-price-slider'),
-                value: priceValue,
-                min: minimumPrice,
-                max: maximumPrice,
-                divisions: 20,
-                label: money(priceValue),
-                onChanged: (value) => setState(() => _priceDraft = value),
-                onChangeEnd: (value) {
-                  widget.controller.dispatch(
-                    SetProductPrice(productId: product.id, price: value),
-                  );
-                  setState(() => _priceDraft = null);
-                },
-              ),
-            ],
-          ],
-        ),
       ),
       const SizedBox(height: 12),
       AppCard(
@@ -1163,8 +1473,16 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               '${state.totalComputeUnits.toStringAsFixed(0)} CU',
             ),
             _row('Подготовлено серверов', prepared.toStringAsFixed(0)),
-            _row('Выделено продукту', allocated.toStringAsFixed(1)),
-            _row('Требуется сейчас', required.toStringAsFixed(1)),
+            _row('Выделено compute', '${allocated.toStringAsFixed(1)} CU'),
+            _row('Требуется compute', '${required.toStringAsFixed(1)} CU'),
+            _row(
+              'RAM продукта',
+              '${state.productMemoryDemand(product).round()} / ${state.allocatedMemoryFor(product.id).round()} GB',
+            ),
+            _row(
+              'Storage продукта',
+              '${state.productStorageDemand(product).round()} / ${state.allocatedStorageFor(product.id).round()} GB',
+            ),
             const SizedBox(height: 8),
             AppText(
               'Формула спроса: базовая нагрузка + пользователи / 1000 × ${blueprint.computePerThousandUsers.toStringAsFixed(1)} × сложность стека. Поэтому требование растёт вместе с аудиторией.',
@@ -1201,6 +1519,41 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
           ),
         ),
     ]);
+  }
+
+  Future<void> _showRenameProduct(Product product) async {
+    final controller = TextEditingController(text: product.name);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const AppText('Изменить название продукта'),
+        content: TextField(
+          key: const Key('rename-product-field'),
+          controller: controller,
+          autofocus: true,
+          maxLength: 32,
+          decoration: InputDecoration(
+            labelText: trContext(dialogContext, 'Название'),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const AppText('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+            child: const AppText('Сохранить'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name != null && mounted) {
+      widget.controller.dispatch(
+        RenameProduct(productId: product.id, name: name),
+      );
+    }
   }
 
   Future<void> _confirmProductSale(Product product) async {
@@ -1280,6 +1633,14 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
   }
 
   String _workName(String featureId) {
+    if (featureId.startsWith('__bug_')) {
+      return 'Исправление бага';
+    }
+    if (featureId.startsWith('__technology_')) {
+      final id = featureId.substring('__technology_'.length);
+      final matches = GameCatalog.technologies.where((item) => item.id == id);
+      return matches.isEmpty ? 'Расширение стека' : matches.first.name;
+    }
     if (featureId.startsWith('__improvement_')) {
       return 'Техническое улучшение';
     }
@@ -1317,6 +1678,7 @@ class _SectionRail extends StatelessWidget {
       (_WorkspaceSection.development, Icons.code, 'Разработка'),
       (_WorkspaceSection.team, Icons.groups_outlined, 'Команда'),
       (_WorkspaceSection.marketing, Icons.campaign_outlined, 'Реклама'),
+      (_WorkspaceSection.monetization, Icons.payments_outlined, 'Монетизация'),
       (_WorkspaceSection.metrics, Icons.show_chart, 'Метрики'),
       (_WorkspaceSection.infrastructure, Icons.dns_outlined, 'Инфра'),
     ];

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
 import '../../../domain/catalog/game_catalog.dart';
+import '../../../domain/catalog/operations_catalog.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/game_state.dart';
 import '../../../domain/entities/models.dart';
@@ -67,6 +68,25 @@ class _TeamScreenState extends State<TeamScreen> {
             })
             .toList(growable: false)
           ..sort(_candidateComparator);
+    final employees =
+        state.employees
+            .where((employee) {
+              final roleMatch = _role == null || employee.role == _role;
+              final gradeMatch = _grade == null || employee.grade == _grade;
+              final remoteMatch = !_remoteOnly || employee.remote;
+              final searchMatch =
+                  query.isEmpty ||
+                  employee.name.toLowerCase().contains(query) ||
+                  employeeRoleName(employee).toLowerCase().contains(query) ||
+                  employee.languageIds.any(
+                    (id) => GameCatalog.languageById(
+                      id,
+                    ).name.toLowerCase().contains(query),
+                  );
+              return roleMatch && gradeMatch && remoteMatch && searchMatch;
+            })
+            .toList(growable: false)
+          ..sort((left, right) => right.skill.compareTo(left.skill));
 
     return ListView(
       key: const Key('team-screen-list'),
@@ -325,17 +345,90 @@ class _TeamScreenState extends State<TeamScreen> {
                 ),
               ),
             ),
-        ] else if (state.employees.isEmpty)
-          const AppCard(
-            child: AppText('Команда пуста. Наймите людей из рынка кандидатов.'),
-          )
-        else
-          ...state.employees.map(
-            (employee) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _EmployeeCard(state: state, employee: employee),
+        ] else ...[
+          TextField(
+            key: const Key('team-employee-search'),
+            controller: _searchController,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: trContext(context, 'Имя, роль или язык'),
+              prefixIcon: const Icon(Icons.search),
             ),
           ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                ChoiceChip(
+                  label: const AppText('Все роли'),
+                  selected: _role == null,
+                  onSelected: (_) => setState(() => _role = null),
+                ),
+                const SizedBox(width: 8),
+                ...EmployeeRole.values.map(
+                  (role) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: AppText(roleName(role)),
+                      selected: _role == role,
+                      onSelected: (_) => setState(() => _role = role),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                ChoiceChip(
+                  label: const AppText('Все грейды'),
+                  selected: _grade == null,
+                  onSelected: (_) => setState(() => _grade = null),
+                ),
+                const SizedBox(width: 8),
+                ...EmployeeGrade.values.map(
+                  (grade) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: AppText(gradeName(grade)),
+                      selected: _grade == grade,
+                      onSelected: (_) => setState(() => _grade = grade),
+                    ),
+                  ),
+                ),
+                FilterChip(
+                  label: const AppText('Только remote'),
+                  selected: _remoteOnly,
+                  onSelected: (value) => setState(() => _remoteOnly = value),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (state.employees.isEmpty)
+            const AppCard(
+              child: AppText(
+                'Команда пуста. Наймите людей из рынка кандидатов.',
+              ),
+            )
+          else if (employees.isEmpty)
+            const AppCard(child: AppText('По фильтрам сотрудники не найдены.'))
+          else
+            ...employees.map(
+              (employee) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _EmployeeCard(
+                  state: state,
+                  employee: employee,
+                  controller: widget.controller,
+                ),
+              ),
+            ),
+        ],
       ],
     );
   }
@@ -490,9 +583,14 @@ class _CandidateCard extends StatelessWidget {
 }
 
 class _EmployeeCard extends StatelessWidget {
-  const _EmployeeCard({required this.state, required this.employee});
+  const _EmployeeCard({
+    required this.state,
+    required this.employee,
+    required this.controller,
+  });
   final GameState state;
   final Employee employee;
+  final GameController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -601,6 +699,76 @@ class _EmployeeCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          PopupMenuButton<String>(
+            key: Key('train-${employee.id}'),
+            onSelected: (programId) => controller.dispatch(
+              TrainEmployee(employeeId: employee.id, programId: programId),
+            ),
+            itemBuilder: (_) => OperationsCatalog.trainingPrograms
+                .map(
+                  (program) => PopupMenuItem<String>(
+                    value: program.id,
+                    enabled: state.cash >= program.cost,
+                    child: AppText('${program.name} • ${money(program.cost)}'),
+                  ),
+                )
+                .toList(growable: false),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.school_outlined),
+                  SizedBox(width: 8),
+                  AppText('Отправить на курс'),
+                  SizedBox(width: 6),
+                  Icon(Icons.arrow_drop_down),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              key: Key('fire-${employee.id}'),
+              onPressed: state.cash >= employee.salary * 0.5
+                  ? () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const AppText('Уволить сотрудника?'),
+                          content: AppText(
+                            '${employee.name} покинет все продукты и контракты. Компенсация: ${money(employee.salary * 0.5)}.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const AppText('Отмена'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const AppText('Уволить'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed == true && context.mounted) {
+                        controller.dispatch(FireEmployee(employee.id));
+                      }
+                    }
+                  : null,
+              style: OutlinedButton.styleFrom(foregroundColor: AppColors.red),
+              icon: const Icon(Icons.person_remove_outlined),
+              label: AppText('Уволить • ${money(employee.salary * 0.5)}'),
             ),
           ),
         ],

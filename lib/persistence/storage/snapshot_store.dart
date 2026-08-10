@@ -28,3 +28,8 @@ abstract interface class SaveSlotStore {
   Future<GameState?> loadSlot(String slotId);
   Future<void> deleteSlot(String slotId);
 }
+
+abstract interface class BankruptcyRecoveryStore {
+  Future<void> saveRecoveryCheckpoint(GameState state);
+  Future<GameState?> loadRecoveryCheckpoint({required int beforeMinutes});
+}

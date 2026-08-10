@@ -29,6 +29,8 @@ enum ProductCategory {
 
 enum ProductStage { development, beta, live, failed }
 
+enum ProductBugSeverity { minor, major, critical }
+
 enum MonetizationModel {
   free,
   subscription,
@@ -417,6 +419,11 @@ class Product {
     this.brandAwareness = 0,
     this.brandTrust = 0.08,
     this.priceSentiment = 0,
+    this.openBugs = const <ProductBug>[],
+    this.fixedBugCount = 0,
+    this.releasedAtMinutes = -1,
+    this.monetizationIntensity = 0.5,
+    this.freeTierPercent = 0.25,
   });
 
   final String id;
@@ -455,9 +462,16 @@ class Product {
   final double brandAwareness;
   final double brandTrust;
   final double priceSentiment;
+  final List<ProductBug> openBugs;
+  final int fixedBugCount;
+  final int releasedAtMinutes;
+  final double monetizationIntensity;
+  final double freeTierPercent;
 
   Product copyWith({
+    String? name,
     ProductStage? stage,
+    List<String>? technologyIds,
     List<String>? featureIds,
     double? developmentProgress,
     int? users,
@@ -485,16 +499,23 @@ class Product {
     double? brandAwareness,
     double? brandTrust,
     double? priceSentiment,
+    List<ProductBug>? openBugs,
+    int? fixedBugCount,
+    int? releasedAtMinutes,
+    double? monetizationIntensity,
+    double? freeTierPercent,
   }) {
     return Product(
       id: id,
       blueprintId: blueprintId,
-      name: name,
+      name: name ?? this.name,
       category: category,
       stage: stage ?? this.stage,
       frameworkId: frameworkId,
       languageIds: languageIds,
-      technologyIds: technologyIds,
+      technologyIds: List<String>.unmodifiable(
+        technologyIds ?? this.technologyIds,
+      ),
       featureIds: List<String>.unmodifiable(featureIds ?? this.featureIds),
       developmentProgress: developmentProgress ?? this.developmentProgress,
       users: users ?? this.users,
@@ -524,6 +545,12 @@ class Product {
       brandAwareness: brandAwareness ?? this.brandAwareness,
       brandTrust: brandTrust ?? this.brandTrust,
       priceSentiment: priceSentiment ?? this.priceSentiment,
+      openBugs: List<ProductBug>.unmodifiable(openBugs ?? this.openBugs),
+      fixedBugCount: fixedBugCount ?? this.fixedBugCount,
+      releasedAtMinutes: releasedAtMinutes ?? this.releasedAtMinutes,
+      monetizationIntensity:
+          monetizationIntensity ?? this.monetizationIntensity,
+      freeTierPercent: freeTierPercent ?? this.freeTierPercent,
     );
   }
 
@@ -564,6 +591,11 @@ class Product {
     'brandAwareness': brandAwareness,
     'brandTrust': brandTrust,
     'priceSentiment': priceSentiment,
+    'openBugs': openBugs.map((item) => item.toJson()).toList(),
+    'fixedBugCount': fixedBugCount,
+    'releasedAtMinutes': releasedAtMinutes,
+    'monetizationIntensity': monetizationIntensity,
+    'freeTierPercent': freeTierPercent,
   };
 
   factory Product.fromJson(Map<String, Object?> json) => Product(
@@ -606,6 +638,51 @@ class Product {
     brandAwareness: (json['brandAwareness'] as num?)?.toDouble() ?? 0,
     brandTrust: (json['brandTrust'] as num?)?.toDouble() ?? 0.08,
     priceSentiment: (json['priceSentiment'] as num?)?.toDouble() ?? 0,
+    openBugs:
+        (json['openBugs'] as List?)
+            ?.whereType<Map>()
+            .map((item) => ProductBug.fromJson(item.cast<String, Object?>()))
+            .toList(growable: false) ??
+        const <ProductBug>[],
+    fixedBugCount: (json['fixedBugCount'] as num?)?.toInt() ?? 0,
+    releasedAtMinutes: (json['releasedAtMinutes'] as num?)?.toInt() ?? -1,
+    monetizationIntensity:
+        (json['monetizationIntensity'] as num?)?.toDouble() ?? 0.5,
+    freeTierPercent: (json['freeTierPercent'] as num?)?.toDouble() ?? 0.25,
+  );
+}
+
+class ProductBug {
+  const ProductBug({
+    required this.id,
+    required this.title,
+    required this.severity,
+    required this.openedAtMinutes,
+  });
+
+  final String id;
+  final String title;
+  final ProductBugSeverity severity;
+  final int openedAtMinutes;
+
+  int get weight => switch (severity) {
+    ProductBugSeverity.minor => 1,
+    ProductBugSeverity.major => 3,
+    ProductBugSeverity.critical => 7,
+  };
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'id': id,
+    'title': title,
+    'severity': severity.name,
+    'openedAtMinutes': openedAtMinutes,
+  };
+
+  factory ProductBug.fromJson(Map<String, Object?> json) => ProductBug(
+    id: json['id']! as String,
+    title: json['title']! as String,
+    severity: ProductBugSeverity.values.byName(json['severity']! as String),
+    openedAtMinutes: (json['openedAtMinutes']! as num).toInt(),
   );
 }
 
@@ -736,6 +813,8 @@ class ServerHardwareOption {
     required this.monthlyCost,
     required this.rackUnits,
     required this.computeUnits,
+    required this.memoryGb,
+    required this.storageGb,
     required this.powerKw,
     required this.heatKw,
     required this.networkGbps,
@@ -750,6 +829,8 @@ class ServerHardwareOption {
   final double monthlyCost;
   final int rackUnits;
   final double computeUnits;
+  final double memoryGb;
+  final double storageGb;
   final double powerKw;
   final double heatKw;
   final double networkGbps;
@@ -790,6 +871,7 @@ class CompetitorBenchmark {
     required this.featureIds,
     required this.users,
     required this.monthlyPrice,
+    this.marketScore = 0,
   });
 
   final String id;
@@ -803,6 +885,23 @@ class CompetitorBenchmark {
   final List<String> featureIds;
   final int users;
   final double monthlyPrice;
+  final double marketScore;
+
+  CompetitorBenchmark copyWith({int? users, double? marketScore}) =>
+      CompetitorBenchmark(
+        id: id,
+        companyName: companyName,
+        productName: productName,
+        category: category,
+        speedMs: speedMs,
+        designScore: designScore,
+        securityScore: securityScore,
+        reliability: reliability,
+        featureIds: featureIds,
+        users: users ?? this.users,
+        monthlyPrice: monthlyPrice,
+        marketScore: marketScore ?? this.marketScore,
+      );
 }
 
 class MarketSegment {

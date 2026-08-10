@@ -20,7 +20,7 @@ import 'v12_models.dart';
 
 part 'game_state_index.dart';
 
-const int currentSnapshotVersion = 12;
+const int currentSnapshotVersion = 13;
 
 enum GameSpeed {
   x1(1),
@@ -58,6 +58,7 @@ class GameState {
     required this.priceChanges,
     required this.productFeatureDevelopments,
     required this.productMetricHistory,
+    this.productCrunchPeriods = const <ProductCrunchPeriod>[],
     required this.activeLoan,
     required this.negativeCashSinceMinutes,
     required this.creditOffered,
@@ -166,6 +167,7 @@ class GameState {
   final List<ProductPriceChange> priceChanges;
   final List<ProductFeatureDevelopment> productFeatureDevelopments;
   final List<ProductMetricPoint> productMetricHistory;
+  final List<ProductCrunchPeriod> productCrunchPeriods;
   final CompanyLoan? activeLoan;
   final int? negativeCashSinceMinutes;
   final bool creditOffered;
@@ -214,6 +216,24 @@ class GameState {
   String get formattedTime =>
       '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
   String get formattedDateTime => '$formattedDate $formattedTime';
+  String get weekdayName => const <String>[
+    'Понедельник',
+    'Вторник',
+    'Среда',
+    'Четверг',
+    'Пятница',
+    'Суббота',
+    'Воскресенье',
+  ][simulationDateTime.weekday - 1];
+  String get shortWeekdayName => const <String>[
+    'Пн',
+    'Вт',
+    'Ср',
+    'Чт',
+    'Пт',
+    'Сб',
+    'Вс',
+  ][simulationDateTime.weekday - 1];
 
   OfficeOption get office => GameCatalog.officeById(selectedOfficeId);
   ServerRoomOption get serverRoom =>
@@ -223,6 +243,28 @@ class GameState {
   bool get usingOwnedInfrastructure => hostingPlan.kind == HostingKind.owned;
 
   Product? productById(String id) => _index.productsById[id];
+
+  List<CompetitorBenchmark> competitorsForCategory(ProductCategory category) {
+    return GameCatalog.competitorsFor(category, rngSeed)
+        .map((competitor) {
+          final incidents = news
+              .where(
+                (item) =>
+                    item.kind == NewsKind.security &&
+                    item.title.startsWith('${competitor.productName}:'),
+              )
+              .length;
+          if (incidents == 0) return competitor;
+          return competitor.copyWith(
+            users: (competitor.users * math.pow(0.97, incidents)).round(),
+            marketScore: math
+                .max(25, competitor.marketScore - incidents * 1.8)
+                .toDouble(),
+          );
+        })
+        .toList(growable: false)
+      ..sort((left, right) => right.marketScore.compareTo(left.marketScore));
+  }
 
   Candidate? candidateById(String id) => _index.candidatesById[id];
 
@@ -318,9 +360,19 @@ class GameState {
 
   double employeeProductivityPercent(Employee employee) =>
       (employeeCoreProductivityPercent(employee) *
-              parallelEfficiencyForEmployee(employee.id))
+              parallelEfficiencyForEmployee(employee.id) *
+              officeProductivityMultiplier(employee))
           .clamp(0, 109)
           .toDouble();
+
+  double officeProductivityMultiplier(Employee employee) {
+    if (employee.remote || office.id == 'remote_first') return 1;
+    final comfortBonus = office.comfortScore / 1000;
+    final communicationBonus = (office.communicationEfficiency - 0.90) * 0.25;
+    return (1.02 + comfortBonus + communicationBonus)
+        .clamp(1.0, 1.20)
+        .toDouble();
+  }
 
   List<String> employeeProductivityFactors(Employee employee) {
     final factors = <String>[
@@ -347,6 +399,13 @@ class GameState {
       factors.add('Одна активная работа: штрафа за параллельность нет');
     } else {
       factors.add('Нет активной работы: сотрудник не создаёт вклад');
+    }
+    if (!employee.remote && office.id != 'remote_first') {
+      factors.add(
+        'Офис ${office.name}: ×${officeProductivityMultiplier(employee).toStringAsFixed(2)} только для on-site',
+      );
+    } else if (employee.remote) {
+      factors.add('Remote: офисный бонус не применяется');
     }
     return List<String>.unmodifiable(factors);
   }
@@ -645,9 +704,7 @@ class GameState {
     final phase = developmentPhaseFor(product);
     final aiMultiplier = 1 + productAiDevelopmentBoost(productId);
     final productManagerMultiplier =
-        team.any((employee) => employee.role == EmployeeRole.productManager)
-        ? 1.15
-        : 1.0;
+        1 + productManagerBonusPercentFor(productId);
     if (team.isEmpty) {
       return companyProfile.configured
           ? 0
@@ -673,7 +730,11 @@ class GameState {
     final selectedLanguages = product.languageIds.toSet();
     var effectiveFte = 0.0;
     for (final employee in team) {
-      final productivity = employeeCoreProductivityPercent(employee) / 100;
+      final productivity =
+          employeeCoreProductivityPercent(employee) /
+          100 *
+          officeProductivityMultiplier(employee) *
+          productCrunchMultiplier(productId);
       final phaseWeight = phase.criticalRoles.contains(employee.role)
           ? 1.0
           : engineeringRoles.contains(employee.role)
@@ -689,20 +750,65 @@ class GameState {
       effectiveFte += productivity * phaseWeight * languageMatch * allocation;
     }
 
-    final usesOffice = team.any((employee) => !employee.remote);
-    final comfortMultiplier = usesOffice
-        ? 0.90 + office.comfortScore / 1000
-        : 1.0;
-    final communicationMultiplier = usesOffice
-        ? office.communicationEfficiency
-        : 1.0;
     return effectiveFte *
         staffing.efficiency *
-        communicationMultiplier *
-        comfortMultiplier *
         aiMultiplier *
         productManagerMultiplier;
   }
+
+  double productManagerBonusPercentFor(String productId) {
+    final productManagers = employeesForProduct(
+      productId,
+    ).where((employee) => employee.role == EmployeeRole.productManager);
+    if (productManagers.isEmpty) return 0;
+    final bestGrade = productManagers
+        .map((employee) => employee.grade)
+        .reduce((left, right) => left.index >= right.index ? left : right);
+    return switch (bestGrade) {
+      EmployeeGrade.intern => 0.04,
+      EmployeeGrade.junior => 0.08,
+      EmployeeGrade.middle => 0.15,
+      EmployeeGrade.senior => 0.24,
+    };
+  }
+
+  ProductCrunchPeriod? crunchFor(String productId) {
+    ProductCrunchPeriod? latest;
+    for (final period in productCrunchPeriods) {
+      if (period.productId == productId &&
+          (latest == null ||
+              period.startedAtMinutes > latest.startedAtMinutes)) {
+        latest = period;
+      }
+    }
+    return latest;
+  }
+
+  double productCrunchMultiplier(String productId) {
+    final period = crunchFor(productId);
+    if (period == null || simulationMinutes >= period.recoveryEndsAtMinutes) {
+      return 1;
+    }
+    return simulationMinutes < period.boostEndsAtMinutes ? 1.28 : 0.78;
+  }
+
+  String productCrunchStatus(String productId) {
+    final period = crunchFor(productId);
+    if (period == null || simulationMinutes >= period.recoveryEndsAtMinutes) {
+      return 'Доступен';
+    }
+    final boosting = simulationMinutes < period.boostEndsAtMinutes;
+    final remaining =
+        ((boosting ? period.boostEndsAtMinutes : period.recoveryEndsAtMinutes) -
+            simulationMinutes) /
+        1440;
+    return boosting
+        ? 'Форсаж: +28% ещё ${remaining.ceil()} дн.'
+        : 'Восстановление: −22% ещё ${remaining.ceil()} дн.';
+  }
+
+  bool canStartProductCrunch(String productId) =>
+      productCrunchMultiplier(productId) == 1;
 
   double get averageEmployeeSkill => _employeeAverage((item) => item.skill);
   double get averageEmployeeSpeed => _employeeAverage((item) => item.speed);
@@ -885,16 +991,35 @@ class GameState {
               1440)
           .toDouble();
 
+  double productAgeDays(Product product) {
+    final origin = product.releasedAtMinutes >= 0
+        ? product.releasedAtMinutes
+        : product.createdAtMinutes;
+    return (math.max(0, simulationMinutes - origin) / 1440).toDouble();
+  }
+
+  double productFreshnessCeiling(Product product) {
+    final age = productAgeDays(product);
+    if (age <= 180) return 100;
+    return (100 - (age - 180) * 0.18).clamp(0, 100).toDouble();
+  }
+
   double productFreshnessScore(Product product) {
     final days = productAgeSinceUpdateDays(product);
-    if (days <= 21) {
-      return 100;
-    }
-    return (100 - (days - 21) * 1.35).clamp(35, 100).toDouble();
+    final recency = days <= 21
+        ? 100.0
+        : (100 - (days - 21) * 1.35).clamp(0, 100).toDouble();
+    return math.min(recency, productFreshnessCeiling(product)).toDouble();
   }
 
   double productStalenessPenalty(Product product) =>
       (100 - productFreshnessScore(product)) / 100;
+
+  int productBugWeight(Product product) =>
+      product.openBugs.fold<int>(0, (sum, bug) => sum + bug.weight);
+
+  double productBugPenalty(Product product) =>
+      (productBugWeight(product) / 24).clamp(0, 0.75).toDouble();
 
   SecurityAuditRecord? latestAuditFor(String productId) {
     final records =
@@ -936,9 +1061,46 @@ class GameState {
         return sum + hardware.computeUnits * item.count;
       });
 
-  double get totalComputeUnits => usingOwnedInfrastructure
-      ? preparedComputeUnits
-      : hostingPlan.computeUnits;
+  double get preparedMemoryGb => installedServers.fold<double>(0, (sum, item) {
+    final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+    return sum + hardware.memoryGb * item.count;
+  });
+
+  double get preparedStorageGb => installedServers.fold<double>(0, (sum, item) {
+    final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+    return sum + hardware.storageGb * item.count;
+  });
+
+  double get totalComputeUnits =>
+      (usingOwnedInfrastructure
+          ? preparedComputeUnits
+          : hostingPlan.computeUnits) *
+      hostingOperationsEfficiency;
+
+  bool get hasDevOps =>
+      employees.any((employee) => employee.role == EmployeeRole.devOps);
+
+  double get hostingOperationsEfficiency =>
+      hostingPlan.kind == HostingKind.vps && !hasDevOps ? 0.82 : 1.0;
+
+  double get totalMemoryGb => usingOwnedInfrastructure
+      ? preparedMemoryGb
+      : switch (hostingPlan.id) {
+          'no_hosting' => 0.0,
+          'shared_launch' => 2.0,
+          'vps_core' => 4.0,
+          'managed_scale' => 16.0,
+          'cloud_flex' => 64.0,
+          'cloud_pro' => 192.0,
+          'serverless_burst' => 32.0,
+          'managed_db' => 64.0,
+          'object_storage' => 8.0,
+          'cdn_edge' => 8.0,
+          _ => math.max(2, hostingPlan.computeUnits / 8).toDouble(),
+        };
+
+  double get totalStorageGb =>
+      usingOwnedInfrastructure ? preparedStorageGb : hostingPlan.storageGb;
 
   double get totalNetworkGbps {
     if (hostingPlan.kind == HostingKind.none) {
@@ -994,6 +1156,18 @@ class GameState {
     return totalComputeUnits * product.allocatedCapacityPercent / 100;
   }
 
+  double allocatedMemoryFor(String productId) {
+    final product = productById(productId);
+    if (product == null) return 0;
+    return totalMemoryGb * product.allocatedCapacityPercent / 100;
+  }
+
+  double allocatedStorageFor(String productId) {
+    final product = productById(productId);
+    if (product == null) return 0;
+    return totalStorageGb * product.allocatedCapacityPercent / 100;
+  }
+
   double productComputeDemand(Product product) {
     if (product.stage == ProductStage.failed) {
       return 0;
@@ -1010,19 +1184,62 @@ class GameState {
         aiProviderDemand;
   }
 
+  double productMemoryDemand(Product product) {
+    if (product.stage == ProductStage.failed) return 0;
+    final baselineMemoryGb = product.blueprintId == 'company_website'
+        ? 0.45
+        : 2.0;
+    final categoryMultiplier = switch (product.category) {
+      ProductCategory.aiAssistant => 2.6,
+      ProductCategory.cloud => 1.8,
+      ProductCategory.saas => 1.1,
+      ProductCategory.browser => 0.8,
+      ProductCategory.cryptoWallet => 1.2,
+      ProductCategory.developerTool => 1.4,
+    };
+    return baselineMemoryGb + product.users / 1000 * 0.035 * categoryMultiplier;
+  }
+
+  double productStorageDemand(Product product) {
+    if (product.stage == ProductStage.failed) return 0;
+    final perThousand = switch (product.category) {
+      ProductCategory.aiAssistant => 1.8,
+      ProductCategory.cloud => 14.0,
+      ProductCategory.saas => 2.4,
+      ProductCategory.browser => 0.6,
+      ProductCategory.cryptoWallet => 0.9,
+      ProductCategory.developerTool => 4.2,
+    };
+    return 12 + product.users / 1000 * perThousand;
+  }
+
+  double productResourceLoad(Product product) {
+    final allocation = product.allocatedCapacityPercent / 100;
+    if (allocation <= 0) return product.stage == ProductStage.live ? 9.99 : 0;
+    final compute =
+        productComputeDemand(product) /
+        math.max(0.001, totalComputeUnits * allocation);
+    final memory =
+        productMemoryDemand(product) /
+        math.max(0.001, totalMemoryGb * allocation);
+    final storage =
+        productStorageDemand(product) /
+        math.max(0.001, totalStorageGb * allocation);
+    return math.max(compute, math.max(memory, storage)).toDouble();
+  }
+
   double productServerLoad(Product product) {
-    final allocated = allocatedComputeFor(product.id);
-    if (allocated <= 0) {
-      return product.stage == ProductStage.live ? 9.99 : 0;
-    }
-    return productComputeDemand(product) / allocated;
+    return productResourceLoad(product);
   }
 
   double get totalComputeDemand =>
       products.fold<double>(0, (sum, item) => sum + productComputeDemand(item));
 
-  double get serverLoad =>
-      totalComputeUnits <= 0 ? 0 : totalComputeDemand / totalComputeUnits;
+  double get serverLoad => products.isEmpty
+      ? 0
+      : products
+            .map(productResourceLoad)
+            .fold<double>(0, (left, right) => math.max(left, right).toDouble());
 
   bool get contractsUnlocked => products.any((product) {
     if (product.stage != ProductStage.live) {
@@ -1169,7 +1386,10 @@ class GameState {
         qualityFactor *
         categoryFit *
         founderGrowthMultiplier;
-    final expected = (clicks * conversion).round();
+    // Paid acquisition must be a viable growth lever, not a cosmetic channel.
+    // The multiplier represents retargeting, view-through attribution and
+    // referral lift that are not visible in the raw click count.
+    final expected = (clicks * conversion * 2.4).round();
     final spread = (1 - agency.forecastAccuracy) * 0.75 + 0.18;
     return AdvertisingForecast(
       impressions: math.max(0, impressions),
@@ -1358,12 +1578,18 @@ class GameState {
     final assumedMau = product.stage == ProductStage.live
         ? math.max(1, product.mau)
         : 2500;
+    final payingShare = 1 - product.freeTierPercent;
+    final intensity = product.monetizationIntensity;
     final base = switch (selectedModel) {
       MonetizationModel.free => 0.0,
-      MonetizationModel.subscription => assumedMau * product.price * 0.092,
-      MonetizationModel.usageBased => assumedMau * product.price * 0.061,
-      MonetizationModel.advertising => assumedMau * 34.0,
-      MonetizationModel.transactionFee => assumedMau * product.price * 0.18,
+      MonetizationModel.subscription =>
+        assumedMau * payingShare * product.price * (0.075 + intensity * 0.035),
+      MonetizationModel.usageBased =>
+        assumedMau * payingShare * product.price * (0.045 + intensity * 0.032),
+      MonetizationModel.advertising =>
+        assumedMau * (9 + intensity * 27) * math.max(0.02, product.price),
+      MonetizationModel.transactionFee =>
+        assumedMau * (7 + intensity * 13) * product.price,
     };
     final expected =
         base * product.reliability * (1 + ecosystemBoostFor(product.id) * 0.55);
@@ -1444,6 +1670,7 @@ class GameState {
     List<ProductPriceChange>? priceChanges,
     List<ProductFeatureDevelopment>? productFeatureDevelopments,
     List<ProductMetricPoint>? productMetricHistory,
+    List<ProductCrunchPeriod>? productCrunchPeriods,
     CompanyLoan? activeLoan,
     bool clearActiveLoan = false,
     int? negativeCashSinceMinutes,
@@ -1530,6 +1757,9 @@ class GameState {
       ),
       productMetricHistory: List<ProductMetricPoint>.unmodifiable(
         productMetricHistory ?? this.productMetricHistory,
+      ),
+      productCrunchPeriods: List<ProductCrunchPeriod>.unmodifiable(
+        productCrunchPeriods ?? this.productCrunchPeriods,
       ),
       activeLoan: clearActiveLoan ? null : activeLoan ?? this.activeLoan,
       negativeCashSinceMinutes: clearNegativeCashSinceMinutes
@@ -1622,6 +1852,9 @@ class GameState {
         .map((item) => item.toJson())
         .toList(),
     'productMetricHistory': productMetricHistory
+        .map((item) => item.toJson())
+        .toList(),
+    'productCrunchPeriods': productCrunchPeriods
         .map((item) => item.toJson())
         .toList(),
     'activeLoan': activeLoan?.toJson(),
@@ -1747,6 +1980,10 @@ class GameState {
       productMetricHistory: _decodeList(
         json['productMetricHistory'],
         ProductMetricPoint.fromJson,
+      ),
+      productCrunchPeriods: _decodeList(
+        json['productCrunchPeriods'],
+        ProductCrunchPeriod.fromJson,
       ),
       activeLoan: json['activeLoan'] is Map
           ? CompanyLoan.fromJson(

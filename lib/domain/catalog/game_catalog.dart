@@ -1316,6 +1316,8 @@ abstract final class GameCatalog {
       monthlyCost: 9000,
       rackUnits: 2,
       computeUnits: 130,
+      memoryGb: 32,
+      storageGb: 1000,
       powerKw: 0.9,
       heatKw: 0.8,
       networkGbps: 1,
@@ -1330,6 +1332,8 @@ abstract final class GameCatalog {
       monthlyCost: 19000,
       rackUnits: 4,
       computeUnits: 480,
+      memoryGb: 128,
+      storageGb: 4000,
       powerKw: 2.6,
       heatKw: 2.3,
       networkGbps: 5,
@@ -1344,6 +1348,8 @@ abstract final class GameCatalog {
       monthlyCost: 52000,
       rackUnits: 6,
       computeUnits: 1250,
+      memoryGb: 256,
+      storageGb: 2000,
       powerKw: 7.8,
       heatKw: 7.2,
       networkGbps: 10,
@@ -1358,6 +1364,8 @@ abstract final class GameCatalog {
       monthlyCost: 28000,
       rackUnits: 8,
       computeUnits: 210,
+      memoryGb: 192,
+      storageGb: 48000,
       powerKw: 3.2,
       heatKw: 2.8,
       networkGbps: 10,
@@ -1372,6 +1380,8 @@ abstract final class GameCatalog {
       monthlyCost: 98000,
       rackUnits: 12,
       computeUnits: 3200,
+      memoryGb: 768,
+      storageGb: 24000,
       powerKw: 15.5,
       heatKw: 14.2,
       networkGbps: 40,
@@ -1387,6 +1397,8 @@ abstract final class GameCatalog {
       monthlyCost: 78000,
       rackUnits: 8,
       computeUnits: 9000,
+      memoryGb: 1536,
+      storageGb: 16000,
       powerKw: 18,
       heatKw: 16.5,
       networkGbps: 80,
@@ -1402,6 +1414,8 @@ abstract final class GameCatalog {
       monthlyCost: 210000,
       rackUnits: 18,
       computeUnits: 28000,
+      memoryGb: 4096,
+      storageGb: 120000,
       powerKw: 46,
       heatKw: 42,
       networkGbps: 160,
@@ -1417,6 +1431,8 @@ abstract final class GameCatalog {
       monthlyCost: 480000,
       rackUnits: 36,
       computeUnits: 76000,
+      memoryGb: 8192,
+      storageGb: 96000,
       powerKw: 112,
       heatKw: 103,
       networkGbps: 400,
@@ -1897,6 +1913,127 @@ abstract final class GameCatalog {
       serverHardware.firstWhere((item) => item.id == id);
   static CompetitorBenchmark competitorFor(ProductCategory category) =>
       competitors.firstWhere((item) => item.category == category);
+
+  static List<CompetitorBenchmark> competitorsFor(
+    ProductCategory category,
+    int seed,
+  ) {
+    final leader = competitorFor(category);
+    final compatibleFeatures = features
+        .where((feature) => feature.supportedCategories.contains(category))
+        .toList(growable: false);
+    const companyPrefixes = <String>[
+      'Nova',
+      'Vertex',
+      'Orbit',
+      'North',
+      'Bright',
+      'Quantum',
+      'Signal',
+      'Prime',
+      'Atlas',
+      'Nexus',
+      'Vector',
+      'Lumen',
+      'Helix',
+      'Pixel',
+      'Summit',
+      'Axiom',
+      'Pulse',
+      'Core',
+      'Delta',
+    ];
+    const companySuffixes = <String>[
+      'Labs',
+      'Works',
+      'Systems',
+      'Group',
+      'Studio',
+      'Network',
+    ];
+    final result = <CompetitorBenchmark>[
+      CompetitorBenchmark(
+        id: '${leader.id}_leader',
+        companyName: leader.companyName,
+        productName: leader.productName,
+        category: category,
+        speedMs: leader.speedMs,
+        designScore: leader.designScore,
+        securityScore: leader.securityScore,
+        reliability: leader.reliability,
+        featureIds: compatibleFeatures.map((item) => item.id).toList(),
+        users: leader.users,
+        monthlyPrice: leader.monthlyPrice,
+        marketScore: 100,
+      ),
+    ];
+    for (var index = 1; index < 20; index += 1) {
+      final mixed = _mixSeed(seed, category.index, index);
+      final strength = 0.48 + (mixed % 480) / 1000;
+      final featureRatio = 0.28 + ((mixed ~/ 11) % 620) / 1000;
+      final selectedFeatures = compatibleFeatures
+          .where(
+            (feature) =>
+                _mixSeed(mixed, _stableTextHash(feature.id), index) % 1000 <
+                featureRatio * 1000,
+          )
+          .take(mathMax(1, compatibleFeatures.length - 1))
+          .map((item) => item.id)
+          .toList(growable: false);
+      result.add(
+        CompetitorBenchmark(
+          id: 'generated_${category.name}_$index',
+          companyName:
+              '${companyPrefixes[(mixed + index) % companyPrefixes.length]} ${companySuffixes[(mixed ~/ 7 + index) % companySuffixes.length]}',
+          productName: '${leader.productName.split(' ').first} ${index + 1}',
+          category: category,
+          speedMs: leader.speedMs * (1.05 + (1 - strength) * 1.75),
+          designScore: (leader.designScore * (0.72 + strength * 0.27))
+              .clamp(35, 96)
+              .toDouble(),
+          securityScore: (leader.securityScore * (0.68 + strength * 0.31))
+              .clamp(30, 97)
+              .toDouble(),
+          reliability: (0.94 + strength * 0.059).clamp(0.94, 0.999).toDouble(),
+          featureIds: selectedFeatures,
+          users: (leader.users * strength * strength * strength).round(),
+          monthlyPrice: leader.monthlyPrice * (0.55 + strength * 0.65),
+          marketScore: 42 + strength * 56,
+        ),
+      );
+    }
+    result.sort((left, right) => right.marketScore.compareTo(left.marketScore));
+    return List<CompetitorBenchmark>.unmodifiable(result);
+  }
+
+  static double productMarketScore(Product product, double freshness) {
+    final speedScore = (100 - product.speedMs / 18).clamp(0, 100).toDouble();
+    return product.qualityScore * 0.30 +
+        product.designScore * 0.12 +
+        product.securityScore * 0.14 +
+        product.reliability * 100 * 0.12 +
+        product.featureCoverage * 100 * 0.14 +
+        speedScore * 0.06 +
+        freshness * 0.06 +
+        product.brandTrust * 10 +
+        (product.users / 1000000).clamp(0, 6).toDouble();
+  }
+
+  static int _mixSeed(int seed, int salt, int index) {
+    var value = seed ^ (salt * 1103515245) ^ (index * 12345);
+    value = (value * 1664525 + 1013904223) & 0x7fffffff;
+    return value;
+  }
+
+  static int _stableTextHash(String value) {
+    var hash = 2166136261;
+    for (final unit in value.codeUnits) {
+      hash = ((hash ^ unit) * 16777619) & 0x7fffffff;
+    }
+    return hash;
+  }
+
+  static int mathMax(int left, int right) => left > right ? left : right;
   static InvestorProfile investorById(String id) =>
       investors.firstWhere((item) => item.id == id);
   static MarketCompany marketCompanyById(String id) =>

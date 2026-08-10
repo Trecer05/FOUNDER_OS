@@ -4,14 +4,19 @@ import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
 import '../../../domain/catalog/game_catalog.dart';
 import '../../../domain/catalog/v9_content_catalog.dart';
+import '../../../domain/catalog/world_economy_catalog.dart';
 import '../../../domain/commands/game_action.dart';
+import '../../../domain/entities/models.dart';
 import '../../../domain/entities/v9_models.dart';
+import '../../../domain/entities/v16_models.dart';
+import '../../../domain/entities/v17_models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/hosting_plans_panel.dart';
 import '../../shared/widgets/responsive_info_row.dart';
 import '../../shared/widgets/section_header.dart';
 import '../../../application/localization/app_text.dart';
+import '../../../application/localization/app_localizer.dart';
 
 enum _InfraTab { hosting, offices, rooms, hardware, allocation }
 
@@ -28,6 +33,53 @@ class _InfrastructureScreenState extends State<InfrastructureScreen> {
   _InfraTab _tab = _InfraTab.hosting;
   final Map<String, double> _allocationDrafts = <String, double>{};
 
+  static const _tabs = <(_InfraTab, IconData, String)>[
+    (_InfraTab.hosting, Icons.cloud_outlined, 'Hosting'),
+    (_InfraTab.offices, Icons.business_outlined, 'Офисы'),
+    (_InfraTab.rooms, Icons.meeting_room_outlined, 'Серверные'),
+    (_InfraTab.hardware, Icons.dns_outlined, 'Серверы'),
+    (_InfraTab.allocation, Icons.pie_chart_outline, 'Мощности'),
+  ];
+
+  Widget _tabSelector() => LayoutBuilder(
+    builder: (context, constraints) {
+      if (constraints.maxWidth < 620) {
+        return Material(
+          type: MaterialType.transparency,
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final item in _tabs)
+                ChoiceChip(
+                  key: Key('infra-tab-${item.$1.name}'),
+                  avatar: Icon(item.$2, size: 18),
+                  label: AppText(item.$3),
+                  selected: _tab == item.$1,
+                  onSelected: (_) => setState(() => _tab = item.$1),
+                ),
+            ],
+          ),
+        );
+      }
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SegmentedButton<_InfraTab>(
+          segments: [
+            for (final item in _tabs)
+              ButtonSegment<_InfraTab>(
+                value: item.$1,
+                label: AppText(item.$3),
+                icon: Icon(item.$2),
+              ),
+          ],
+          selected: <_InfraTab>{_tab},
+          onSelectionChanged: (value) => setState(() => _tab = value.first),
+        ),
+      );
+    },
+  );
+
   @override
   Widget build(BuildContext context) {
     final state = widget.controller.state;
@@ -40,40 +92,7 @@ class _InfrastructureScreenState extends State<InfrastructureScreen> {
               'Активно ${state.totalComputeUnits.toStringAsFixed(0)} CU • подготовлено ${state.preparedComputeUnits.toStringAsFixed(0)} CU • офис ${money(state.monthlyOfficeCost)}/мес.',
         ),
         const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SegmentedButton<_InfraTab>(
-            segments: const [
-              ButtonSegment(
-                value: _InfraTab.hosting,
-                label: AppText('Hosting'),
-                icon: Icon(Icons.cloud_outlined),
-              ),
-              ButtonSegment(
-                value: _InfraTab.offices,
-                label: AppText('Офисы'),
-                icon: Icon(Icons.business_outlined),
-              ),
-              ButtonSegment(
-                value: _InfraTab.rooms,
-                label: AppText('Серверные'),
-                icon: Icon(Icons.meeting_room_outlined),
-              ),
-              ButtonSegment(
-                value: _InfraTab.hardware,
-                label: AppText('Серверы'),
-                icon: Icon(Icons.dns_outlined),
-              ),
-              ButtonSegment(
-                value: _InfraTab.allocation,
-                label: AppText('Мощности'),
-                icon: Icon(Icons.pie_chart_outline),
-              ),
-            ],
-            selected: <_InfraTab>{_tab},
-            onSelectionChanged: (value) => setState(() => _tab = value.first),
-          ),
-        ),
+        _tabSelector(),
         const SizedBox(height: 14),
         switch (_tab) {
           _InfraTab.hosting => HostingPlansPanel(controller: widget.controller),
@@ -107,7 +126,7 @@ class _InfrastructureScreenState extends State<InfrastructureScreen> {
                   ),
                   _InfrastructureStat(
                     'Сотрудники',
-                    '${state.onSiteEmployeeCount}/${state.office.capacity} office',
+                    '${state.onSiteEmployeeCount}/${state.totalOfficeCapacity} office',
                     '${state.remoteEmployeeCount} remote',
                   ),
                   _InfrastructureStat(
@@ -142,13 +161,13 @@ class _InfrastructureScreenState extends State<InfrastructureScreen> {
                   ),
                   _InfrastructureStat(
                     'Rack / Power',
-                    '${state.usedRackUnits.round()}/${state.serverRoom.rackUnits} U',
-                    '${state.usedPowerKw.toStringAsFixed(1)}/${state.serverRoom.powerKw.toStringAsFixed(1)} kW',
+                    '${state.usedRackUnits.round()}/${state.effectiveRackUnits.round()} U',
+                    '${state.usedPowerKw.toStringAsFixed(1)}/${state.effectivePowerKw.toStringAsFixed(1)} kW',
                   ),
                   _InfrastructureStat(
                     'Cooling',
-                    '${state.usedCoolingKw.toStringAsFixed(1)}/${state.serverRoom.coolingKw.toStringAsFixed(1)} kW',
-                    'тепловой лимит',
+                    '${state.usedCoolingKw.toStringAsFixed(1)}/${state.effectiveCoolingKw.toStringAsFixed(1)} kW',
+                    '${state.ownedDataCenters.length} собственных ЦОД',
                   ),
                   _InfrastructureStat(
                     'Network',
@@ -183,6 +202,64 @@ class _OfficesList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(
+          title: 'Собственные офисы',
+          subtitle:
+              'Стройте несколько офисов в разных городах. География меняет зарплаты, налоги, коммунальные расходы, доступ к талантам, инвесторам и рынку.',
+        ),
+        const SizedBox(height: 10),
+        if (state.ownedOffices.isEmpty)
+          const AppCard(
+            child: AppText(
+              'Собственных офисов пока нет. Аренда остаётся быстрым стартом, строительство — долгосрочная инвестиция.',
+            ),
+          )
+        else
+          ...state.ownedOffices.map((site) {
+            final city = WorldEconomyCatalog.cityById(site.cityId);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppText(
+                      '${state.ownedOfficeLabel(site)} · ${city.cityRu}, ${city.countryRu}',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    ResponsiveInfoRow(
+                      'Размер и места',
+                      '${_facilitySizeName(site.size)} · ${WorldEconomyCatalog.officeCapacity(site.size)} мест',
+                    ),
+                    ResponsiveInfoRow(
+                      'Ремонт / оснащение',
+                      '${_facilityQualityName(site.fitoutQuality)} / ${_facilityQualityName(site.equipmentQuality)}',
+                    ),
+                    ResponsiveInfoRow(
+                      'Таланты / инвесторы / рынок',
+                      '${city.talentScore} / ${city.investorScore} / ${city.marketAccessScore}',
+                    ),
+                    ResponsiveInfoRow(
+                      'Содержание',
+                      '${money(WorldEconomyCatalog.officeMonthlyCost(site))}/мес.',
+                      last: true,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            key: const Key('build-owned-office'),
+            onPressed: () => _showBuildOfficeDialog(context, controller),
+            icon: const Icon(Icons.add_business_outlined),
+            label: const AppText('Построить собственный офис'),
+          ),
+        ),
+        const SizedBox(height: 22),
+        SectionHeader(
           title: 'Аренда офиса',
           subtitle: state.selectedOfficeId == 'remote_first'
               ? 'Remote-first: аренды нет, on-site места появятся после выбора офиса.'
@@ -201,8 +278,12 @@ class _OfficesList extends StatelessWidget {
                             1) *
                         100)
                     .round();
+          final headquartersCapacity =
+              office.capacity +
+              state.ownedOfficeCapacityIn(state.headquartersCityId);
           final canRent =
-              office.capacity >= state.onSiteEmployeeCount &&
+              headquartersCapacity >=
+                  state.onSiteEmployeesIn(state.headquartersCityId) &&
               state.cash >= office.deposit;
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
@@ -294,6 +375,68 @@ class _ServerRoomsList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        SectionHeader(
+          title: 'Собственные дата-центры',
+          subtitle:
+              'Можно строить несколько ЦОД в разных городах. Размер определяет физический потолок, качество — эксплуатационные характеристики, а город — энергию, сеть и стоимость содержания.',
+        ),
+        const SizedBox(height: 10),
+        if (state.ownedDataCenters.isEmpty)
+          const AppCard(
+            child: AppText(
+              'Собственных ЦОД пока нет. Серверная в аренде подходит для первого железа, свои площадки нужны для масштабирования.',
+            ),
+          )
+        else
+          ...state.ownedDataCenters.map((site) {
+            final city = WorldEconomyCatalog.cityById(site.cityId);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppText(
+                      '${state.ownedDataCenterLabel(site)} · ${city.cityRu}, ${city.countryRu}',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    ResponsiveInfoRow(
+                      'Размер / стойки',
+                      '${_facilitySizeName(site.size)} · ${WorldEconomyCatalog.dataCenterRackUnits(site.size)} U',
+                    ),
+                    ResponsiveInfoRow(
+                      'Сеть',
+                      '${WorldEconomyCatalog.dataCenterNetworkGbps(site).toStringAsFixed(1)} Gbps',
+                    ),
+                    ResponsiveInfoRow(
+                      'Power / Cooling',
+                      '${WorldEconomyCatalog.dataCenterPowerKw(site).toStringAsFixed(1)} / ${WorldEconomyCatalog.dataCenterCoolingKw(site).toStringAsFixed(1)} kW',
+                    ),
+                    ResponsiveInfoRow(
+                      'Помещение / оборудование',
+                      '${_facilityQualityName(site.facilityQuality)} / ${_facilityQualityName(site.equipmentQuality)}',
+                    ),
+                    ResponsiveInfoRow(
+                      'Содержание',
+                      '${money(WorldEconomyCatalog.dataCenterMonthlyCost(site))}/мес.',
+                      last: true,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            key: const Key('build-owned-datacenter'),
+            onPressed: () => _showBuildDataCenterDialog(context, controller),
+            icon: const Icon(Icons.domain_add_outlined),
+            label: const AppText('Построить дата-центр'),
+          ),
+        ),
+        const SizedBox(height: 22),
         const SectionHeader(
           title: 'Аренда серверной',
           subtitle:
@@ -303,9 +446,9 @@ class _ServerRoomsList extends StatelessWidget {
         ...GameCatalog.serverRooms.map((room) {
           final current = room.id == state.selectedServerRoomId;
           final canRent =
-              state.usedRackUnits <= room.rackUnits &&
-              state.usedCoolingKw <= room.coolingKw &&
-              state.usedPowerKw <= room.powerKw &&
+              state.usedRackUnitsAtDataCenter('') <= room.rackUnits &&
+              state.usedCoolingKwAtDataCenter('') <= room.coolingKw &&
+              state.usedPowerKwAtDataCenter('') <= room.powerKw &&
               state.cash >= room.deposit;
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
@@ -381,24 +524,74 @@ class _HardwareList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = controller.state;
+
+    String serviceName(InfrastructureService service) => switch (service) {
+      InfrastructureService.appApi => 'API / приложение',
+      InfrastructureService.dataStorage => 'Data / storage',
+      InfrastructureService.aiCompute => 'AI / compute',
+      InfrastructureService.sharedLegacy => 'Legacy shared',
+    };
+
+    const installServices = <InfrastructureService>[
+      InfrastructureService.appApi,
+      InfrastructureService.dataStorage,
+      InfrastructureService.aiCompute,
+    ];
+
+    bool canInstallAt(ServerHardwareOption hardware, String siteId) {
+      if (state.cash < hardware.purchaseCost) {
+        return false;
+      }
+      if (siteId.isEmpty) {
+        return state.usedRackUnitsAtDataCenter('') + hardware.rackUnits <=
+                state.serverRoom.rackUnits &&
+            state.usedCoolingKwAtDataCenter('') + hardware.heatKw <=
+                state.serverRoom.coolingKw &&
+            state.usedPowerKwAtDataCenter('') + hardware.powerKw <=
+                state.serverRoom.powerKw;
+      }
+      final site = state.ownedDataCenters.firstWhere(
+        (item) => item.id == siteId,
+      );
+      return state.usedRackUnitsAtDataCenter(site.id) + hardware.rackUnits <=
+              WorldEconomyCatalog.dataCenterRackUnits(site.size) &&
+          state.usedCoolingKwAtDataCenter(site.id) + hardware.heatKw <=
+              WorldEconomyCatalog.dataCenterCoolingKw(site) &&
+          state.usedPowerKwAtDataCenter(site.id) + hardware.powerKw <=
+              WorldEconomyCatalog.dataCenterPowerKw(site);
+    }
+
+    List<MapEntry<String, String>> locationsFor(ServerHardwareOption hardware) {
+      final result = <MapEntry<String, String>>[
+        MapEntry('', 'Арендная серверная • ${state.serverRoom.name}'),
+      ];
+      for (final site in state.ownedDataCenters) {
+        final city = WorldEconomyCatalog.cityById(site.cityId);
+        result.add(
+          MapEntry(
+            site.id,
+            '${state.ownedDataCenterLabel(site)} • ${city.cityRu}',
+          ),
+        );
+      }
+      return result.where((item) => canInstallAt(hardware, item.key)).toList();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SectionHeader(
           title: 'Серверное железо',
           subtitle:
-              'Каждый сервер занимает rack, потребляет питание и выделяет тепло.',
+              'При покупке выберите площадку и назначение сервера. API, storage и AI/compute получают только свой выделенный пул; legacy-серверы старого сейва остаются shared до замены.',
         ),
         const SizedBox(height: 10),
         ...GameCatalog.serverHardware.map((hardware) {
           final count = state.installedCount(hardware.id);
-          final canInstall =
-              state.cash >= hardware.purchaseCost &&
-              state.usedRackUnits + hardware.rackUnits <=
-                  state.serverRoom.rackUnits &&
-              state.usedCoolingKw + hardware.heatKw <=
-                  state.serverRoom.coolingKw &&
-              state.usedPowerKw + hardware.powerKw <= state.serverRoom.powerKw;
+          final installLocations = locationsFor(hardware);
+          final installedLocations = state.installedServers
+              .where((item) => item.hardwareId == hardware.id && item.count > 0)
+              .toList(growable: false);
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: AppCard(
@@ -419,21 +612,92 @@ class _HardwareList extends StatelessWidget {
                           ],
                         ),
                       ),
-                      IconButton.outlined(
-                        onPressed: count > 0
-                            ? () =>
-                                  controller.dispatch(RemoveServer(hardware.id))
-                            : null,
-                        icon: const Icon(Icons.remove),
+                      PopupMenuButton<String>(
+                        enabled: installedLocations.isNotEmpty,
+                        tooltip: trContext(context, 'Снять сервер с площадки'),
+                        onSelected: (value) {
+                          final parts = value.split('::');
+                          final siteId = parts.first;
+                          final service = InfrastructureService.values.byName(
+                            parts.last,
+                          );
+                          controller.dispatch(
+                            RemoveServer(
+                              hardware.id,
+                              dataCenterSiteId: siteId.isEmpty ? null : siteId,
+                              service: service,
+                            ),
+                          );
+                        },
+                        itemBuilder: (_) => installedLocations
+                            .map((item) {
+                              final siteLabel = item.dataCenterSiteId.isEmpty
+                                  ? 'Арендная серверная'
+                                  : '${state.ownedDataCenterLabel(state.ownedDataCenters.firstWhere((site) => site.id == item.dataCenterSiteId))} · ${WorldEconomyCatalog.cityById(state.ownedDataCenters.firstWhere((site) => site.id == item.dataCenterSiteId).cityId).cityRu}';
+                              final label =
+                                  '$siteLabel • ${serviceName(item.service)} • ${item.count} шт.';
+                              return PopupMenuItem(
+                                value:
+                                    '${item.dataCenterSiteId}::${item.service.name}',
+                                child: AppText(label),
+                              );
+                            })
+                            .toList(growable: false),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppColors.border),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.remove),
+                        ),
                       ),
                       const SizedBox(width: 6),
-                      IconButton.filled(
-                        onPressed: canInstall
-                            ? () => controller.dispatch(
-                                InstallServer(hardware.id),
-                              )
-                            : null,
-                        icon: const Icon(Icons.add),
+                      PopupMenuButton<String>(
+                        enabled: installLocations.isNotEmpty,
+                        tooltip: trContext(
+                          context,
+                          'Выбрать площадку и сервис',
+                        ),
+                        onSelected: (value) {
+                          final parts = value.split('::');
+                          final siteId = parts.first;
+                          final service = InfrastructureService.values.byName(
+                            parts.last,
+                          );
+                          controller.dispatch(
+                            InstallServer(
+                              hardware.id,
+                              dataCenterSiteId: siteId.isEmpty ? null : siteId,
+                              service: service,
+                            ),
+                          );
+                        },
+                        itemBuilder: (_) => <PopupMenuEntry<String>>[
+                          for (final item in installLocations)
+                            for (final service in installServices)
+                              PopupMenuItem<String>(
+                                value: '${item.key}::${service.name}',
+                                child: AppText(
+                                  '${item.value} • ${serviceName(service)}',
+                                ),
+                              ),
+                        ],
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: installLocations.isEmpty
+                                ? AppColors.surfaceMuted
+                                : AppColors.primary,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.add,
+                            color: installLocations.isEmpty
+                                ? AppColors.textMuted
+                                : Colors.white,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -461,11 +725,11 @@ class _HardwareList extends StatelessWidget {
                       _ValueChip('${money(hardware.monthlyCost)}/мес.'),
                     ],
                   ),
-                  if (!canInstall)
+                  if (installLocations.isEmpty)
                     const Padding(
                       padding: EdgeInsets.only(top: 9),
                       child: AppText(
-                        'Установка заблокирована: проверьте деньги, U, power и cooling.',
+                        'Нет площадки с достаточным U, power и cooling или не хватает денег.',
                         style: TextStyle(color: AppColors.red),
                       ),
                     ),
@@ -497,9 +761,10 @@ class _AllocationList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(
-          title: 'Распределение compute',
-          subtitle:
-              'Выделено ${directPercent(state.totalAllocatedPercent)} из 100%. Каждый продукт использует только свой процент.',
+          title: 'Распределение мощности',
+          subtitle: state.usingOwnedInfrastructure
+              ? 'Собственные площадки разделены по сервисам. Проценты считаются внутри выбранного ЦОД; сумма по компании может быть выше 100%.'
+              : 'Выделено ${directPercent(state.totalAllocatedPercent)} из 100% общего арендного пула.',
         ),
         const SizedBox(height: 10),
         _OwnedMigrationCard(controller: controller),
@@ -513,12 +778,12 @@ class _AllocationList extends StatelessWidget {
             child: Column(
               children: [
                 LinearProgressIndicator(
-                  value: (state.totalAllocatedPercent / 100)
-                      .clamp(0, 1)
-                      .toDouble(),
-                  color: state.totalAllocatedPercent <= 100
-                      ? AppColors.primary
-                      : AppColors.red,
+                  value: state.usingOwnedInfrastructure
+                      ? 1
+                      : (state.totalAllocatedPercent / 100)
+                            .clamp(0, 1)
+                            .toDouble(),
+                  color: AppColors.primary,
                 ),
                 const SizedBox(height: 8),
                 ResponsiveInfoRow(
@@ -526,8 +791,10 @@ class _AllocationList extends StatelessWidget {
                   '${state.totalComputeUnits.round()} CU',
                 ),
                 ResponsiveInfoRow(
-                  'Свободно',
-                  directPercent(100 - state.totalAllocatedPercent),
+                  state.usingOwnedInfrastructure ? 'Режим' : 'Свободно',
+                  state.usingOwnedInfrastructure
+                      ? 'Раздельные сервисные пулы'
+                      : directPercent(100 - state.totalAllocatedPercent),
                   last: true,
                 ),
               ],
@@ -694,6 +961,386 @@ class _OwnedMigrationCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _facilitySizeName(FacilitySize size) => switch (size) {
+  FacilitySize.small => 'Небольшой',
+  FacilitySize.medium => 'Средний',
+  FacilitySize.large => 'Большой',
+  FacilitySize.campus => 'Кампус',
+};
+
+String _facilityQualityName(FacilityQuality quality) => switch (quality) {
+  FacilityQuality.basic => 'Базовый',
+  FacilityQuality.standard => 'Стандарт',
+  FacilityQuality.premium => 'Премиум',
+};
+
+Future<void> _showBuildOfficeDialog(
+  BuildContext context,
+  GameController controller,
+) async {
+  var cityId = controller.state.headquartersCityId;
+  var size = FacilitySize.small;
+  var fitout = FacilityQuality.standard;
+  var equipment = FacilityQuality.standard;
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) {
+        final city = WorldEconomyCatalog.cityById(cityId);
+        final draft = OwnedOfficeSite(
+          id: 'preview',
+          cityId: cityId,
+          size: size,
+          fitoutQuality: fitout,
+          equipmentQuality: equipment,
+          builtAtMinutes: controller.state.simulationMinutes,
+        );
+        final buildCost = WorldEconomyCatalog.officeBuildCost(
+          cityId: cityId,
+          size: size,
+          fitout: fitout,
+          equipment: equipment,
+        );
+        final monthly = WorldEconomyCatalog.officeMonthlyCost(draft);
+        return AlertDialog(
+          title: const AppText('Построить собственный офис'),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: cityId,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: trContext(context, 'Город'),
+                    ),
+                    items: WorldEconomyCatalog.cities
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item.id,
+                            child: AppText('${item.cityRu}, ${item.countryRu}'),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => cityId = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<FacilitySize>(
+                    initialValue: size,
+                    decoration: InputDecoration(
+                      labelText: trContext(context, 'Размер'),
+                    ),
+                    items: FacilitySize.values
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item,
+                            child: AppText(_facilitySizeName(item)),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => size = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<FacilityQuality>(
+                    initialValue: fitout,
+                    decoration: InputDecoration(
+                      labelText: trContext(context, 'Качество ремонта'),
+                    ),
+                    items: FacilityQuality.values
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item,
+                            child: AppText(_facilityQualityName(item)),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => fitout = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<FacilityQuality>(
+                    initialValue: equipment,
+                    decoration: InputDecoration(
+                      labelText: trContext(context, 'Качество оснащения'),
+                    ),
+                    items: FacilityQuality.values
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item,
+                            child: AppText(_facilityQualityName(item)),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => equipment = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  AppCard(
+                    child: Column(
+                      children: [
+                        ResponsiveInfoRow('Строительство', money(buildCost)),
+                        ResponsiveInfoRow(
+                          'Содержание',
+                          '${money(monthly)}/мес.',
+                        ),
+                        ResponsiveInfoRow(
+                          'Места',
+                          '${WorldEconomyCatalog.officeCapacity(size)}',
+                        ),
+                        ResponsiveInfoRow(
+                          'Налог на прибыль',
+                          '${(city.corporateTaxRate * 100).toStringAsFixed(1)}%',
+                        ),
+                        ResponsiveInfoRow(
+                          'Payroll tax',
+                          '${(city.payrollTaxRate * 100).toStringAsFixed(1)}%',
+                        ),
+                        ResponsiveInfoRow(
+                          'Зарплаты',
+                          '×${city.salaryMultiplier.toStringAsFixed(2)}',
+                        ),
+                        ResponsiveInfoRow('Таланты', '${city.talentScore}/100'),
+                        ResponsiveInfoRow(
+                          'Инвесторы',
+                          '${city.investorScore}/100',
+                        ),
+                        ResponsiveInfoRow(
+                          'Доступ к рынку',
+                          '${city.marketAccessScore}/100',
+                          last: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const AppText('Отмена'),
+            ),
+            FilledButton(
+              onPressed: controller.state.cash >= buildCost
+                  ? () {
+                      controller.dispatch(
+                        BuildOwnedOffice(
+                          cityId: cityId,
+                          size: size,
+                          fitoutQuality: fitout,
+                          equipmentQuality: equipment,
+                        ),
+                      );
+                      Navigator.pop(dialogContext);
+                    }
+                  : null,
+              child: const AppText('Строить'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
+
+Future<void> _showBuildDataCenterDialog(
+  BuildContext context,
+  GameController controller,
+) async {
+  var cityId = controller.state.headquartersCityId;
+  var size = FacilitySize.small;
+  var facility = FacilityQuality.standard;
+  var equipment = FacilityQuality.standard;
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) {
+        final city = WorldEconomyCatalog.cityById(cityId);
+        final draft = OwnedDataCenterSite(
+          id: 'preview',
+          cityId: cityId,
+          size: size,
+          facilityQuality: facility,
+          equipmentQuality: equipment,
+          builtAtMinutes: controller.state.simulationMinutes,
+        );
+        final buildCost = WorldEconomyCatalog.dataCenterBuildCost(
+          cityId: cityId,
+          size: size,
+          facility: facility,
+          equipment: equipment,
+        );
+        final monthly = WorldEconomyCatalog.dataCenterMonthlyCost(draft);
+        return AlertDialog(
+          title: const AppText('Построить дата-центр'),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: cityId,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: trContext(context, 'Город'),
+                    ),
+                    items: WorldEconomyCatalog.cities
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item.id,
+                            child: AppText('${item.cityRu}, ${item.countryRu}'),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => cityId = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<FacilitySize>(
+                    initialValue: size,
+                    decoration: InputDecoration(
+                      labelText: trContext(context, 'Размер площадки'),
+                    ),
+                    items: FacilitySize.values
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item,
+                            child: AppText(_facilitySizeName(item)),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => size = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<FacilityQuality>(
+                    initialValue: facility,
+                    decoration: InputDecoration(
+                      labelText: trContext(context, 'Качество помещения'),
+                    ),
+                    items: FacilityQuality.values
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item,
+                            child: AppText(_facilityQualityName(item)),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => facility = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<FacilityQuality>(
+                    initialValue: equipment,
+                    decoration: InputDecoration(
+                      labelText: trContext(context, 'Инженерное оборудование'),
+                    ),
+                    items: FacilityQuality.values
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item,
+                            child: AppText(_facilityQualityName(item)),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => equipment = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  AppCard(
+                    child: Column(
+                      children: [
+                        ResponsiveInfoRow('Строительство', money(buildCost)),
+                        ResponsiveInfoRow(
+                          'Содержание',
+                          '${money(monthly)}/мес.',
+                        ),
+                        ResponsiveInfoRow(
+                          'Rack',
+                          '${WorldEconomyCatalog.dataCenterRackUnits(size)} U',
+                        ),
+                        ResponsiveInfoRow(
+                          'Power',
+                          '${WorldEconomyCatalog.dataCenterPowerKw(draft).toStringAsFixed(1)} kW',
+                        ),
+                        ResponsiveInfoRow(
+                          'Cooling',
+                          '${WorldEconomyCatalog.dataCenterCoolingKw(draft).toStringAsFixed(1)} kW',
+                        ),
+                        ResponsiveInfoRow(
+                          'Network',
+                          '${WorldEconomyCatalog.dataCenterNetworkGbps(draft).toStringAsFixed(1)} Gbps',
+                        ),
+                        ResponsiveInfoRow(
+                          'Коммунальные',
+                          '×${city.utilityMultiplier.toStringAsFixed(2)}',
+                          last: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const AppText('Отмена'),
+            ),
+            FilledButton(
+              onPressed: controller.state.cash >= buildCost
+                  ? () {
+                      controller.dispatch(
+                        BuildOwnedDataCenter(
+                          cityId: cityId,
+                          size: size,
+                          facilityQuality: facility,
+                          equipmentQuality: equipment,
+                        ),
+                      );
+                      Navigator.pop(dialogContext);
+                    }
+                  : null,
+              child: const AppText('Строить'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
 }
 
 class _InfrastructureStat extends StatelessWidget {

@@ -3,6 +3,7 @@ import 'package:founder_os/domain/catalog/game_catalog.dart';
 import 'package:founder_os/domain/commands/game_action.dart';
 import 'package:founder_os/domain/entities/game_state.dart';
 import 'package:founder_os/domain/entities/models.dart';
+import 'package:founder_os/domain/entities/v17_models.dart';
 import 'package:founder_os/domain/entities/operations_models.dart';
 import 'package:founder_os/domain/explainability/product_configuration_resolver.dart';
 import 'package:founder_os/domain/simulation/engine/game_engine.dart';
@@ -110,7 +111,7 @@ void main() {
       source.copyWith(products: <Product>[product]).encode(),
     );
 
-    expect(restored.snapshotVersion, 13);
+    expect(restored.snapshotVersion, 16);
     expect(restored.products.single.name, 'Renamed Product');
     expect(restored.products.single.openBugs.single.weight, 7);
     expect(restored.products.single.fixedBugCount, 3);
@@ -136,14 +137,25 @@ void main() {
             item.supportedCategories.contains(product.category) &&
             !product.featureIds.contains(item.id),
       );
+      state = state.copyWith(
+        completedResearchKeys: <String>[
+          state.researchKey(ResearchTargetKind.feature, feature.id),
+        ],
+      );
       state = engine.reduce(
         state,
         AddProductFeature(productId: product.id, featureId: feature.id),
       );
       expect(state.activeFeatureDevelopmentFor(product.id), isNotNull);
 
-      final cleanQueue = state.copyWith(productFeatureDevelopments: const []);
       final technology = GameCatalog.technologyById('redis');
+      final cleanQueue = state.copyWith(
+        productFeatureDevelopments: const [],
+        completedResearchKeys: <String>[
+          ...state.completedResearchKeys,
+          state.researchKey(ResearchTargetKind.technology, technology.id),
+        ],
+      );
       final expanded = engine.reduce(
         cleanQueue,
         AddProductTechnology(
@@ -158,16 +170,24 @@ void main() {
     },
   );
 
-  test('technical freshness ceiling falls irreversibly to zero', () {
-    final base = _liveSaas(engine);
-    final product = base.products.single;
-    final young = base.copyWith(simulationMinutes: 180 * 1440);
-    final old = base.copyWith(simulationMinutes: 800 * 1440);
+  test(
+    'technical freshness ceiling falls after supported product lifetime',
+    () {
+      final base = _liveSaas(engine);
+      final product = base.products.single;
+      final supportedDays = base.productSupportedLifetimeDays(product);
+      final young = base.copyWith(
+        simulationMinutes: (supportedDays * 1440).round(),
+      );
+      final old = base.copyWith(
+        simulationMinutes: ((supportedDays + 620) * 1440).round(),
+      );
 
-    expect(young.productFreshnessCeiling(product), 100);
-    expect(old.productFreshnessCeiling(product), 0);
-    expect(old.productFreshnessScore(product), 0);
-  });
+      expect(young.productFreshnessCeiling(product), 100);
+      expect(old.productFreshnessCeiling(product), 0);
+      expect(old.productFreshnessScore(product), 0);
+    },
+  );
 
   test('advertising produces a material paid-user forecast', () {
     final state = _liveSaas(engine);
@@ -358,8 +378,17 @@ void main() {
         state,
         TrainEmployee(employeeId: employee.id, programId: 'security'),
       );
+      expect(state.employeeById(employee.id)!.grade, EmployeeGrade.intern);
+      expect(state.productManagerBonusPercentFor(product.id), 0.04);
+      expect(state.trainingForEmployee(employee.id), isNotNull);
+
+      state = engine.reduce(
+        state.copyWith(paused: false),
+        const AdvanceTime(3 * 360),
+      );
       expect(state.employeeById(employee.id)!.grade, EmployeeGrade.junior);
       expect(state.productManagerBonusPercentFor(product.id), 0.08);
+      expect(state.trainingForEmployee(employee.id), isNull);
 
       state = engine.reduce(state, FireEmployee(employee.id));
       expect(state.employeeById(employee.id), isNull);

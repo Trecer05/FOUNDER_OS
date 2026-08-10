@@ -44,8 +44,8 @@ class MarketScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     _InfoRow(
-                      'Путь основателя',
-                      '${state.releasedBlueprintCount}/${state.requiredReleasedBlueprintsForLegacy} релизов',
+                      'Мировые проекты',
+                      '${(state.worldProjectCompletionProgress * 100).round()}% завершено',
                     ),
                     _InfoRow(
                       'Консолидация рынка',
@@ -65,10 +65,8 @@ class MarketScreen extends StatelessWidget {
                     const SizedBox(height: 7),
                     AppText(
                       state.founderLegacyCompleted
-                          ? 'Рынок консолидирован. Вы достигли финала Founder Legacy.'
-                          : state.legacyProductRequirementMet
-                          ? 'Порог 70% выполнен — можно завершать консолидацию рынка.'
-                          : 'Последнего конкурента можно поглотить только после самостоятельного релиза 70% каталога.',
+                          ? 'Мировые проекты завершены. Кампания пройдена, M&A остаётся частью свободной игры.'
+                          : 'Покупка конкурентов больше не является условием финала. Победа достигается тремя мировыми проектами.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -126,10 +124,6 @@ class _CompanyCard extends StatelessWidget {
     final migrationReady =
         sameCategoryProducts.isNotEmpty &&
         spareCompute >= company.computeDemand * 1.2;
-    final finalAcquisitionLocked =
-        !acquired &&
-        state.remainingRivalCount == 1 &&
-        !state.legacyProductRequirementMet;
 
     return AppCard(
       onTap: () => Navigator.of(context).push(
@@ -236,8 +230,8 @@ class _CompanyCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: FilledButton.tonal(
-                  onPressed: !productAcquired &&
-                          state.cash >= company.productPrice
+                  onPressed:
+                      !productAcquired && state.cash >= company.productPrice
                       ? () => _showProductAcquisition(
                           context,
                           controller,
@@ -255,9 +249,7 @@ class _CompanyCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: !acquired &&
-                      !finalAcquisitionLocked &&
-                      state.cash >= remainingCompanyPrice
+              onPressed: !acquired && state.cash >= remainingCompanyPrice
                   ? () => controller.dispatch(AcquireMarketCompany(company.id))
                   : null,
               child: AppText(
@@ -267,13 +259,6 @@ class _CompanyCard extends StatelessWidget {
               ),
             ),
           ),
-          if (finalAcquisitionLocked) ...[
-            const SizedBox(height: 8),
-            AppText(
-              'Финальная сделка: сначала ${state.requiredReleasedBlueprintsForLegacy} собственных релизов (${state.releasedBlueprintCount} готово).',
-              style: const TextStyle(color: AppColors.yellow, fontWeight: FontWeight.w700),
-            ),
-          ],
           const SizedBox(height: 9),
           Row(
             children: [

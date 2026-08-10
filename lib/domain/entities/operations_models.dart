@@ -153,6 +153,7 @@ class TrainingProgramOption {
     required this.autonomyDelta,
     required this.communicationDelta,
     required this.reliabilityDelta,
+    this.durationDays = 2,
   });
 
   final String id;
@@ -166,6 +167,7 @@ class TrainingProgramOption {
   final int autonomyDelta;
   final int communicationDelta;
   final int reliabilityDelta;
+  final int durationDays;
 }
 
 extension ManagedEmployee on Employee {
@@ -182,6 +184,7 @@ extension ManagedEmployee on Employee {
     int? workload,
     bool? remote,
     EmployeeGrade? grade,
+    String? locationCityId,
   }) {
     return Employee(
       id: id,
@@ -202,6 +205,7 @@ extension ManagedEmployee on Employee {
       hiredAtMinutes: hiredAtMinutes,
       isHr: isHr,
       grade: grade ?? this.grade,
+      locationCityId: locationCityId ?? this.locationCityId,
     );
   }
 }

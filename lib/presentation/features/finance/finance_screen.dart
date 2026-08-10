@@ -29,6 +29,7 @@ class FinanceScreen extends StatefulWidget {
 class _FinanceScreenState extends State<FinanceScreen> {
   _FinanceSeries _series = _FinanceSeries.cash;
   bool _dailyProfit = false;
+  int? _selectedHistoryIndex;
   final TextEditingController _promoController = TextEditingController();
 
   @override
@@ -118,6 +119,61 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   ),
                   MetricCard(label: 'Valuation', value: money(state.valuation)),
                 ],
+              ),
+              const SizedBox(height: 18),
+              SectionHeader(
+                title: 'Налоги и годовой резерв',
+                subtitle:
+                    'Налоговое обязательство накапливается весь игровой год и списывается отдельной транзакцией.',
+                hintTitle: 'Как работают налоги',
+                hintBody:
+                    'Налог на прибыль считается с положительной накопленной прибыли года. Payroll tax считается с фонда оплаты труда. Ставки задаются городом HQ.',
+              ),
+              const SizedBox(height: 10),
+              Builder(
+                builder: (context) {
+                  final taxableProfit = math.max(
+                    0,
+                    state.taxYearRevenueAccrued - state.taxYearExpensesAccrued,
+                  );
+                  final corporateReserve =
+                      taxableProfit * state.effectiveCorporateTaxRate;
+                  final payrollReserve =
+                      state.taxYearPayrollAccrued *
+                      state.effectivePayrollTaxRate;
+                  final dayInTaxYear = (state.simulationMinutes ~/ 1440) % 365;
+                  final daysUntilTax = 365 - dayInTaxYear;
+                  return AppCard(
+                    key: const Key('annual-tax-summary'),
+                    child: Column(
+                      children: [
+                        _FinanceStatusRow(
+                          label: 'Налог на прибыль',
+                          value:
+                              '${(state.effectiveCorporateTaxRate * 100).toStringAsFixed(1)}% • резерв ${money(corporateReserve)}',
+                        ),
+                        _FinanceStatusRow(
+                          label: 'Payroll tax',
+                          value:
+                              '${(state.effectivePayrollTaxRate * 100).toStringAsFixed(1)}% • резерв ${money(payrollReserve)}',
+                        ),
+                        _FinanceStatusRow(
+                          label: 'Ожидаемое списание',
+                          value: money(corporateReserve + payrollReserve),
+                        ),
+                        _FinanceStatusRow(
+                          label: 'Регуляторный OPEX / мес.',
+                          value: money(state.monthlyRegulatoryComplianceCost),
+                        ),
+                        _FinanceStatusRow(
+                          label: 'До конца налогового года',
+                          value: '$daysUntilTax дн.',
+                          last: true,
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 18),
               SectionHeader(
@@ -296,24 +352,88 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    SizedBox(
-                      key: const Key('finance-history-chart'),
-                      height: 210,
-                      width: double.infinity,
-                      child: CustomPaint(
-                        painter: _FinanceChartPainter(
-                          points: history,
-                          series: _series,
-                          lineColor: _series == _FinanceSeries.expenses
-                              ? AppColors.red
-                              : _series == _FinanceSeries.profit &&
-                                    state.monthlyProfit < 0
-                              ? AppColors.red
-                              : AppColors.primary,
-                        ),
-                      ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        void selectAt(double dx) {
+                          if (history.isEmpty || constraints.maxWidth <= 0) {
+                            return;
+                          }
+                          final fraction = (dx / constraints.maxWidth)
+                              .clamp(0.0, 1.0)
+                              .toDouble();
+                          final index =
+                              (fraction * math.max(0, history.length - 1))
+                                  .round()
+                                  .clamp(0, history.length - 1)
+                                  .toInt();
+                          if (_selectedHistoryIndex != index) {
+                            setState(() => _selectedHistoryIndex = index);
+                          }
+                        }
+
+                        return GestureDetector(
+                          key: const Key('finance-history-chart'),
+                          behavior: HitTestBehavior.opaque,
+                          onTapDown: (details) =>
+                              selectAt(details.localPosition.dx),
+                          onHorizontalDragStart: (details) =>
+                              selectAt(details.localPosition.dx),
+                          onHorizontalDragUpdate: (details) =>
+                              selectAt(details.localPosition.dx),
+                          child: SizedBox(
+                            height: 210,
+                            width: double.infinity,
+                            child: CustomPaint(
+                              painter: _FinanceChartPainter(
+                                points: history,
+                                series: _series,
+                                lineColor: _series == _FinanceSeries.expenses
+                                    ? AppColors.red
+                                    : _series == _FinanceSeries.profit &&
+                                          state.monthlyProfit < 0
+                                    ? AppColors.red
+                                    : AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 8),
+                    Builder(
+                      builder: (context) {
+                        final index =
+                            (_selectedHistoryIndex ?? history.length - 1)
+                                .clamp(0, history.length - 1)
+                                .toInt();
+                        final point = history[index];
+                        final value = switch (_series) {
+                          _FinanceSeries.cash => point.cash,
+                          _FinanceSeries.income => point.incomeRunRate,
+                          _FinanceSeries.expenses => point.expenseRunRate,
+                          _FinanceSeries.profit => point.profitRunRate,
+                        };
+                        final label = switch (_series) {
+                          _FinanceSeries.cash => 'Cash',
+                          _FinanceSeries.income => 'Доход / мес.',
+                          _FinanceSeries.expenses => 'Расход / мес.',
+                          _FinanceSeries.profit => 'Profit / мес.',
+                        };
+                        return Container(
+                          key: const Key('finance-history-selection'),
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceMuted,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: AppText(
+                            '${state.formatDateAt(point.simulationMinutes)} • $label ${money(value)} • проведите пальцем по графику',
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 6),
                     AppText(
                       'Точек: ${history.length} • от дня ${history.first.simulationMinutes ~/ 1440 + 1} до дня ${history.last.simulationMinutes ~/ 1440 + 1}',
                       style: Theme.of(context).textTheme.bodySmall,
@@ -368,6 +488,31 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       total: state.monthlyCosts,
                     ),
                     _BreakdownBar(
+                      label: 'Реклама',
+                      value: state.monthlyAdvertisingSpend,
+                      total: state.monthlyCosts,
+                    ),
+                    _BreakdownBar(
+                      label: 'Масштабирование продуктов',
+                      value: state.monthlyScaleOperationsCost,
+                      total: state.monthlyCosts,
+                    ),
+                    _BreakdownBar(
+                      label: 'Регуляторные расходы',
+                      value: state.monthlyRegulatoryComplianceCost,
+                      total: state.monthlyCosts,
+                    ),
+                    _BreakdownBar(
+                      label: 'Плюшки команды',
+                      value: state.monthlyCompanyPerkCost,
+                      total: state.monthlyCosts,
+                    ),
+                    _BreakdownBar(
+                      label: 'Мировые проекты',
+                      value: state.monthlyWorldProjectOperatingCost,
+                      total: state.monthlyCosts,
+                    ),
+                    _BreakdownBar(
                       label: 'Выплаты инвесторам',
                       value: state.investorPayouts,
                       total: state.monthlyCosts,
@@ -385,7 +530,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
               const SectionHeader(
                 title: 'Последние операции',
                 subtitle:
-                    'Разовые покупки, авансы, инвестиции и другие изменения cash.',
+                    'Разовые покупки и ежедневные списания. Для крупных расходов здесь видна категория и причина.',
               ),
               const SizedBox(height: 10),
               AppCard(
@@ -393,7 +538,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                     ? const AppText('Разовых финансовых операций пока нет.')
                     : Column(
                         children: state.financeTransactions
-                            .take(30)
+                            .take(60)
                             .map((item) => _TransactionTile(transaction: item))
                             .toList(growable: false),
                       ),

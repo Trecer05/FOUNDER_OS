@@ -2,6 +2,8 @@ import '../entities/game_state.dart';
 import '../entities/models.dart';
 import '../entities/product_evolution_models.dart';
 import '../entities/v12_models.dart';
+import '../entities/v16_models.dart';
+import '../entities/v17_models.dart';
 
 sealed class GameAction {
   const GameAction();
@@ -23,6 +25,7 @@ class ConfigureCompany extends GameAction {
     required this.startingBudget,
     required this.background,
     required this.skills,
+    this.headquartersCityId = 'moscow',
   });
 
   final String companyName;
@@ -31,6 +34,7 @@ class ConfigureCompany extends GameAction {
   final double startingBudget;
   final FounderBackground background;
   final Map<FounderSkill, int> skills;
+  final String headquartersCityId;
 }
 
 class CompleteDevelopmentChallenge extends GameAction {
@@ -122,6 +126,11 @@ class FixProductBug extends GameAction {
 
   final String productId;
   final String bugId;
+}
+
+class FixAllProductBugs extends GameAction {
+  const FixAllProductBugs(this.productId);
+  final String productId;
 }
 
 class SetAiDeploymentMode extends GameAction {
@@ -278,6 +287,31 @@ class TrainEmployee extends GameAction {
   final String programId;
 }
 
+class TrainEmployees extends GameAction {
+  const TrainEmployees({required this.employeeIds, required this.programId});
+  final List<String> employeeIds;
+  final String programId;
+}
+
+class UpgradeEmployeesToGrade extends GameAction {
+  const UpgradeEmployeesToGrade({
+    required this.employeeIds,
+    required this.targetGrade,
+  });
+  final List<String> employeeIds;
+  final EmployeeGrade targetGrade;
+}
+
+class RelocateEmployeeToOffice extends GameAction {
+  const RelocateEmployeeToOffice({
+    required this.employeeId,
+    required this.officeSiteId,
+  });
+
+  final String employeeId;
+  final String officeSiteId;
+}
+
 class PurchaseSecurityControl extends GameAction {
   const PurchaseSecurityControl({
     required this.productId,
@@ -291,6 +325,32 @@ class PurchaseSecurityControl extends GameAction {
 class RunSecurityAudit extends GameAction {
   const RunSecurityAudit(this.productId);
   final String productId;
+}
+
+class BuildOwnedOffice extends GameAction {
+  const BuildOwnedOffice({
+    required this.cityId,
+    required this.size,
+    required this.fitoutQuality,
+    required this.equipmentQuality,
+  });
+  final String cityId;
+  final FacilitySize size;
+  final FacilityQuality fitoutQuality;
+  final FacilityQuality equipmentQuality;
+}
+
+class BuildOwnedDataCenter extends GameAction {
+  const BuildOwnedDataCenter({
+    required this.cityId,
+    required this.size,
+    required this.facilityQuality,
+    required this.equipmentQuality,
+  });
+  final String cityId;
+  final FacilitySize size;
+  final FacilityQuality facilityQuality;
+  final FacilityQuality equipmentQuality;
 }
 
 class RentOffice extends GameAction {
@@ -313,13 +373,21 @@ class MigrateToOwnedInfrastructure extends GameAction {
 }
 
 class InstallServer extends GameAction {
-  const InstallServer(this.hardwareId);
+  const InstallServer(
+    this.hardwareId, {
+    this.dataCenterSiteId,
+    this.service = InfrastructureService.sharedLegacy,
+  });
   final String hardwareId;
+  final String? dataCenterSiteId;
+  final InfrastructureService service;
 }
 
 class RemoveServer extends GameAction {
-  const RemoveServer(this.hardwareId);
+  const RemoveServer(this.hardwareId, {this.dataCenterSiteId, this.service});
   final String hardwareId;
+  final String? dataCenterSiteId;
+  final InfrastructureService? service;
 }
 
 class ConnectProducts extends GameAction {
@@ -347,6 +415,18 @@ class AcceptClientContract extends GameAction {
   final String templateId;
 }
 
+class AssignProductInfrastructureService extends GameAction {
+  const AssignProductInfrastructureService({
+    required this.productId,
+    required this.service,
+    required this.dataCenterSiteId,
+  });
+
+  final String productId;
+  final InfrastructureService service;
+  final String dataCenterSiteId;
+}
+
 class StartAdvertisingCampaign extends GameAction {
   const StartAdvertisingCampaign({
     required this.productId,
@@ -359,6 +439,11 @@ class StartAdvertisingCampaign extends GameAction {
   final String agencyId;
   final String channelId;
   final double budget;
+}
+
+class StopAdvertisingCampaign extends GameAction {
+  const StopAdvertisingCampaign(this.campaignId);
+  final String campaignId;
 }
 
 class RequestBusinessLoan extends GameAction {
@@ -444,4 +529,68 @@ class ToggleMiniGames extends GameAction {
 
 class ResetGame extends GameAction {
   const ResetGame();
+}
+
+class StartCompanyResearch extends GameAction {
+  const StartCompanyResearch({required this.kind, required this.targetId});
+  final ResearchTargetKind kind;
+  final String targetId;
+}
+
+class ToggleCompanyPerk extends GameAction {
+  const ToggleCompanyPerk(this.perkId);
+  final String perkId;
+}
+
+class HireMarketLegend extends GameAction {
+  const HireMarketLegend({required this.legendId, required this.productId});
+  final String legendId;
+  final String productId;
+}
+
+class CounterOfferEmployee extends GameAction {
+  const CounterOfferEmployee(this.employeeId);
+  final String employeeId;
+}
+
+class JoinIndustryEvent extends GameAction {
+  const JoinIndustryEvent({
+    required this.opportunityId,
+    required this.productIds,
+  });
+  final String opportunityId;
+  final List<String> productIds;
+}
+
+class MarkAllCompanyNotificationsRead extends GameAction {
+  const MarkAllCompanyNotificationsRead();
+}
+
+class FundWorldProjectPhase extends GameAction {
+  const FundWorldProjectPhase(this.projectId);
+  final String projectId;
+}
+
+class StartWorldProjectUpgrade extends GameAction {
+  const StartWorldProjectUpgrade({
+    required this.projectId,
+    required this.upgradeId,
+  });
+  final String projectId;
+  final String upgradeId;
+}
+
+class SetEcosystemDoctrine extends GameAction {
+  const SetEcosystemDoctrine(this.doctrine);
+  final EcosystemDoctrine doctrine;
+}
+
+class FundPhilanthropy extends GameAction {
+  const FundPhilanthropy(this.amount);
+  final double amount;
+}
+
+class ChoosePostGamePath extends GameAction {
+  const ChoosePostGamePath(this.path);
+  final PostGamePath path;
 }

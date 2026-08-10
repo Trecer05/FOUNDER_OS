@@ -9,6 +9,179 @@ class V13EnglishTemplate {
 
 abstract final class V13EnglishLexicon {
   static const Map<String, String> overrides = <String, String>{
+    'Profit / мес.': 'Profit / mo.',
+    'API / приложение': 'API / app',
+    'Арендная серверная': 'Rented server room',
+    'Выбрать площадку и сервис': 'Choose site and service',
+    'При покупке выберите площадку и назначение сервера. API, storage и AI/compute получают только свой выделенный пул; legacy-серверы старого сейва остаются shared до замены.':
+        'Choose a site and server purpose when buying. API, storage, and AI/compute receive only their dedicated pool; legacy servers from old saves remain shared until replaced.',
+    'Раздельные сервисные пулы': 'Dedicated service pools',
+    'Распределение мощности': 'Capacity allocation',
+    'Режим': 'Mode',
+    'Собственные площадки разделены по сервисам. Проценты считаются внутри выбранного ЦОД; сумма по компании может быть выше 100%.':
+        'Owned sites are split by service. Percentages are calculated within the selected data center; the company-wide total may exceed 100%.',
+    'Регуляторные расходы': 'Regulatory costs',
+    'Масштабирование продуктов': 'Product scale operations',
+    'Базовый': 'Basic',
+    'Бангалор': 'Bangalore',
+    'Берлин': 'Berlin',
+    'Большой': 'Large',
+    'Бразилия': 'Brazil',
+    'Варшава': 'Warsaw',
+    'Великобритания': 'United Kingdom',
+    'Выберите только итоговый грейд — стоимость и срок считаются автоматически.':
+        'Choose only the target grade — cost and duration are calculated automatically.',
+    'Выбрать всех': 'Select all',
+    'Выбрать площадку установки': 'Choose installation site',
+    'Германия': 'Germany',
+    'Город': 'City',
+    'Доступ к рынку': 'Market access',
+    'Дубай': 'Dubai',
+    'Индия': 'India',
+    'Инженерное оборудование': 'Engineering equipment',
+    'Как выбрать монетизацию': 'How to choose monetization',
+    '  Когда брать: нужен быстрый рост или экосистема. KPI: activation, retention, MAU и органический рост. Риск: аудитория растёт быстрее, чем способность финансировать инфраструктуру.':
+        '  When to use: you need fast growth or an ecosystem. KPIs: activation, retention, MAU, and organic growth. Risk: the audience can grow faster than your ability to fund infrastructure.',
+    '  Когда брать: ценность повторяется каждый месяц. KPI: платящая аудитория, MRR, retention и churn. Риск: слишком высокая цена повышает отток и снижает доверие.':
+        '  When to use: value repeats every month. KPIs: paying audience, MRR, retention, and churn. Risk: excessive pricing raises churn and reduces trust.',
+    '  Когда брать: потребление легко измерить и клиенты используют продукт неравномерно. KPI: ARPU, активность и маржа после compute. Риск: инфраструктурные расходы растут быстрее выручки.':
+        '  When to use: consumption is measurable and customers use the product unevenly. KPIs: ARPU, activity, and margin after compute. Risk: infrastructure costs can grow faster than revenue.',
+    '  Когда брать: массовый B2C-продукт с большой бесплатной аудиторией. KPI: MAU, DAU, вовлечённость и рекламная нагрузка. Риск: краткосрочный рост дохода может обрушить retention.':
+        '  When to use: a mass-market B2C product with a large free audience. KPIs: MAU, DAU, engagement, and ad load. Risk: short-term revenue growth can damage retention.',
+    '  Когда брать: ценность создаётся в сделке, платеже или обмене. KPI: объём операций, activation, доверие и средняя комиссия. Риск: высокая комиссия уменьшает число операций.':
+        '  When to use: value is created in a transaction, payment, or exchange. KPIs: transaction volume, activation, trust, and average fee. Risk: a high fee reduces transaction volume.',
+    'Правило выбора: сначала определите, за какую ценность пользователь платит, затем проверьте unit economics. Цена, рекламная нагрузка, комиссия и free tier — рычаги. Сравнивайте прогноз выручки с activation, retention, churn, доверием и инфраструктурными расходами, а не максимизируйте один показатель.':
+        'Decision rule: first identify the value users pay for, then check unit economics. Price, ad load, transaction fee, and free tier are levers. Compare revenue forecast with activation, retention, churn, trust, and infrastructure costs instead of maximizing one metric.',
+    'Кампус': 'Campus',
+    'Канада': 'Canada',
+    'Качество оснащения': 'Equipment quality',
+    'Качество помещения': 'Facility quality',
+    'Качество ремонта': 'Fit-out quality',
+    'Коммунальные': 'Utilities',
+    'Курс': 'Course',
+    'Курсы занимают реальное игровое время. Во время обучения сотрудник не участвует в разработке. Skill также растёт от активной работы над продуктами, а грейд автоматически подтягивается к накопленному навыку.':
+        'Courses take real game time. While training, the employee does not participate in development. Skill also grows through active product work, and grade follows accumulated skill automatically.',
+    'Лондон': 'London',
+    'Места': 'Seats',
+    'Модель монетизации — это не просто множитель дохода. Она меняет требования к retention, масштабу аудитории, доверию и инфраструктурным расходам.':
+        'A monetization model is not just a revenue multiplier. It changes the requirements for retention, audience scale, trust, and infrastructure costs.',
+    'Можно выбрать отдельных сотрудников или всех из текущего фильтра. Занятые обучением сотрудники будут пропущены.':
+        'Select individual employees or everyone in the current filter. Employees already in development programs will be skipped.',
+    'Можно строить несколько ЦОД в разных городах. Размер определяет физический потолок, качество — эксплуатационные характеристики, а город — энергию, сеть и стоимость содержания.':
+        'You can build multiple data centers in different cities. Size sets the physical ceiling, quality sets operating characteristics, and the city affects energy, network, and maintenance costs.',
+    'Москва': 'Moscow',
+    'Налог на прибыль': 'Profit tax',
+    'Небольшой': 'Small',
+    'Нет площадки с достаточным U, power и cooling или не хватает денег.':
+        'No site has enough rack units, power, and cooling, or there is not enough cash.',
+    'ОАЭ': 'UAE',
+    'Обучение сотрудников': 'Employee training',
+    'Очистить выбор': 'Clear selection',
+    'План повышения грейда': 'Grade upgrade plan',
+    'Польша': 'Poland',
+    'Построить дата-центр': 'Build data center',
+    'Построить собственный офис': 'Build own office',
+    'Премиум': 'Premium',
+    'При покупке выберите конкретную площадку. Сервер физически занимает U, power и cooling именно выбранной серверной или ЦОД.':
+        'Choose a specific site when buying. A server consumes rack units, power, and cooling at the selected server room or data center.',
+    'Пять моделей — пять разных бизнесов':
+        'Five models — five different businesses',
+    'Развитие команды': 'Team development',
+    'Развитие сотрудников': 'Employee development',
+    'Размер': 'Size',
+    'Размер площадки': 'Site size',
+    'Россия': 'Russia',
+    'США': 'USA',
+    'Сан-Паулу': 'São Paulo',
+    'Сан-Франциско': 'San Francisco',
+    'Сингапур': 'Singapore',
+    'Снять выбор': 'Clear selection',
+    'Снять сервер с площадки': 'Remove server from site',
+    'Собственные дата-центры': 'Owned data centers',
+    'Собственные офисы': 'Owned offices',
+    'Собственных ЦОД пока нет. Серверная в аренде подходит для первого железа, свои площадки нужны для масштабирования.':
+        'No owned data centers yet. A rented server room is suitable for the first hardware; owned sites are for scaling.',
+    'Собственных офисов пока нет. Аренда остаётся быстрым стартом, строительство — долгосрочная инвестиция.':
+        'No owned offices yet. Renting remains the fast start; construction is a long-term investment.',
+    'Содержание': 'Maintenance',
+    'Строительство': 'Construction',
+    'Строительство собственного ЦОД': 'Owned data center construction',
+    'Строительство собственного офиса': 'Owned office construction',
+    'Строить': 'Build',
+    'Стройте несколько офисов в разных городах. География меняет зарплаты, налоги, коммунальные расходы, доступ к талантам, инвесторам и рынку.':
+        'Build multiple offices in different cities. Geography changes salaries, taxes, utilities, access to talent, investors, and markets.',
+    'Таланты': 'Talent',
+    'Токио': 'Tokyo',
+    'Торонто': 'Toronto',
+    'Финляндия': 'Finland',
+    'Хельсинки': 'Helsinki',
+    'Целевой грейд': 'Target grade',
+    'Цена, рекламная нагрузка, комиссия и free tier — это рычаги. Перед изменением сравнивайте прогноз выручки с retention, churn и доверием, а не максимизируйте один показатель.':
+        'Price, ad load, transaction fee, and free tier are levers. Before changing them, compare revenue forecast with retention, churn, and trust instead of maximizing one metric.',
+    'Япония': 'Japan',
+    '• Advertising — низкий порог входа для пользователя. Доход зависит от MAU и вовлечённости; чрезмерная рекламная нагрузка ухудшает опыт.':
+        '• Advertising — low user friction. Revenue depends on MAU and engagement; excessive ad load hurts the experience.',
+    '• Free — прямой выручки нет. Подходит для быстрого набора аудитории, бренда и воронки в другие продукты.':
+        '• Free — no direct revenue. Useful for fast audience growth, brand building, and funnels into other products.',
+    '• Subscription — предсказуемая повторяющаяся выручка. Нужны сильные retention и ценность, за которую пользователь готов платить каждый месяц.':
+        '• Subscription — predictable recurring revenue. It needs strong retention and value users will pay for every month.',
+    '• Transaction fee — комиссия с операций. Нужны объём транзакций и доверие; слишком высокая комиссия снижает activation.':
+        '• Transaction fee — revenue from transactions. It needs transaction volume and trust; an excessive fee reduces activation.',
+    '• Usage based — пользователь платит за реальное использование. Хорошо масштабируется с активностью, но особенно чувствителен к себестоимости compute.':
+        '• Usage based — users pay for actual usage. It scales with activity but is especially sensitive to compute unit economics.',
+    'Где открыть компанию': 'Where to open the company',
+    'Город и страна': 'City and country',
+    'HQ определяет налоги и базовую стоимость найма. Позже можно строить офисы и ЦОД в других городах.':
+        'HQ determines taxes and baseline hiring costs. Later you can build offices and data centers in other cities.',
+    'Стратегический профиль': 'Strategic profile',
+    '1. Выберите географию компании': '1. Choose company geography',
+    'Город HQ задаёт налог на прибыль, payroll tax, базовые зарплаты, аренду и коммунальные расходы. Одновременно он влияет на доступ к талантам, инвесторам, рынку, регулирование и качество сети.':
+        'The HQ city sets profit tax, payroll tax, baseline salaries, rent, and utilities. It also affects access to talent, investors, markets, regulation, and network quality.',
+    'Самая дешёвая юрисдикция не всегда лучшая: дорогой город может быстрее дать сильную команду, капитал или рынок.':
+        'The cheapest jurisdiction is not always the best: an expensive city may provide stronger talent, capital, or market access faster.',
+    '2. Создайте первый продукт': '2. Create your first product',
+    '3. Поймите монетизацию до релиза':
+        '3. Understand monetization before launch',
+    'Free ускоряет набор аудитории, но не даёт прямой выручки. Subscription даёт повторяющийся доход и требует retention. Usage based растёт вместе с использованием и расходами compute. Advertising зависит от MAU и вовлечённости. Transaction fee требует объёма операций и доверия.':
+        'Free accelerates audience growth but has no direct revenue. Subscription gives recurring revenue and requires retention. Usage based grows with usage and compute costs. Advertising depends on MAU and engagement. Transaction fee needs transaction volume and trust.',
+    'Цена, free tier, рекламная нагрузка и комиссия — рычаги. Смотрите одновременно на прогноз выручки, activation, retention, churn и доверие.':
+        'Price, free tier, ad load, and transaction fee are levers. Watch revenue forecast, activation, retention, churn, and trust together.',
+    '4. Соберите и развивайте команду': '4. Build and develop the team',
+    'Каждому продукту нужны конкретные роли. Skill растёт от реальной разработки. Курсы занимают 2–3 игровых дня, на это время сотрудник выпадает из разработки. Грейд повышается вместе с навыком или через план повышения до выбранного целевого грейда.':
+        'Each product needs specific roles. Skill grows through real development. Courses take 2–3 game days and remove the employee from development during that time. Grade rises with skill or through a plan to a selected target grade.',
+    'Можно выбрать нескольких сотрудников или всех из фильтра и отправить их на один курс одновременно.':
+        'You can select several employees or everyone in the filter and send them to one course at once.',
+    '5. Масштабируйте офисы по миру': '5. Scale offices around the world',
+    'Аренда подходит для старта. Позже можно строить несколько собственных офисов в разных городах, выбирая размер, качество ремонта и оснащения. Каждый город меняет стоимость команды и стратегические возможности.':
+        'Renting is suitable for the start. Later you can build multiple owned offices in different cities, choosing size, fit-out quality, and equipment. Each city changes team costs and strategic opportunities.',
+    'Не стройте кампус раньше времени: CAPEX и содержание должны окупаться реальной потребностью в людях.':
+        'Do not build a campus too early: CAPEX and maintenance should be justified by real staffing demand.',
+    '6. Стройте дата-центры осознанно': '6. Build data centers deliberately',
+    'Собственные ЦОД можно размещать в разных городах. Размер задаёт rack-потолок, а качество помещения и оборудования влияет на power, cooling и network. Сервер при покупке устанавливается на конкретную площадку.':
+        'Owned data centers can be placed in different cities. Size sets the rack ceiling, while facility and equipment quality affect power, cooling, and network. Each purchased server is installed at a specific site.',
+    'Дешёвое электричество не компенсирует плохую сеть или слишком маленький ЦОД, если продукт растёт глобально.':
+        'Cheap electricity does not compensate for a poor network or an undersized data center when the product grows globally.',
+    '7. Планируйте годовые налоги': '7. Plan annual taxes',
+    'Раз в игровой год компания платит налог с накопленной прибыли и payroll tax с фонда оплаты труда. Они не спрятаны в месячном burn: обязательство накапливается и списывается отдельной транзакцией.':
+        'Once per game year the company pays tax on accumulated profit and payroll tax on payroll. They are not hidden in monthly burn: the liability accumulates and is charged as a separate transaction.',
+    'Держите резерв к концу года. Высокая прибыль без кэша после CAPEX всё равно может создать кассовый разрыв.':
+        'Keep a reserve for year end. High profit without cash after CAPEX can still create a liquidity gap.',
+    '8. Используйте собственную AI': '8. Use your own AI',
+    '9. Не дайте продукту устареть': '9. Do not let the product age out',
+    'После долгого периода без обновлений падают свежесть, органический рост и retention. Даже после завершения roadmap всегда доступны технические улучшения и массовое исправление накопившихся багов.':
+        'After a long period without updates, freshness, organic growth, and retention decline. Even after the roadmap is complete, technical improvements and bulk bug fixing remain available.',
+    'Рост — это цикл: продукт → команда → инфраструктура → рынок → налоги → следующая инвестиция. Не максимизируйте один показатель в отрыве от остальных.':
+        'Growth is a cycle: product → team → infrastructure → market → taxes → next investment. Do not maximize one metric in isolation.',
+    'Налоги и годовой резерв': 'Taxes and annual reserve',
+    'Налоговое обязательство накапливается весь игровой год и списывается отдельной транзакцией.':
+        'Tax liability accumulates throughout the game year and is charged as a separate transaction.',
+    'Как работают налоги': 'How taxes work',
+    'Налог на прибыль считается с положительной накопленной прибыли года. Payroll tax считается с фонда оплаты труда. Ставки задаются городом HQ.':
+        'Profit tax is calculated on positive accumulated annual profit. Payroll tax is calculated on payroll. Rates are set by the HQ city.',
+    'Payroll tax': 'Payroll tax',
+    'Ожидаемое списание': 'Expected charge',
+    'До конца налогового года': 'Until tax year end',
+    'Регуляторный OPEX / мес.': 'Regulatory OPEX / mo.',
     '20 сгенерированных компаний. Один лидер держит эталон 100, остальные имеют разные функции и показатели.':
         '20 generated companies. One leader sets the 100-point benchmark; the others have different features and metrics.',
     '82% мощности без DevOps': '82% capacity without DevOps',
@@ -217,6 +390,257 @@ abstract final class V13EnglishLexicon {
     'реализация': 'implementation',
     'создание продукта': 'product creation',
     'хорошо сочетается': 'works well together',
+    'API / приложение / RAM / сеть': 'API / app / RAM / network',
+    'API и приложение': 'API and app',
+    'API/приложение, данные и AI/compute можно направить на разные ЦОД. Мощность делится только между продуктами, использующими ту же площадку и тот же тип сервиса.':
+        'API/app, data, and AI/compute can be routed to different data centers. Capacity is shared only among products using the same site and service type.',
+    'Senior: обычные курсы недоступны. Навыки растут от реальной разработки; для следующего скачка используйте программу повышения грейда.':
+        'Senior: regular courses are unavailable. Skills grow through real development work; use grade promotion for the next major step.',
+    'Агрессивность комиссии': 'Fee aggressiveness',
+    'Включить рекламный канал': 'Enable advertising channel',
+    'Влияние на пользователей': 'User impact',
+    'Данные / storage': 'Data / storage',
+    'Для запуска канала нужен резерв хотя бы на 5 дней рекламы.':
+        'You need a cash reserve covering at least 5 days of advertising to enable a channel.',
+    'Доля платного использования': 'Paid usage share',
+    'Жёсткость paywall': 'Paywall strictness',
+    'Канал работает постоянно, пока вы его не остановите. Бюджет задаётся на месяц, списание идёт ежедневно, а пользователи приходят постепенно.':
+        'The channel runs continuously until you stop it. Budget is monthly, spending is charged daily, and users arrive gradually.',
+    'Локализация критического инцидента': 'Critical incident containment',
+    'Маршрутизация сервисов': 'Service routing',
+    'Можно выбрать отдельных сотрудников или всех из текущего фильтра. Senior не ходят на обычные курсы: для них используйте повышение грейда и рабочий опыт.':
+        'Select individual employees or everyone in the current filter. Seniors do not take regular courses; use grade promotion and work experience instead.',
+    'Монетизация отключена': 'Monetization disabled',
+    'Остановить канал': 'Stop channel',
+    'Отток и доверие': 'Churn and trust',
+    'Поддерживаемый возраст': 'Supported lifetime',
+    'Помещение / оборудование': 'Facility / equipment',
+    'Правило: максимизируйте не доход с пользователя, а устойчивую связку revenue + activation + retention + churn + trust.':
+        'Rule: optimize the sustainable combination of revenue + activation + retention + churn + trust, not revenue per user alone.',
+    'Раздельная инфраструктура по сервисам': 'Service-specific infrastructure',
+    'Размер / стойки': 'Size / racks',
+    'Размер и места': 'Size and seats',
+    'Рекламная агрессивность': 'Ad aggressiveness',
+    'Релокация в офис': 'Relocate to office',
+    'Релокация сотрудника в офис': 'Employee office relocation',
+    'Ремонт / оснащение': 'Fit-out / equipment',
+    'Свернуто по умолчанию • нажмите, чтобы открыть подробности':
+        'Collapsed by default • tap to open details',
+    'Сеть': 'Network',
+    'Справочник по моделям монетизации': 'Monetization model guide',
+    'Справочник свернут по умолчанию. Разверните его, когда нужно сравнить модели и их риски.':
+        'The guide is collapsed by default. Expand it when you want to compare models and their risks.',
+    'Таланты / инвесторы / рынок': 'Talent / investors / market',
+    'Функции, новый стек и технические улучшения продлевают поддерживаемый срок жизни продукта. После этого потолок свежести постепенно снижается; просто смена даты обновления не обнуляет возраст.':
+        'Features, new stack technologies, and technical improvements extend the product’s supported lifetime. After that, the freshness ceiling gradually declines; a simple update date does not reset product age.',
+    'арендная серверная': 'rented server room',
+    'данные и storage': 'data and storage',
+    '• Advertising — бесплатный вход, доход от аудитории. KPI: MAU, DAU, вовлечённость. Риск: рекламный перегруз повышает churn и снижает доверие.':
+        '• Advertising — free entry, audience-driven revenue. KPI: MAU, DAU, engagement. Risk: ad overload raises churn and lowers trust.',
+    '• Free — быстрый набор аудитории без прямой выручки. KPI: activation, retention, MAU. Риск: инфраструктура растёт быстрее дохода.':
+        '• Free — fast audience growth without direct revenue. KPI: activation, retention, MAU. Risk: infrastructure grows faster than revenue.',
+    '• Subscription — повторяющаяся выручка. KPI: платящие, MRR, retention, churn. Риск: высокий прайс и жёсткий paywall выталкивают пользователей.':
+        '• Subscription — recurring revenue. KPI: paying users, MRR, retention, churn. Risk: high pricing and a strict paywall push users away.',
+    '• Transaction fee — комиссия с операций. KPI: объём операций, activation, доверие. Риск: высокая комиссия уменьшает число операций.':
+        '• Transaction fee — fee per transaction. KPI: transaction volume, activation, trust. Risk: a high fee reduces transaction volume.',
+    '• Usage based — оплата за реальное использование. KPI: ARPU, активность, маржа после compute. Риск: себестоимость растёт быстрее выручки.':
+        '• Usage based — pay for actual usage. KPI: ARPU, activity, margin after compute. Risk: cost of service grows faster than revenue.',
+    'Разовые покупки и ежедневные списания. Для крупных расходов здесь видна категория и причина.':
+        'One-off purchases and daily charges. Large expenses show their category and reason here.',
+    'проведите пальцем по графику': 'drag across the chart',
+    'AI как системный слой ОС.': 'AI as an operating-system layer.',
+    'Counter-offer сотруднику': 'Employee counter-offer',
+    'Edge-узлы рядом с рынками.': 'Edge nodes close to major markets.',
+    'Growth-лидер мирового уровня.': 'World-class growth leader.',
+    'R&D готово • можно внедрять': 'R&D ready • can be implemented',
+    'R&D готово • можно интегрировать': 'R&D ready • can be integrated',
+    'R&D запущен': 'R&D started',
+    'R&D исследование': 'R&D research',
+    'R&D уже идёт': 'R&D already in progress',
+    'SDK и инструменты сторонних разработчиков.':
+        'SDK and tools for third-party developers.',
+    'Signing bonus легенде рынка': 'Market legend signing bonus',
+    'Алекс Рейн': 'Alex Rain',
+    'Аппаратно-программная защита платформы.':
+        'Hardware-backed platform security.',
+    'Архитектор распределённых систем.': 'Distributed-systems architect.',
+    'Базовая система готова. Теперь развивайте уникальные возможности.':
+        'The base system is ready. Now develop its unique capabilities.',
+    'Баланс': 'Balanced',
+    'Безопасный AI для организаций.': 'Secure AI for organizations.',
+    'Бесконечный рост': 'Infinite growth',
+    'Бесплатный AI мирового масштаба с огромным compute bill.':
+        'Free global-scale AI with a massive compute bill.',
+    'Бесплатный образовательный AI.': 'Free educational AI.',
+    'Важные события': 'Important events',
+    'Власть или открытая экосистема': 'Control or open ecosystem',
+    'Возможности': 'Opportunities',
+    'Возможности появляются не постоянно. Вход платный, и каждое из максимум трёх мест для продукта оплачивается отдельно.':
+        'Opportunities appear only occasionally. Entry is paid, and each of up to three product showcase slots is purchased separately.',
+    'Все три мировых проекта завершены. Компания переходит в свободный legacy-режим.':
+        'All three world projects are complete. The company enters free-play legacy mode.',
+    'Глобальная вычислительная сеть из собственных ЦОДов и магистралей.':
+        'A global compute network of owned data centers and backbone links.',
+    'Глобальное аварийное переключение.': 'Global disaster failover.',
+    'Глобальный холдинг': 'Global holding company',
+    'Глубокие accessibility-функции.': 'Deep accessibility capabilities.',
+    'ДМС+': 'Premium health insurance',
+    'Долгоживущие AI-агенты.': 'Long-running AI agents.',
+    'Дорогой B2B-форум с крупными клиентами.':
+        'Premium B2B forum with major clients.',
+    'Единый UX между устройствами.': 'Unified UX across devices.',
+    'Забронировано': 'Booked',
+    'Запустить': 'Start',
+    'Зафиксировать созданную стоимость и оставить компанию следующему поколению.':
+        'Lock in the value you created and leave the company to the next generation.',
+    'Зачем нужна эта вкладка': 'Why this tab exists',
+    'Здесь собраны события, которые нельзя терять из виду: уходы сотрудников, легенды рынка, инвесторы, налоги, мероприятия, R&D и мировые проекты.':
+        'This tab collects events you cannot afford to miss: employee departures, market legends, investors, taxes, events, R&D, and world projects.',
+    'Игровой runtime и графический стек.': 'Gaming runtime and graphics stack.',
+    'Именно эти три проекта завершают кампанию. Количество обычных продуктов больше не является условием победы.':
+        'These three projects are the only campaign-completion condition. The number of ordinary products no longer determines victory.',
+    'Инвестор прислал предложение': 'Investor offer received',
+    'Инструменты создателей контента.': 'Creator tools.',
+    'Интегрировать': 'Integrate',
+    'Исследование завершено': 'Research completed',
+    'Исследования, математика и инженерия.':
+        'Research, mathematics, and engineering.',
+    'Исследователь мирового уровня в AI.': 'World-class AI researcher.',
+    'Исследовать': 'Research',
+    'Итан Кроу': 'Ethan Crow',
+    'Кампания пройдена': 'Campaign completed',
+    'Кампания пройдена. Теперь выберите философский финал — это не закрывает свободную игру.':
+        'Campaign completed. Choose your philosophical ending; free play remains available.',
+    'Кипр': 'Cyprus',
+    'Компания оплачивает поездки сотрудников, которые работают on-site.':
+        'The company pays transportation for on-site employees.',
+    'Контроль': 'Control',
+    'Конференции, книги и обучение без отдельного согласования.':
+        'Conferences, books, and training without separate approval.',
+    'Крупнейшая мировая продуктовая выставка.':
+        'The world’s largest product technology expo.',
+    'Легенда application security.': 'Application-security legend.',
+    'Легенда появилась на рынке': 'A market legend appeared',
+    'Легенды появляются редко даже после выполнения требований. У них все рабочие показатели 100, огромная зарплата и signing bonus, а также уникальный случайный буст одному выпущенному продукту.':
+        'Legends appear rarely even after requirements are met. Every work stat is 100, salaries and signing bonuses are enormous, and each legend grants one released product a unique random boost.',
+    'Легенды рынка': 'Market legends',
+    'Лимасол': 'Limassol',
+    'Личный бюджет развития': 'Personal development budget',
+    'Локальный inference и приватные модели.':
+        'Local inference and private models.',
+    'Магазин приложений и экономика разработчиков.':
+        'App store and developer economy.',
+    'Мероприятия': 'Events',
+    'Мира Чен': 'Mira Chen',
+    'Мировая технологическая эпоха создана':
+        'A world technology era has been created',
+    'Мировые проекты': 'World projects',
+    'Можно показать до 3 продуктов. Каждое место оплачивается отдельно.':
+        'You can showcase up to 3 products. Each slot is paid separately.',
+    'Можно финансировать следующий этап.': 'The next phase can be funded.',
+    'Нанят • все навыки 100.': 'Hired • all skills 100.',
+    'Наследие': 'Legacy',
+    'Начать внедрение функции': 'Start feature implementation',
+    'Не выбрано': 'Not selected',
+    'Ник Вейл': 'Nick Vale',
+    'Новая функция проходит два этапа: сначала платный R&D компании, затем внедрение рабочими часами команды. Исследование выполняется один раз и после этого доступно всем продуктам.':
+        'A new feature has two stages: paid company R&D first, then implementation using team hours. Research is completed once and can then be reused across all products.',
+    'Нужен хотя бы один выпущенный продукт.':
+        'At least one released product is required.',
+    'Общественная и технологическая инициатива':
+        'Social and technology initiative',
+    'Общественная инициатива профинансирована': 'Social initiative funded',
+    'Общественное влияние': 'Social impact',
+    'Открытые API экосистемы.': 'Open ecosystem APIs.',
+    'Открытый фонд': 'Open foundation',
+    'Перевод в реальном времени.': 'Real-time translation.',
+    'Передать операционку менеджменту и строить портфель компаний.':
+        'Hand operations to management and build a portfolio of companies.',
+    'Питание и кофе': 'Meals and coffee',
+    'Плюшки стоят денег каждый месяц, но повышают loyalty и morale, немного ускоряют работу и уменьшают риск добровольного ухода. Это постоянный расход растущей компании.':
+        'Employee perks cost money every month, but increase loyalty and morale, slightly improve productivity, and reduce voluntary departures. They are a recurring cost of a growing company.',
+    'Пока тихо. Здесь появятся налоги, предложения, легенды, R&D и кадровые риски.':
+        'Nothing urgent yet. Taxes, offers, legends, R&D, and staffing risks will appear here.',
+    'Полноценное питание в офисах и круглосуточные кухни.':
+        'Full office meals and round-the-clock kitchens.',
+    'После 3 млрд ₽ valuation можно выбрать философию компании. Open быстрее растит фанатов и спрос, Dominant делает ставку на контроль и коммерциализацию.':
+        'After ₽3B valuation you can choose a company philosophy. Open grows fans and demand faster; Dominant prioritizes control and monetization.',
+    'После проведения события пользователи и фанаты начислятся автоматически.':
+        'Users and fans are added automatically after the event takes place.',
+    'Премиальное железо': 'Premium hardware',
+    'Приватность как архитектура платформы.':
+        'Privacy as a platform architecture.',
+    'Проверьте условия инвестиционного предложения до принятия решения.':
+        'Review the investment terms before making a decision.',
+    'Программа льгот для сотрудников': 'Employee benefits program',
+    'Продать империю': 'Sell the empire',
+    'Продолжить масштабировать продукты, рынки и инфраструктуру.':
+        'Keep scaling products, markets, and infrastructure.',
+    'Продуктовая конференция вокруг бренда и роста.':
+        'Product conference focused on brand and growth.',
+    'Прочитать все': 'Mark all read',
+    'Расширенная медицина и стоматология для команды.':
+        'Expanded medical and dental coverage for the team.',
+    'Региональная изоляция данных.': 'Regional data isolation.',
+    'Редкие специалисты мирового уровня.': 'Rare world-class specialists.',
+    'Риск ухода': 'Departure risk',
+    'Саммит AI, инфраструктуры и инвесторов.':
+        'Summit for AI, infrastructure, and investors.',
+    'Сделать технологии и капитал инструментом образования и open source.':
+        'Use technology and capital as tools for education and open source.',
+    'Сейчас подходящих мероприятий нет. Новые окна появляются со временем — следите за уведомлениями.':
+        'There are no suitable events right now. New windows appear over time; watch notifications.',
+    'Сеть для распределённого AI.': 'Network for distributed AI.',
+    'Синхронизация данных между устройствами.':
+        'Data synchronization across devices.',
+    'Системные платежи и идентификация.': 'System payments and identity.',
+    'Скоро годовые налоги': 'Annual taxes are due soon',
+    'Собственная глобальная операционная система. Не стареет и имеет отдельное дерево платформенных возможностей.':
+        'A proprietary global operating system. It does not age and has its own platform capability tree.',
+    'Собственная международная сеть.': 'Private international backbone.',
+    'Собственная энергетика для compute.':
+        'Owned energy infrastructure for compute.',
+    'События': 'Events',
+    'События компании': 'Company events',
+    'Создавал продукты с десятками миллионов пользователей.':
+        'Built products used by tens of millions of people.',
+    'Сотрудник может захотеть уйти при низкой loyalty из-за перегруза, простоя и плохих условий. До ухода есть короткое окно на counter-offer повышением зарплаты.':
+        'An employee may decide to leave when loyalty is low because of overload, boredom, or poor conditions. Before departure there is a short counter-offer window to raise salary and retain them.',
+    'Сотрудник остаётся': 'Employee stays',
+    'Сотрудник ушёл': 'Employee left',
+    'Сотрудники собираются уйти': 'Employees planning to leave',
+    'София Маркес': 'Sofia Marques',
+    'Стандартный': 'Standard',
+    'Страхование семьи, помощь с детским садом и экстренными расходами.':
+        'Family insurance, childcare assistance, and emergency support.',
+    'Такси до офиса': 'Office taxi',
+    'Текст, голос, изображения и видео.': 'Text, voice, images, and video.',
+    'Топовые рабочие станции, мониторы и периферия.':
+        'Top-tier workstations, displays, and peripherals.',
+    'Уведомления': 'Notifications',
+    'Улучшение мирового проекта': 'World project upgrade',
+    'Управление корпоративными устройствами.': 'Enterprise device management.',
+    'Условия и плюшки': 'Conditions and perks',
+    'Участие в отраслевом мероприятии': 'Industry event participation',
+    'Филантропия не обязана окупаться напрямую: она превращает деньги в фанатов, репутацию и наследие.':
+        'Philanthropy does not need a direct financial return: it converts money into fans, reputation, and legacy.',
+    'Финансирование мирового проекта': 'World project funding',
+    'Что дальше': 'What comes next',
+    'Этап в работе': 'Phase in progress',
+    'любой город': 'any city',
+    'офис не требуется': 'office not required',
+    'требования выполнены, ждите редкое окно':
+        'requirements met; wait for a rare market window',
+    'требования не выполнены': 'requirements not met',
+    'Все три мировых проекта завершены. Кампания пройдена, свободная игра продолжается.':
+        'All three world projects are complete. The campaign is finished and free play continues.',
+    'Мировые проекты завершены. Кампания пройдена, M&A остаётся частью свободной игры.':
+        'World projects are complete. The campaign is finished; M&A remains part of free play.',
+    'Обычные продукты больше не закрывают кампанию. Финал — AURA OS, OpenMind AI и Planet Compute Grid во вкладке «События».':
+        'Ordinary products no longer complete the campaign. The endgame is AURA OS, OpenMind AI, and Planet Compute Grid in the Events tab.',
+    'Плюшки команды': 'Team perks',
+    'Покупка конкурентов больше не является условием финала. Победа достигается тремя мировыми проектами.':
+        'Acquiring competitors is no longer a victory condition. Victory comes from completing the three world projects.',
   };
 
   static const Map<String, String> exact = <String, String>{
@@ -2932,6 +3356,140 @@ abstract final class V13EnglishLexicon {
 
   static const List<V13EnglishTemplate> templates = <V13EnglishTemplate>[
     V13EnglishTemplate(
+      'ZXQPH0QXZ принят в ZXQPH1QXZ. Зарплата ZXQPH2QXZ ₽/мес., бонус при найме ZXQPH3QXZ ₽.',
+      'ZXQPH0QXZ hired in ZXQPH1QXZ. Salary ZXQPH2QXZ ₽/mo., signing bonus ZXQPH3QXZ ₽.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ собственных ЦОД',
+      'ZXQPH0QXZ owned data centers',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ • ZXQPH1QXZ дн. • ZXQPH2QXZ',
+      'ZXQPH0QXZ • ZXQPH1QXZ days • ZXQPH2QXZ',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ • ZXQPH1QXZ мест • содержание ZXQPH2QXZ/мес.',
+      'ZXQPH0QXZ • ZXQPH1QXZ seats • maintenance ZXQPH2QXZ/mo.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: исправлены все ZXQPH1QXZ открытых багов.',
+      'ZXQPH0QXZ: all ZXQPH1QXZ open bugs fixed.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: курс «ZXQPH1QXZ» завершён. Skill ZXQPH2QXZ, грейд ZXQPH3QXZ.',
+      'ZXQPH0QXZ: course “ZXQPH1QXZ” completed. Skill ZXQPH2QXZ, grade ZXQPH3QXZ.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: курс «ZXQPH1QXZ» начат на ZXQPH2QXZ дн. Результат применится после завершения.',
+      'ZXQPH0QXZ: course “ZXQPH1QXZ” started for ZXQPH2QXZ days. Results apply on completion.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: пакетное исправление ZXQPH1QXZ багов займёт ZXQPH2QXZ рабочих часов.',
+      'ZXQPH0QXZ: bulk fix of ZXQPH1QXZ bugs will take ZXQPH2QXZ work hours.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: план повышения до ZXQPH1QXZ запущен на ZXQPH2QXZ дн. Стоимость ZXQPH3QXZ ₽.',
+      'ZXQPH0QXZ: grade upgrade to ZXQPH1QXZ started for ZXQPH2QXZ days. Cost ZXQPH3QXZ ₽.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: повышение до ZXQPH1QXZ завершено.',
+      'ZXQPH0QXZ: promotion to ZXQPH1QXZ completed.',
+    ),
+    V13EnglishTemplate(
+      'Арендная серверная • ZXQPH0QXZ',
+      'Rented server room • ZXQPH0QXZ',
+    ),
+    V13EnglishTemplate(
+      'Арендная серверная • ZXQPH0QXZ шт.',
+      'Rented server room • ZXQPH0QXZ units',
+    ),
+    V13EnglishTemplate('Выбрано: ZXQPH0QXZ', 'Selected: ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'Занятых в выборе: ZXQPH0QXZ — они не входят в стоимость и не будут запущены повторно.',
+      'Busy in selection: ZXQPH0QXZ — they are excluded from the cost and will not be started again.',
+    ),
+    V13EnglishTemplate(
+      'Годовые налоги • ZXQPH0QXZ',
+      'Annual taxes • ZXQPH0QXZ',
+    ),
+    V13EnglishTemplate(
+      'Годовые налоги: ZXQPH0QXZ ₽ (прибыль ZXQPH1QXZ ₽ + сотрудники ZXQPH2QXZ ₽).',
+      'Annual taxes: ZXQPH0QXZ ₽ (profit ZXQPH1QXZ ₽ + payroll ZXQPH2QXZ ₽).',
+    ),
+    V13EnglishTemplate('Инвесторы ZXQPH0QXZ/100', 'Investors ZXQPH0QXZ/100'),
+    V13EnglishTemplate(
+      'Исправить все баги разом • ZXQPH0QXZ шт.',
+      'Fix all bugs at once • ZXQPH0QXZ',
+    ),
+    V13EnglishTemplate(
+      'На курсе: ZXQPH0QXZ • осталось ZXQPH1QXZ дн. • разработка приостановлена',
+      'Training: ZXQPH0QXZ • ZXQPH1QXZ days left • development paused',
+    ),
+    V13EnglishTemplate(
+      'Найм заблокирован в ZXQPH0QXZ: нет свободного on-site места. Постройте/арендуйте офис или наймите remote.',
+      'Hiring blocked in ZXQPH0QXZ: no free on-site seat. Build/rent an office or hire remote.',
+    ),
+    V13EnglishTemplate(
+      'Нельзя установить ZXQPH0QXZ: выбранный ЦОД не выдержит rack/power/cooling.',
+      'Cannot install ZXQPH0QXZ: the selected data center lacks rack/power/cooling capacity.',
+    ),
+    V13EnglishTemplate('Оборудование: ZXQPH0QXZ', 'Equipment: ZXQPH0QXZ'),
+    V13EnglishTemplate('Оснащение: ZXQPH0QXZ', 'Equipment: ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'Отправить на курс • ZXQPH0QXZ дн. • ZXQPH1QXZ',
+      'Send to course • ZXQPH0QXZ days • ZXQPH1QXZ',
+    ),
+    V13EnglishTemplate(
+      'Офис в ZXQPH0QXZ: не хватает ZXQPH1QXZ ₽ на строительство.',
+      'Office in ZXQPH0QXZ: ZXQPH1QXZ ₽ short for construction.',
+    ),
+    V13EnglishTemplate(
+      'Пакетное исправление: ZXQPH0QXZ багов',
+      'Bulk fix: ZXQPH0QXZ bugs',
+    ),
+    V13EnglishTemplate(
+      'Повышение до ZXQPH0QXZ • осталось ZXQPH1QXZ дн. • разработка приостановлена',
+      'Promotion to ZXQPH0QXZ • ZXQPH1QXZ days left • development paused',
+    ),
+    V13EnglishTemplate('Помещение: ZXQPH0QXZ', 'Facility: ZXQPH0QXZ'),
+    V13EnglishTemplate('Прокачать до ZXQPH0QXZ', 'Upgrade to ZXQPH0QXZ'),
+    V13EnglishTemplate('Ремонт: ZXQPH0QXZ', 'Fit-out: ZXQPH0QXZ'),
+    V13EnglishTemplate('Рынок ZXQPH0QXZ/100', 'Market ZXQPH0QXZ/100'),
+    V13EnglishTemplate(
+      'Собственный ЦОД в ZXQPH0QXZ построен: ZXQPH1QXZ U, обслуживание ZXQPH2QXZ ₽/мес.',
+      'Owned data center built in ZXQPH0QXZ: ZXQPH1QXZ U, maintenance ZXQPH2QXZ ₽/mo.',
+    ),
+    V13EnglishTemplate(
+      'Собственный офис в ZXQPH0QXZ построен: ZXQPH1QXZ мест, обслуживание ZXQPH2QXZ ₽/мес.',
+      'Owned office built in ZXQPH0QXZ: ZXQPH1QXZ seats, maintenance ZXQPH2QXZ ₽/mo.',
+    ),
+    V13EnglishTemplate('Таланты ZXQPH0QXZ/100', 'Talent ZXQPH0QXZ/100'),
+    V13EnglishTemplate(
+      'ЦОД ZXQPH0QXZ • ZXQPH1QXZ шт.',
+      'Data center ZXQPH0QXZ • ZXQPH1QXZ units',
+    ),
+    V13EnglishTemplate(
+      'ЦОД в ZXQPH0QXZ: не хватает ZXQPH1QXZ ₽ на строительство.',
+      'Data center in ZXQPH0QXZ: ZXQPH1QXZ ₽ short for construction.',
+    ),
+    V13EnglishTemplate('ЦОД • ZXQPH0QXZ', 'Data center • ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'Налог на прибыль ZXQPH0QXZ% • payroll tax ZXQPH1QXZ%',
+      'Profit tax ZXQPH0QXZ% • payroll tax ZXQPH1QXZ%',
+    ),
+    V13EnglishTemplate(
+      'Зарплаты ×ZXQPH0QXZ • аренда ×ZXQPH1QXZ • коммунальные ×ZXQPH2QXZ',
+      'Salaries ×ZXQPH0QXZ • rent ×ZXQPH1QXZ • utilities ×ZXQPH2QXZ',
+    ),
+    V13EnglishTemplate(
+      'Таланты ZXQPH0QXZ/100 • инвесторы ZXQPH1QXZ/100 • рынок ZXQPH2QXZ/100 • регулирование ZXQPH3QXZ/100 • сеть ZXQPH4QXZ/100',
+      'Talent ZXQPH0QXZ/100 • investors ZXQPH1QXZ/100 • market ZXQPH2QXZ/100 • regulation ZXQPH3QXZ/100 • network ZXQPH4QXZ/100',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ% • резерв ZXQPH1QXZ',
+      'ZXQPH0QXZ% • reserve ZXQPH1QXZ',
+    ),
+    V13EnglishTemplate(
       ' : rolePurpose(employee.role)} Языки: ZXQPH0QXZ',
       ': rolePurpose(employee.role)} Languages: ZXQPH0QXZ',
     ),
@@ -4428,6 +4986,399 @@ abstract final class V13EnglishLexicon {
       'Features • ZXQPH0QXZ installed',
     ),
     V13EnglishTemplate('нагрузка ZXQPH0QXZ', 'load ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'Нельзя установить ZXQPH0QXZ: выбранный ЦОД не существует.',
+      'Cannot install ZXQPH0QXZ: the selected data center does not exist.',
+    ),
+    V13EnglishTemplate(
+      'Офис в ZXQPH0QXZ: ×ZXQPH1QXZ только для on-site',
+      'Office in ZXQPH0QXZ: ×ZXQPH1QXZ for on-site only',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ/ZXQPH1QXZ в офисах • ZXQPH2QXZ remote • зарплаты ZXQPH3QXZ/мес.',
+      'ZXQPH0QXZ/ZXQPH1QXZ in offices • ZXQPH2QXZ remote • payroll ZXQPH3QXZ/mo.',
+    ),
+    V13EnglishTemplate(
+      'Нанять • ZXQPH0QXZ • signing bonus ZXQPH1QXZ',
+      'Hire • ZXQPH0QXZ • signing bonus ZXQPH1QXZ',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ · ZXQPH1QXZ мест',
+      'ZXQPH0QXZ · ZXQPH1QXZ seats',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ · ZXQPH1QXZ • ZXQPH2QXZ шт.',
+      'ZXQPH0QXZ · ZXQPH1QXZ • ZXQPH2QXZ units',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ • ZXQPH1QXZ • ZXQPH2QXZ дн. • ZXQPH3QXZ',
+      'ZXQPH0QXZ • ZXQPH1QXZ • ZXQPH2QXZ days • ZXQPH3QXZ',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: ZXQPH1QXZ включён через ZXQPH2QXZ. Бюджет ZXQPH3QXZ ₽/мес., прогноз ZXQPH4QXZ–ZXQPH5QXZ пользователей в месяц. Списание идёт ежедневно.',
+      'ZXQPH0QXZ: ZXQPH1QXZ enabled via ZXQPH2QXZ. Budget ZXQPH3QXZ ₽/mo., forecast ZXQPH4QXZ–ZXQPH5QXZ users per month. Spending is charged daily.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: в выбранном офисе нет свободных мест.',
+      'ZXQPH0QXZ: the selected office has no free seats.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: для Senior обычные курсы недоступны — используйте повышение грейда и рабочий опыт.',
+      'ZXQPH0QXZ: regular courses are unavailable for Seniors — use grade promotion and work experience.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: канал ZXQPH1QXZ уже включён.',
+      'ZXQPH0QXZ: channel ZXQPH1QXZ is already enabled.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: минимальный месячный бюджет ZXQPH1QXZ ₽.',
+      'ZXQPH0QXZ: minimum monthly budget is ZXQPH1QXZ ₽.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: одновременно можно вести не больше трёх рекламных каналов.',
+      'ZXQPH0QXZ: no more than three advertising channels can run at once.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: повышение до ZXQPH1QXZ завершено. Skill ZXQPH2QXZ, профильные навыки выросли.',
+      'ZXQPH0QXZ: promotion to ZXQPH1QXZ completed. Skill ZXQPH2QXZ, role competencies increased.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: повышение до ZXQPH1QXZ займёт ZXQPH2QXZ дн. Стоимость ZXQPH3QXZ ₽. После завершения вырастут навыки и зарплата.',
+      'ZXQPH0QXZ: promotion to ZXQPH1QXZ will take ZXQPH2QXZ days. Cost ZXQPH3QXZ ₽. Skills and salary will increase on completion.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: раздельная маршрутизация доступна после перехода на собственные серверы.',
+      'ZXQPH0QXZ: service-specific routing is available after migrating to owned servers.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: рекламный канал остановлен.',
+      'ZXQPH0QXZ: advertising channel stopped.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: релокация в ZXQPH1QXZ начата на ZXQPH2QXZ дн. Стоимость ZXQPH3QXZ ₽.',
+      'ZXQPH0QXZ: relocation to ZXQPH1QXZ started for ZXQPH2QXZ days. Cost ZXQPH3QXZ ₽.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: релокация завершена, теперь работает из офиса в ZXQPH1QXZ.',
+      'ZXQPH0QXZ: relocation completed and the employee now works from the office in ZXQPH1QXZ.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: рыночный отток −ZXQPH1QXZ пользователей за неделю.',
+      'ZXQPH0QXZ: market churn −ZXQPH1QXZ users this week.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: сначала завершите текущее развитие или релокацию.',
+      'ZXQPH0QXZ: finish the current development program or relocation first.',
+    ),
+    V13EnglishTemplate(
+      'activation ZXQPH0QXZZXQPH1QXZ п.п. • retention ZXQPH2QXZZXQPH3QXZ п.п.',
+      'activation ZXQPH0QXZZXQPH1QXZ pp • retention ZXQPH2QXZZXQPH3QXZ pp',
+    ),
+    V13EnglishTemplate(
+      'churn ZXQPH0QXZZXQPH1QXZ п.п. • trust ZXQPH2QXZZXQPH3QXZ п.п.',
+      'churn ZXQPH0QXZZXQPH1QXZ pp • trust ZXQPH2QXZZXQPH3QXZ pp',
+    ),
+    V13EnglishTemplate(
+      'Активных каналов: ZXQPH0QXZ/3',
+      'Active channels: ZXQPH0QXZ/3',
+    ),
+    V13EnglishTemplate('Бюджет / мес.: ZXQPH0QXZ', 'Budget / mo.: ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'Интеграция ZXQPH0QXZ% • осталось ZXQPH1QXZ командо-часов',
+      'Integration ZXQPH0QXZ% • ZXQPH1QXZ team-hours remaining',
+    ),
+    V13EnglishTemplate(
+      'Инфраструктура • офисы, ЦОД, серверная и оборудование • ZXQPH0QXZ дн.',
+      'Infrastructure • offices, data centers, server room, and hardware • ZXQPH0QXZ days',
+    ),
+    V13EnglishTemplate('Исправление ZXQPH0QXZ%', 'Fix ZXQPH0QXZ%'),
+    V13EnglishTemplate(
+      'Операционные расходы • сервисы, security, compliance, AI и investor share • ZXQPH0QXZ дн.',
+      'Operating expenses • services, security, compliance, AI, and investor share • ZXQPH0QXZ days',
+    ),
+    V13EnglishTemplate('Офис #ZXQPH0QXZ', 'Office #ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'Пакетное исправление ZXQPH0QXZ% • осталось ZXQPH1QXZ командо-часов',
+      'Bulk bug fix ZXQPH0QXZ% • ZXQPH1QXZ team-hours remaining',
+    ),
+    V13EnglishTemplate(
+      'Постоянный канал • ZXQPH0QXZ/мес. • списание ZXQPH1QXZ ₽/день',
+      'Always-on channel • ZXQPH0QXZ/mo. • ZXQPH1QXZ ₽/day',
+    ),
+    V13EnglishTemplate(
+      'Прогноз ZXQPH0QXZ–ZXQPH1QXZ пользователей/мес. • уже приведено ZXQPH2QXZ',
+      'Forecast ZXQPH0QXZ–ZXQPH1QXZ users/mo. • ZXQPH2QXZ acquired so far',
+    ),
+    V13EnglishTemplate(
+      'Реклама остановлена у ZXQPH0QXZ кампаний: продукт больше не находится на рынке.',
+      'Advertising stopped for ZXQPH0QXZ campaigns: the product is no longer live.',
+    ),
+    V13EnglishTemplate(
+      'Реклама • ZXQPH0QXZ • ZXQPH1QXZ • ZXQPH2QXZ дн.',
+      'Advertising • ZXQPH0QXZ • ZXQPH1QXZ • ZXQPH2QXZ days',
+    ),
+    V13EnglishTemplate(
+      'Релокация ZXQPH0QXZ стоит ZXQPH1QXZ ₽.',
+      'Relocating ZXQPH0QXZ costs ZXQPH1QXZ ₽.',
+    ),
+    V13EnglishTemplate(
+      'Релокация в офис • осталось ZXQPH0QXZ дн. • разработка приостановлена',
+      'Office relocation • ZXQPH0QXZ days remaining • development paused',
+    ),
+    V13EnglishTemplate('ЦОД #ZXQPH0QXZ', 'DC #ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ • ZXQPH1QXZ ZXQPH2QXZ • проведите пальцем по графику',
+      'ZXQPH0QXZ • ZXQPH1QXZ ZXQPH2QXZ • drag across the chart',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ установлен для ZXQPH1QXZ: +ZXQPH2QXZ CU.',
+      'ZXQPH0QXZ installed for ZXQPH1QXZ: +ZXQPH2QXZ CU.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ • ZXQPH1QXZ • ZXQPH2QXZ шт.',
+      'ZXQPH0QXZ • ZXQPH1QXZ • ZXQPH2QXZ units',
+    ),
+    V13EnglishTemplate(
+      'Выделено ZXQPH0QXZ из 100% общего арендного пула.',
+      'Allocated ZXQPH0QXZ of the shared 100% rented pool.',
+    ),
+    V13EnglishTemplate(
+      'Покупка сервера • ZXQPH0QXZ • ZXQPH1QXZ',
+      'Server purchase • ZXQPH0QXZ • ZXQPH1QXZ',
+    ),
+    V13EnglishTemplate(
+      '+ZXQPH0QXZ пользователей, +ZXQPH1QXZ базовых фанатов.',
+      '+ZXQPH0QXZ users, +ZXQPH1QXZ base fans.',
+    ),
+    V13EnglishTemplate('+ZXQPH0QXZ% зарплата', '+ZXQPH0QXZ% salary'),
+    V13EnglishTemplate(
+      'AURA OS, OpenMind AI и Planet Compute Grid достигли мирового статуса. Legacy score ZXQPH0QXZ, фанаты ZXQPH1QXZ. Кампания пройдена — во вкладке «События» можно выбрать дальнейший путь и продолжить свободную игру.',
+      'AURA OS, OpenMind AI, and Planet Compute Grid reached world status. Legacy score ZXQPH0QXZ, fans ZXQPH1QXZ. Campaign completed — choose your next path in Events and continue free play.',
+    ),
+    V13EnglishTemplate(
+      'Legacy score ZXQPH0QXZ • мировые проекты ZXQPH1QXZ%',
+      'Legacy score ZXQPH0QXZ • world projects ZXQPH1QXZ%',
+    ),
+    V13EnglishTemplate(
+      'Loyalty ZXQPH0QXZ% • workload ZXQPH1QXZ% • уйдёт через ZXQPH2QXZ дн.',
+      'Loyalty ZXQPH0QXZ% • workload ZXQPH1QXZ% • leaves in ZXQPH2QXZ days',
+    ),
+    V13EnglishTemplate(
+      'MAU ZXQPH0QXZ • качество ZXQPH1QXZ',
+      'MAU ZXQPH0QXZ • quality ZXQPH1QXZ',
+    ),
+    V13EnglishTemplate(
+      'R&D завершён. Внедрение занимает ZXQPH0QXZ рабочих часов команды без отдельной покупки функции.',
+      'R&D complete. Implementation takes ZXQPH0QXZ team work-hours with no separate feature purchase.',
+    ),
+    V13EnglishTemplate(
+      'R&D завершён: «ZXQPH0QXZ» теперь можно внедрять в продукты.',
+      'R&D complete: “ZXQPH0QXZ” can now be implemented in products.',
+    ),
+    V13EnglishTemplate(
+      'R&D: ZXQPH0QXZ • ZXQPH1QXZ дн. До исследования внедрение недоступно.',
+      'R&D: ZXQPH0QXZ • ZXQPH1QXZ days. Implementation is unavailable until research is complete.',
+    ),
+    V13EnglishTemplate(
+      'R&D: ZXQPH0QXZ • ZXQPH1QXZ дн. Исследование открывает технологию для всех продуктов.',
+      'R&D: ZXQPH0QXZ • ZXQPH1QXZ days. Research unlocks the technology for all products.',
+    ),
+    V13EnglishTemplate(
+      'R&D: начато исследование «ZXQPH0QXZ» на ZXQPH1QXZ дн. за ZXQPH2QXZ ₽.',
+      'R&D started for “ZXQPH0QXZ”: ZXQPH1QXZ days for ZXQPH2QXZ ₽.',
+    ),
+    V13EnglishTemplate(
+      'Skill 100. Уникальный бонус ZXQPH0QXZ закреплён за продуктом ZXQPH1QXZ.',
+      'Skill 100. Unique ZXQPH0QXZ bonus assigned to product ZXQPH1QXZ.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ дн. • ZXQPH1QXZ ₽',
+      'ZXQPH0QXZ days • ZXQPH1QXZ ₽',
+    ),
+    V13EnglishTemplate('ZXQPH0QXZ завершён', 'ZXQPH0QXZ completed'),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ непрочитанных • ZXQPH1QXZ фанатов • репутация ZXQPH2QXZ/100',
+      'ZXQPH0QXZ unread • ZXQPH1QXZ fans • reputation ZXQPH2QXZ/100',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ офис • ZXQPH1QXZ',
+      'ZXQPH0QXZ office • ZXQPH1QXZ',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ покинул компанию. Проверьте нагрузку, зарплату и условия.',
+      'ZXQPH0QXZ left the company. Review workload, salary, and conditions.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ принял counter-offer: ZXQPH1QXZ ₽/мес.',
+      'ZXQPH0QXZ accepted a counter-offer: ZXQPH1QXZ ₽/mo.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ принял повышение зарплаты.',
+      'ZXQPH0QXZ accepted the salary increase.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ присоединился к компании',
+      'ZXQPH0QXZ joined the company',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ продукта • ZXQPH1QXZ ₽',
+      'ZXQPH0QXZ products • ZXQPH1QXZ ₽',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ продукта • через ZXQPH1QXZ дн. • ZXQPH2QXZ',
+      'ZXQPH0QXZ products • in ZXQPH1QXZ days • ZXQPH2QXZ',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ рассматривает предложения. Бонус привязан к ZXQPH1QXZ. Окно 21 день.',
+      'ZXQPH0QXZ is considering offers. Bonus target: ZXQPH1QXZ. Window: 21 days.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ сам ушёл из компании из-за низкой лояльности.',
+      'ZXQPH0QXZ left the company because of low loyalty.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ теперь доступно для внедрения.',
+      'ZXQPH0QXZ is now available for implementation.',
+    ),
+    V13EnglishTemplate('ZXQPH0QXZ хочет уйти', 'ZXQPH0QXZ wants to leave'),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ • ZXQPH1QXZ выпущенных продукта • valuation ZXQPH2QXZ • ZXQPH3QXZ • ZXQPH4QXZ',
+      'ZXQPH0QXZ • ZXQPH1QXZ released products • valuation ZXQPH2QXZ • ZXQPH3QXZ • ZXQPH4QXZ',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ • ZXQPH1QXZ дн. • ZXQPH2QXZ ₽',
+      'ZXQPH0QXZ • ZXQPH1QXZ days • ZXQPH2QXZ ₽',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ • ZXQPH1QXZ • ZXQPH2QXZ дн.',
+      'ZXQPH0QXZ • ZXQPH1QXZ • ZXQPH2QXZ days',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ • запуск ZXQPH1QXZ • ZXQPH2QXZ/мес. • loyalty +ZXQPH3QXZ',
+      'ZXQPH0QXZ • setup ZXQPH1QXZ • ZXQPH2QXZ/mo. • loyalty +ZXQPH3QXZ',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ • предложение для ZXQPH1QXZ • бонус ZXQPH2QXZ • signing ZXQPH3QXZ • ZXQPH4QXZ/мес.',
+      'ZXQPH0QXZ • offer for ZXQPH1QXZ • bonus ZXQPH2QXZ • signing ZXQPH3QXZ • ZXQPH4QXZ/mo.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ ₽ направлено на образование, open source и технологическую доступность.',
+      'ZXQPH0QXZ ₽ committed to education, open source, and technology access.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: ZXQPH1QXZ готово',
+      'ZXQPH0QXZ: ZXQPH1QXZ complete',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: включено. ZXQPH1QXZ ₽/мес.',
+      'ZXQPH0QXZ: enabled. ZXQPH1QXZ ₽/mo.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: программа отключена.',
+      'ZXQPH0QXZ: program disabled.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: участие оплачено',
+      'ZXQPH0QXZ: participation paid',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: этап ZXQPH1QXZ завершён',
+      'ZXQPH0QXZ: phase ZXQPH1QXZ completed',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: этап ZXQPH1QXZ профинансирован',
+      'ZXQPH0QXZ: phase ZXQPH1QXZ funded',
+    ),
+    V13EnglishTemplate(
+      'База: ZXQPH0QXZ/ZXQPH1QXZ • OPEX после запуска ZXQPH2QXZ/мес.',
+      'Base: ZXQPH0QXZ/ZXQPH1QXZ • post-launch OPEX ZXQPH2QXZ/mo.',
+    ),
+    V13EnglishTemplate(
+      'Бонус loyalty +ZXQPH0QXZ • morale +ZXQPH1QXZ',
+      'Loyalty bonus +ZXQPH0QXZ • morale +ZXQPH1QXZ',
+    ),
+    V13EnglishTemplate(
+      'Вход ZXQPH0QXZ • место продукта ZXQPH1QXZ • окно ещё ZXQPH2QXZ дн.',
+      'Entry ZXQPH0QXZ • product slot ZXQPH1QXZ • window ZXQPH2QXZ days',
+    ),
+    V13EnglishTemplate(
+      'Вы опережаете лидера рынка ZXQPH0QXZ на ZXQPH1QXZ.',
+      'You lead market leader ZXQPH0QXZ by ZXQPH1QXZ.',
+    ),
+    V13EnglishTemplate('День ZXQPH0QXZ', 'Day ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'До налогового списания ZXQPH0QXZ дн. Проверьте резерв в финансах.',
+      'ZXQPH0QXZ days until annual tax charge. Check the reserve in Finance.',
+    ),
+    V13EnglishTemplate(
+      'Забронировать ZXQPH0QXZ/3 • ZXQPH1QXZ',
+      'Book ZXQPH0QXZ/3 • ZXQPH1QXZ',
+    ),
+    V13EnglishTemplate(
+      'Исследование ZXQPH0QXZ% • осталось ZXQPH1QXZ дн.',
+      'Research ZXQPH0QXZ% • ZXQPH1QXZ days remaining',
+    ),
+    V13EnglishTemplate(
+      'Легенды рынка • активных предложений ZXQPH0QXZ',
+      'Market legends • ZXQPH0QXZ active offers',
+    ),
+    V13EnglishTemplate(
+      'Лидер рынка ZXQPH0QXZ впереди на ZXQPH1QXZ.',
+      'Market leader ZXQPH0QXZ is ahead by ZXQPH1QXZ.',
+    ),
+    V13EnglishTemplate(
+      'Лояльность ZXQPH0QXZ%. Есть 3 дня на counter-offer +ZXQPH1QXZ% к зарплате.',
+      'Loyalty ZXQPH0QXZ%. You have 3 days to counter with +ZXQPH1QXZ% salary.',
+    ),
+    V13EnglishTemplate(
+      'Недостаточно денег на R&D: нужно ZXQPH0QXZ ₽.',
+      'Not enough cash for R&D: ZXQPH0QXZ ₽ required.',
+    ),
+    V13EnglishTemplate(
+      'Открылась регистрация: ZXQPH0QXZ',
+      'Registration opened: ZXQPH0QXZ',
+    ),
+    V13EnglishTemplate(
+      'Сначала исследуйте технологию в R&D: ZXQPH0QXZ.',
+      'Research the technology in R&D first: ZXQPH0QXZ.',
+    ),
+    V13EnglishTemplate(
+      'Сначала исследуйте функцию в R&D: ZXQPH0QXZ.',
+      'Research the feature in R&D first: ZXQPH0QXZ.',
+    ),
+    V13EnglishTemplate(
+      'Сначала требуется платный R&D: ZXQPH0QXZ • ZXQPH1QXZ дн. Исследование выполняется один раз на всю компанию.',
+      'Paid R&D is required first: ZXQPH0QXZ • ZXQPH1QXZ days. Research is completed once for the whole company.',
+    ),
+    V13EnglishTemplate(
+      'Требования: valuation ZXQPH0QXZ • фанаты ZXQPH1QXZ • R&D ZXQPH2QXZ',
+      'Requirements: valuation ZXQPH0QXZ • fans ZXQPH1QXZ • R&D ZXQPH2QXZ',
+    ),
+    V13EnglishTemplate(
+      'Уже направлено: ZXQPH0QXZ',
+      'Committed so far: ZXQPH0QXZ',
+    ),
+    V13EnglishTemplate(
+      'Уникальные возможности • ZXQPH0QXZ/ZXQPH1QXZ нужно для мирового статуса',
+      'Unique capabilities • ZXQPH0QXZ/ZXQPH1QXZ required for world status',
+    ),
+    V13EnglishTemplate(
+      'Условия команды • ZXQPH0QXZ/мес.',
+      'Team conditions • ZXQPH0QXZ/mo.',
+    ),
+    V13EnglishTemplate(
+      'Фанаты ZXQPH0QXZ • бренд ZXQPH1QXZ/100',
+      'Fans ZXQPH0QXZ • brand ZXQPH1QXZ/100',
+    ),
+    V13EnglishTemplate(
+      'Финансировать этап ZXQPH0QXZ • ZXQPH1QXZ',
+      'Fund phase ZXQPH0QXZ • ZXQPH1QXZ',
+    ),
+    V13EnglishTemplate('ZXQPH0QXZ% завершено', 'ZXQPH0QXZ% complete'),
+    V13EnglishTemplate(
+      'Мировые проекты: ZXQPH0QXZ%',
+      'World projects: ZXQPH0QXZ%',
+    ),
   ];
 
   static const Map<String, String> templateOverrides = <String, String>{

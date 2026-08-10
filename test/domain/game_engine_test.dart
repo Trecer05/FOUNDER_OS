@@ -6,6 +6,7 @@ import 'package:founder_os/domain/entities/game_state.dart';
 import 'package:founder_os/domain/entities/management_models.dart';
 import 'package:founder_os/domain/entities/models.dart';
 import 'package:founder_os/domain/entities/product_evolution_models.dart';
+import 'package:founder_os/domain/entities/v17_models.dart';
 import 'package:founder_os/domain/simulation/engine/game_engine.dart';
 
 void main() {
@@ -40,7 +41,10 @@ void main() {
 
   test('candidate hiring respects numeric office capacity', () {
     var state = _fundedInitial().copyWith(selectedOfficeId: 'garage');
-    final onSite = state.candidates.where((item) => !item.remote).take(4).toList();
+    final onSite = state.candidates
+        .where((item) => !item.remote)
+        .take(4)
+        .toList();
     expect(onSite, hasLength(4));
     for (final candidate in onSite.take(3)) {
       state = engine.reduce(state, HireCandidate(candidate.id));
@@ -95,10 +99,7 @@ void main() {
             (candidate.role == EmployeeRole.backend ||
                 candidate.role == EmployeeRole.devOps),
       );
-      state = engine.reduce(
-        state,
-        HireCandidate(integrationSpecialist.id),
-      );
+      state = engine.reduce(state, HireCandidate(integrationSpecialist.id));
 
       final ai = state.products[0];
       final cloud = state.products[1];
@@ -146,6 +147,11 @@ void main() {
       ],
     );
     final cashBefore = state.cash;
+    state = state.copyWith(
+      completedResearchKeys: <String>[
+        state.researchKey(ResearchTargetKind.feature, 'file_analysis'),
+      ],
+    );
 
     state = engine.reduce(
       state,
@@ -568,10 +574,20 @@ void main() {
       state,
       TrainEmployee(employeeId: candidateId, programId: 'security'),
     );
+    final pending = state.employeeById(candidateId)!;
+    expect(pending.skill, before.skill);
+    expect(pending.reliability, before.reliability);
+    expect(state.trainingForEmployee(candidateId), isNotNull);
+    expect(state.cash, cashBefore - 110000);
+
+    state = engine.reduce(
+      state.copyWith(paused: false),
+      const AdvanceTime(3 * 360),
+    );
     final trained = state.employeeById(candidateId)!;
     expect(trained.skill, before.skill + 4);
     expect(trained.reliability, before.reliability + 6);
-    expect(state.cash, cashBefore - 110000);
+    expect(state.trainingForEmployee(candidateId), isNull);
 
     final salaryBefore = trained.salary;
     state = engine.reduce(

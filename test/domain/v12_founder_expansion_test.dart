@@ -16,7 +16,7 @@ void main() {
   test('new company is unconfigured and starts without an office bill', () {
     final state = GameState.initial();
 
-    expect(state.snapshotVersion, 13);
+    expect(state.snapshotVersion, 16);
     expect(state.companyProfile.configured, isFalse);
     expect(state.selectedOfficeId, 'remote_first');
     expect(state.office.monthlyRent, 0);
@@ -315,7 +315,7 @@ void main() {
 
     final migrated = GameState.decode(jsonEncode(json));
 
-    expect(migrated.snapshotVersion, 13);
+    expect(migrated.snapshotVersion, 16);
     expect(migrated.companyProfile.configured, isTrue);
     expect(migrated.selectedOfficeId, 'remote_first');
   });

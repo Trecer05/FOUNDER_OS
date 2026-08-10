@@ -84,6 +84,7 @@ abstract final class OperationsCatalog {
       autonomyDelta: 3,
       communicationDelta: 0,
       reliabilityDelta: 1,
+      durationDays: 3,
     ),
     TrainingProgramOption(
       id: 'quality',
@@ -97,6 +98,7 @@ abstract final class OperationsCatalog {
       autonomyDelta: 1,
       communicationDelta: 1,
       reliabilityDelta: 4,
+      durationDays: 2,
     ),
     TrainingProgramOption(
       id: 'security',
@@ -111,6 +113,7 @@ abstract final class OperationsCatalog {
       autonomyDelta: 2,
       communicationDelta: 0,
       reliabilityDelta: 6,
+      durationDays: 3,
     ),
     TrainingProgramOption(
       id: 'leadership',
@@ -125,12 +128,12 @@ abstract final class OperationsCatalog {
       autonomyDelta: 6,
       communicationDelta: 7,
       reliabilityDelta: 3,
+      durationDays: 2,
     ),
   ];
 
   static SecurityControlOption securityControlById(String id) =>
       securityControls.firstWhere((item) => item.id == id);
-
   static TrainingProgramOption trainingProgramById(String id) =>
       trainingPrograms.firstWhere((item) => item.id == id);
 }

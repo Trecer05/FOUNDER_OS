@@ -1,12 +1,19 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
 import '../../../domain/catalog/game_catalog.dart';
 import '../../../domain/catalog/operations_catalog.dart';
+import '../../../domain/catalog/v17_endgame_catalog.dart';
+import '../../../domain/catalog/world_economy_catalog.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/game_state.dart';
 import '../../../domain/entities/models.dart';
+import '../../../domain/entities/v12_game_state_extensions.dart';
+import '../../../domain/entities/v16_models.dart';
+import '../../../domain/entities/v17_models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/compact_team_averages.dart';
 import '../../shared/widgets/formatters.dart';
@@ -35,6 +42,9 @@ class _TeamScreenState extends State<TeamScreen> {
   _CandidateSort _sort = _CandidateSort.skill;
   bool _remoteOnly = false;
   bool _hrOnly = false;
+  final Set<String> _selectedEmployeeIds = <String>{};
+  String _bulkTrainingProgramId = OperationsCatalog.trainingPrograms.first.id;
+  EmployeeGrade _targetGrade = EmployeeGrade.middle;
 
   @override
   void dispose() {
@@ -95,7 +105,7 @@ class _TeamScreenState extends State<TeamScreen> {
         SectionHeader(
           title: 'Команда',
           subtitle:
-              '${state.onSiteEmployeeCount}/${state.office.capacity} в офисе • ${state.remoteEmployeeCount} remote • зарплаты ${money(state.monthlyPayroll)}/мес.',
+              '${state.onSiteEmployeeCount}/${state.totalOfficeCapacity} в офисах • ${state.remoteEmployeeCount} remote • зарплаты ${money(state.monthlyPayroll)}/мес.',
           hintTitle: 'Как читать команду',
           hintBody:
               'Общие значения сверху — средние показатели всех нанятых сотрудников. Назначать и нанимать людей можно прямо из рабочей области проекта.',
@@ -104,6 +114,28 @@ class _TeamScreenState extends State<TeamScreen> {
             'Quality и reliability влияют на результат и стабильность.',
             'Morale и loyalty помогают удерживать сильных сотрудников.',
           ],
+        ),
+        const SizedBox(height: 12),
+        AppCard(
+          hintTitle: 'Общая статистика команды',
+          hintBody:
+              'Средние значения считаются по всем сотрудникам компании, включая резерв. Это быстрый индикатор силы команды, но не замена проверке специальностей по каждому продукту.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppText(
+                'Средние показатели',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 10),
+              CompactTeamAverages(state: state),
+              const SizedBox(height: 10),
+              AppText(
+                '${state.employees.length - state.unassignedEmployees.length} назначено • ${state.unassignedEmployees.length} в резерве',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 12),
         AppCard(
@@ -158,27 +190,13 @@ class _TeamScreenState extends State<TeamScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        AppCard(
-          hintTitle: 'Общая статистика команды',
-          hintBody:
-              'Средние значения считаются по всем сотрудникам компании, включая резерв. Это быстрый индикатор силы команды, но не замена проверке специальностей по каждому продукту.',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppText(
-                'Средние показатели',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 10),
-              CompactTeamAverages(state: state),
-              const SizedBox(height: 10),
-              AppText(
-                '${state.employees.length - state.unassignedEmployees.length} назначено • ${state.unassignedEmployees.length} в резерве',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
-        ),
+        _companyCultureCard(state),
+        const SizedBox(height: 12),
+        _legendMarketCard(state),
+        if (state.pendingEmployeeDepartures.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _departureRiskCard(state),
+        ],
         const SizedBox(height: 12),
         AppCard(
           padding: const EdgeInsets.all(8),
@@ -336,10 +354,12 @@ class _TeamScreenState extends State<TeamScreen> {
                 padding: const EdgeInsets.only(bottom: 10),
                 child: _CandidateCard(
                   candidate: candidate,
+                  cityLabel: _candidateCityLabel(state, candidate),
+                  effectiveSalary: _candidateEffectiveSalary(state, candidate),
+                  signingBonus: _candidateSigningBonus(state, candidate),
                   canHire:
-                      (candidate.remote ||
-                          state.onSiteEmployeeCount < state.office.capacity) &&
-                      state.cash >= candidate.salary * 0.15,
+                      _candidateFitsOffice(state, candidate) &&
+                      state.cash >= _candidateSigningBonus(state, candidate),
                   onHire: () =>
                       widget.controller.dispatch(HireCandidate(candidate.id)),
                 ),
@@ -409,6 +429,10 @@ class _TeamScreenState extends State<TeamScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          if (employees.isNotEmpty) ...[
+            _teamDevelopmentCard(state, employees),
+            const SizedBox(height: 12),
+          ],
           if (state.employees.isEmpty)
             const AppCard(
               child: AppText(
@@ -425,6 +449,14 @@ class _TeamScreenState extends State<TeamScreen> {
                   state: state,
                   employee: employee,
                   controller: widget.controller,
+                  selected: _selectedEmployeeIds.contains(employee.id),
+                  onSelectionChanged: (selected) => setState(() {
+                    if (selected) {
+                      _selectedEmployeeIds.add(employee.id);
+                    } else {
+                      _selectedEmployeeIds.remove(employee.id);
+                    }
+                  }),
                 ),
               ),
             ),
@@ -432,6 +464,413 @@ class _TeamScreenState extends State<TeamScreen> {
       ],
     );
   }
+
+  String _candidateCityLabel(GameState state, Candidate candidate) {
+    final city = WorldEconomyCatalog.cityById(
+      state.recruitmentCityIdFor(candidate),
+    );
+    return '${city.cityRu}, ${city.countryRu}';
+  }
+
+  double _candidateEffectiveSalary(GameState state, Candidate candidate) {
+    final city = WorldEconomyCatalog.cityById(
+      state.recruitmentCityIdFor(candidate),
+    );
+    return candidate.salary *
+        state.founderSalaryMultiplier *
+        city.salaryMultiplier;
+  }
+
+  double _candidateSigningBonus(GameState state, Candidate candidate) {
+    final cityId = state.recruitmentCityIdFor(candidate);
+    final ownedComfort = state.bestOwnedOfficeComfortIn(cityId);
+    final employerBrandDiscount = math
+        .max(
+          cityId == state.headquartersCityId
+              ? state.office.hiringBoostPercent
+              : 0,
+          ownedComfort / 1000,
+        )
+        .clamp(0, 0.45)
+        .toDouble();
+    return candidate.salary *
+        0.15 *
+        state.founderSalaryMultiplier *
+        (1 - employerBrandDiscount);
+  }
+
+  bool _candidateFitsOffice(GameState state, Candidate candidate) {
+    if (candidate.remote) {
+      return true;
+    }
+    final cityId = state.recruitmentCityIdFor(candidate);
+    final legacyCapacity = cityId == state.headquartersCityId
+        ? state.office.capacity
+        : 0;
+    final capacity = legacyCapacity + state.ownedOfficeCapacityIn(cityId);
+    return state.onSiteEmployeesIn(cityId) < capacity;
+  }
+
+  Widget _teamDevelopmentCard(
+    GameState state,
+    List<Employee> visibleEmployees,
+  ) {
+    final selectedEmployees = visibleEmployees
+        .where((employee) => _selectedEmployeeIds.contains(employee.id))
+        .toList(growable: false);
+    final program = OperationsCatalog.trainingProgramById(
+      _bulkTrainingProgramId,
+    );
+    final eligibleEmployees = selectedEmployees
+        .where(
+          (employee) =>
+              employee.grade != EmployeeGrade.senior &&
+              state.trainingForEmployee(employee.id) == null &&
+              state.gradeUpgradeForEmployee(employee.id) == null &&
+              state.relocationForEmployee(employee.id) == null,
+        )
+        .toList(growable: false);
+    final totalCourseCost = eligibleEmployees.fold<double>(
+      0,
+      (sum, _) => sum + program.cost,
+    );
+    final allVisibleSelected =
+        visibleEmployees.isNotEmpty &&
+        visibleEmployees.every(
+          (employee) => _selectedEmployeeIds.contains(employee.id),
+        );
+    final busyCount = selectedEmployees
+        .where(
+          (employee) =>
+              state.trainingForEmployee(employee.id) != null ||
+              state.gradeUpgradeForEmployee(employee.id) != null ||
+              state.relocationForEmployee(employee.id) != null,
+        )
+        .length;
+
+    return AppCard(
+      key: const Key('team-development-controls'),
+      hintTitle: 'Развитие сотрудников',
+      hintBody:
+          'Курсы занимают реальное игровое время. Во время обучения сотрудник не участвует в разработке. Skill также растёт от активной работы над продуктами, а грейд автоматически подтягивается к накопленному навыку.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: AppText(
+                  'Развитие команды',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              AppText('Выбрано: ${selectedEmployees.length}'),
+            ],
+          ),
+          const SizedBox(height: 6),
+          AppText(
+            'Можно выбрать отдельных сотрудников или всех из текущего фильтра. Senior не ходят на обычные курсы: для них используйте повышение грейда и рабочий опыт.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          if (busyCount > 0)
+            AppText(
+              'Занятых в выборе: $busyCount — они не входят в стоимость и не будут запущены повторно.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const Key('team-select-all-visible'),
+                  onPressed: () => setState(() {
+                    if (allVisibleSelected) {
+                      for (final employee in visibleEmployees) {
+                        _selectedEmployeeIds.remove(employee.id);
+                      }
+                    } else {
+                      _selectedEmployeeIds.addAll(
+                        visibleEmployees.map((employee) => employee.id),
+                      );
+                    }
+                  }),
+                  icon: Icon(
+                    allVisibleSelected
+                        ? Icons.deselect_outlined
+                        : Icons.select_all_outlined,
+                  ),
+                  label: AppText(
+                    allVisibleSelected ? 'Снять выбор' : 'Выбрать всех',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: trContext(context, 'Очистить выбор'),
+                onPressed: _selectedEmployeeIds.isEmpty
+                    ? null
+                    : () => setState(_selectedEmployeeIds.clear),
+                icon: const Icon(Icons.clear_all),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          DropdownButtonFormField<String>(
+            key: const Key('team-bulk-course-selector'),
+            initialValue: _bulkTrainingProgramId,
+            isExpanded: true,
+            decoration: InputDecoration(labelText: trContext(context, 'Курс')),
+            items: OperationsCatalog.trainingPrograms
+                .map(
+                  (item) => DropdownMenuItem<String>(
+                    value: item.id,
+                    child: AppText(
+                      '${item.name} • ${item.durationDays} дн. • ${money(item.cost)}',
+                    ),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _bulkTrainingProgramId = value);
+              }
+            },
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              key: const Key('team-start-bulk-course'),
+              onPressed:
+                  eligibleEmployees.isEmpty || state.cash < totalCourseCost
+                  ? null
+                  : () => widget.controller.dispatch(
+                      TrainEmployees(
+                        employeeIds: eligibleEmployees
+                            .map((employee) => employee.id)
+                            .toList(growable: false),
+                        programId: _bulkTrainingProgramId,
+                      ),
+                    ),
+              icon: const Icon(Icons.school_outlined),
+              label: AppText(
+                'Отправить на курс • ${program.durationDays} дн. • ${money(totalCourseCost)}',
+              ),
+            ),
+          ),
+          const Divider(height: 28),
+          DropdownButtonFormField<EmployeeGrade>(
+            key: const Key('team-target-grade-selector'),
+            initialValue: _targetGrade,
+            decoration: InputDecoration(
+              labelText: trContext(context, 'Целевой грейд'),
+              helperText: trContext(
+                context,
+                'Выберите только итоговый грейд — стоимость и срок считаются автоматически.',
+              ),
+            ),
+            items: EmployeeGrade.values
+                .map(
+                  (grade) => DropdownMenuItem<EmployeeGrade>(
+                    value: grade,
+                    child: AppText(gradeName(grade)),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _targetGrade = value);
+              }
+            },
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              key: const Key('team-upgrade-to-grade'),
+              onPressed: selectedEmployees.isEmpty
+                  ? null
+                  : () => widget.controller.dispatch(
+                      UpgradeEmployeesToGrade(
+                        employeeIds: selectedEmployees
+                            .map((employee) => employee.id)
+                            .toList(growable: false),
+                        targetGrade: _targetGrade,
+                      ),
+                    ),
+              icon: const Icon(Icons.trending_up_outlined),
+              label: AppText('Прокачать до ${gradeName(_targetGrade)}'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _companyCultureCard(GameState state) {
+    return AppCard(
+      key: const Key('team-company-perks'),
+      hintTitle: 'Условия и плюшки',
+      hintBody:
+          'Плюшки стоят денег каждый месяц, но повышают loyalty и morale, немного ускоряют работу и уменьшают риск добровольного ухода. Это постоянный расход растущей компании.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppText(
+            'Условия команды • ${money(state.monthlyCompanyPerkCost)}/мес.',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 5),
+          AppText(
+            'Бонус loyalty +${state.companyPerkLoyaltyBonus} • morale +${state.companyPerkMoraleBonus}',
+          ),
+          const SizedBox(height: 8),
+          ...V17EndgameCatalog.companyPerks.map((perk) {
+            final enabled = state.enabledCompanyPerkIds.contains(perk.id);
+            return SwitchListTile(
+              key: Key('company-perk-${perk.id}'),
+              contentPadding: EdgeInsets.zero,
+              value: enabled,
+              onChanged: !enabled && state.cash < perk.upfrontCost
+                  ? null
+                  : (_) =>
+                        widget.controller.dispatch(ToggleCompanyPerk(perk.id)),
+              title: AppText(perk.name),
+              subtitle: AppText(
+                '${perk.description} • запуск ${money(perk.upfrontCost)} • ${money(perk.monthlyCost)}/мес. • loyalty +${perk.loyaltyBonus}',
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _departureRiskCard(GameState state) {
+    return AppCard(
+      key: const Key('team-departure-risks'),
+      hintTitle: 'Риск ухода',
+      hintBody:
+          'Сотрудник может захотеть уйти при низкой loyalty из-за перегруза, простоя и плохих условий. До ухода есть короткое окно на counter-offer повышением зарплаты.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppText(
+            'Сотрудники собираются уйти',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          ...state.pendingEmployeeDepartures.map((departure) {
+            final employee = state.employeeById(departure.employeeId);
+            if (employee == null) {
+              return const SizedBox.shrink();
+            }
+            final days =
+                ((departure.deadlineMinutes - state.simulationMinutes) / 1440)
+                    .ceil()
+                    .clamp(0, 99);
+            return ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: AppText(employee.name, translate: false),
+              subtitle: AppText(
+                'Loyalty ${employee.loyalty}% • workload ${employee.workload}% • уйдёт через $days дн.',
+              ),
+              trailing: FilledButton.tonal(
+                key: Key('counter-offer-${employee.id}'),
+                onPressed: () => widget.controller.dispatch(
+                  CounterOfferEmployee(employee.id),
+                ),
+                child: AppText(
+                  '+${departure.requiredRaisePercent.round()}% зарплата',
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _legendMarketCard(GameState state) {
+    return AppCard(
+      key: const Key('team-legend-market'),
+      hintTitle: 'Легенды рынка',
+      hintBody:
+          'Легенды появляются редко даже после выполнения требований. У них все рабочие показатели 100, огромная зарплата и signing bonus, а также уникальный случайный буст одному выпущенному продукту.',
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: EdgeInsets.zero,
+        title: AppText(
+          'Легенды рынка • активных предложений ${state.legendMarketOffers.length}',
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+        subtitle: const AppText('Редкие специалисты мирового уровня.'),
+        children: V17EndgameCatalog.legends
+            .map((legend) {
+              final offer = state.legendOfferFor(legend.id);
+              final hired = state.hiredLegendBonuses.any(
+                (item) => item.legendId == legend.id,
+              );
+              final city = legend.requiredOfficeCityId.isEmpty
+                  ? 'любой город'
+                  : WorldEconomyCatalog.cityById(
+                      legend.requiredOfficeCityId,
+                    ).cityRu;
+              final officeRequirement = legend.requiredOfficeQuality == null
+                  ? 'офис не требуется'
+                  : '${_facilityQualityLabel(legend.requiredOfficeQuality!)} офис • $city';
+              final eligible = state.hasLegendRequirement(legend.id);
+              final product = offer == null
+                  ? null
+                  : state.productById(offer.productId);
+              return ListTile(
+                key: Key('legend-${legend.id}'),
+                contentPadding: EdgeInsets.zero,
+                title: AppText('${legend.name} • ${roleName(legend.role)}'),
+                subtitle: AppText(
+                  hired
+                      ? 'Нанят • все навыки 100.'
+                      : offer != null
+                      ? '${legend.description} • предложение для ${product?.name ?? 'продукта'} • бонус ${_legendBonusLabel(offer.bonusKind)} • signing ${money(legend.signingCost)} • ${money(legend.salary)}/мес.'
+                      : '${legend.description} • ${legend.requiredReleasedProducts} выпущенных продукта • valuation ${money(legend.requiredValuation)} • $officeRequirement • ${eligible ? 'требования выполнены, ждите редкое окно' : 'требования не выполнены'}',
+                ),
+                trailing: offer != null && !hired
+                    ? FilledButton(
+                        key: Key('hire-legend-${legend.id}'),
+                        onPressed: state.cash >= legend.signingCost
+                            ? () => widget.controller.dispatch(
+                                HireMarketLegend(
+                                  legendId: legend.id,
+                                  productId: offer.productId,
+                                ),
+                              )
+                            : null,
+                        child: const AppText('Нанять'),
+                      )
+                    : null,
+              );
+            })
+            .toList(growable: false),
+      ),
+    );
+  }
+
+  String _legendBonusLabel(LegendProductBonusKind kind) => switch (kind) {
+    LegendProductBonusKind.performance => 'performance',
+    LegendProductBonusKind.reliability => 'reliability',
+    LegendProductBonusKind.aiQuality => 'AI quality',
+    LegendProductBonusKind.retention => 'retention',
+    LegendProductBonusKind.activation => 'activation',
+    LegendProductBonusKind.growth => 'growth',
+    LegendProductBonusKind.brand => 'brand',
+    LegendProductBonusKind.security => 'security',
+  };
+
+  String _facilityQualityLabel(FacilityQuality quality) => switch (quality) {
+    FacilityQuality.basic => 'Базовый',
+    FacilityQuality.standard => 'Стандартный',
+    FacilityQuality.premium => 'Премиум',
+  };
 
   int _candidateComparator(Candidate left, Candidate right) => switch (_sort) {
     _CandidateSort.skill => right.skill.compareTo(left.skill),
@@ -480,11 +919,17 @@ class _ViewButton extends StatelessWidget {
 class _CandidateCard extends StatelessWidget {
   const _CandidateCard({
     required this.candidate,
+    required this.cityLabel,
+    required this.effectiveSalary,
+    required this.signingBonus,
     required this.canHire,
     required this.onHire,
   });
 
   final Candidate candidate;
+  final String cityLabel;
+  final double effectiveSalary;
+  final double signingBonus;
   final bool canHire;
   final VoidCallback onHire;
 
@@ -524,7 +969,7 @@ class _CandidateCard extends StatelessWidget {
                 ),
               ),
               AppText(
-                '${money(candidate.salary)}/мес.',
+                '${money(effectiveSalary)}/мес.',
                 style: const TextStyle(fontWeight: FontWeight.w900),
               ),
             ],
@@ -569,7 +1014,7 @@ class _CandidateCard extends StatelessWidget {
               onPressed: canHire ? onHire : null,
               child: AppText(
                 canHire
-                    ? 'Нанять • signing bonus ${money(candidate.salary * 0.15)}'
+                    ? 'Нанять • $cityLabel • signing bonus ${money(signingBonus)}'
                     : candidate.remote
                     ? 'Недостаточно денег'
                     : 'Нет офисного места или денег',
@@ -587,16 +1032,42 @@ class _EmployeeCard extends StatelessWidget {
     required this.state,
     required this.employee,
     required this.controller,
+    required this.selected,
+    required this.onSelectionChanged,
   });
   final GameState state;
   final Employee employee;
   final GameController controller;
+  final bool selected;
+  final ValueChanged<bool> onSelectionChanged;
 
   @override
   Widget build(BuildContext context) {
     final productivity = state.employeeProductivityPercent(employee);
     final activeWorks = state.activeAssignmentCountForEmployee(employee.id);
     final factors = state.employeeProductivityFactors(employee);
+    final training = state.trainingForEmployee(employee.id);
+    final gradeUpgrade = state.gradeUpgradeForEmployee(employee.id);
+    final relocation = state.relocationForEmployee(employee.id);
+    final busy = training != null || gradeUpgrade != null || relocation != null;
+    final trainingProgram = training == null
+        ? null
+        : OperationsCatalog.trainingProgramById(training.programId);
+    final remainingTrainingDays = training == null
+        ? 0
+        : ((training.completesAtMinutes - state.simulationMinutes) / 1440)
+              .ceil()
+              .clamp(0, 999);
+    final remainingUpgradeDays = gradeUpgrade == null
+        ? 0
+        : ((gradeUpgrade.completesAtMinutes - state.simulationMinutes) / 1440)
+              .ceil()
+              .clamp(0, 999);
+    final remainingRelocationDays = relocation == null
+        ? 0
+        : ((relocation.completesAtMinutes - state.simulationMinutes) / 1440)
+              .ceil()
+              .clamp(0, 999);
     return AppCard(
       hintTitle: 'Сотрудник ${employee.name}',
       hintBody:
@@ -606,6 +1077,11 @@ class _EmployeeCard extends StatelessWidget {
         children: [
           Row(
             children: [
+              Checkbox(
+                key: Key('select-employee-${employee.id}'),
+                value: selected,
+                onChanged: (value) => onSelectionChanged(value ?? false),
+              ),
               CircleAvatar(
                 backgroundColor: _roleColor(employee.role).withAlpha(24),
                 foregroundColor: _roleColor(employee.role),
@@ -647,7 +1123,25 @@ class _EmployeeCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          if (busy) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withAlpha(14),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.primary.withAlpha(60)),
+              ),
+              child: AppText(
+                training != null
+                    ? 'На курсе: ${trainingProgram!.name} • осталось $remainingTrainingDays дн. • разработка приостановлена'
+                    : gradeUpgrade != null
+                    ? 'Повышение до ${gradeName(gradeUpgrade.targetGrade)} • осталось $remainingUpgradeDays дн. • разработка приостановлена'
+                    : 'Релокация в офис • осталось $remainingRelocationDays дн. • разработка приостановлена',
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           Container(
             key: Key('employee-productivity-${employee.id}'),
             width: double.infinity,
@@ -702,39 +1196,114 @@ class _EmployeeCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          PopupMenuButton<String>(
-            key: Key('train-${employee.id}'),
-            onSelected: (programId) => controller.dispatch(
-              TrainEmployee(employeeId: employee.id, programId: programId),
-            ),
-            itemBuilder: (_) => OperationsCatalog.trainingPrograms
-                .map(
-                  (program) => PopupMenuItem<String>(
-                    value: program.id,
-                    enabled: state.cash >= program.cost,
-                    child: AppText('${program.name} • ${money(program.cost)}'),
-                  ),
-                )
-                .toList(growable: false),
-            child: Container(
+          if (employee.grade == EmployeeGrade.senior)
+            Container(
+              key: Key('senior-development-${employee.id}'),
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                border: Border.all(color: AppColors.border),
+                color: AppColors.primary.withAlpha(10),
                 borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border),
               ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.school_outlined),
-                  SizedBox(width: 8),
-                  AppText('Отправить на курс'),
-                  SizedBox(width: 6),
-                  Icon(Icons.arrow_drop_down),
-                ],
+              child: const AppText(
+                'Senior: обычные курсы недоступны. Навыки растут от реальной разработки; для следующего скачка используйте программу повышения грейда.',
+              ),
+            )
+          else
+            PopupMenuButton<String>(
+              key: Key('train-${employee.id}'),
+              enabled: !busy,
+              onSelected: (programId) => controller.dispatch(
+                TrainEmployee(employeeId: employee.id, programId: programId),
+              ),
+              itemBuilder: (_) => OperationsCatalog.trainingPrograms
+                  .map(
+                    (program) => PopupMenuItem<String>(
+                      value: program.id,
+                      enabled: state.cash >= program.cost,
+                      child: AppText(
+                        '${program.name} • ${program.durationDays} дн. • ${money(program.cost)}',
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 13,
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.border),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.school_outlined),
+                    SizedBox(width: 8),
+                    AppText('Отправить на курс'),
+                    SizedBox(width: 6),
+                    Icon(Icons.arrow_drop_down),
+                  ],
+                ),
               ),
             ),
-          ),
+          if (employee.remote && state.ownedOffices.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            PopupMenuButton<String>(
+              key: Key('relocate-${employee.id}'),
+              enabled: !busy,
+              onSelected: (officeId) => controller.dispatch(
+                RelocateEmployeeToOffice(
+                  employeeId: employee.id,
+                  officeSiteId: officeId,
+                ),
+              ),
+              itemBuilder: (_) => state.ownedOffices
+                  .map((office) {
+                    final city = WorldEconomyCatalog.cityById(office.cityId);
+                    final cost = state.employeeRelocationCost(employee, office);
+                    final days = state.employeeRelocationDurationDays(
+                      employee,
+                      office,
+                    );
+                    return PopupMenuItem<String>(
+                      value: office.id,
+                      enabled:
+                          state.availableOwnedOfficeSeatsIn(office.cityId) >
+                              0 &&
+                          state.cash >= cost,
+                      child: AppText(
+                        '${state.ownedOfficeLabel(office)} • ${city.cityRu} • $days дн. • ${money(cost)}',
+                      ),
+                    );
+                  })
+                  .toList(growable: false),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 13,
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.border),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.flight_takeoff_outlined),
+                    SizedBox(width: 8),
+                    AppText('Релокация в офис'),
+                    SizedBox(width: 6),
+                    Icon(Icons.arrow_drop_down),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,

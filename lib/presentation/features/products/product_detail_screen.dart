@@ -12,6 +12,7 @@ import '../../../domain/entities/game_state.dart';
 import '../../../domain/entities/models.dart';
 import '../../../domain/entities/product_evolution_models.dart';
 import '../../../domain/entities/v12_game_state_extensions.dart';
+import '../../../domain/entities/v17_models.dart';
 import '../../../domain/explainability/staffing_deficit_resolver.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
@@ -82,6 +83,13 @@ class ProductDetailScreen extends StatelessWidget {
         final strategy = ProductStrategyCatalog.strategyFor(
           product.blueprintId,
         );
+        // A migrated/legacy save can keep a model that is no longer allowed by the
+        // current strategy. Keep that current value renderable, while GameEngine
+        // remains the source of truth for which new models may be selected.
+        final monetizationOptions = <MonetizationModel>{
+          product.monetization,
+          ...strategy.allowedMonetizationModels,
+        }.toList(growable: false);
         final phase = state.developmentPhaseFor(product);
         final staffing = state.developmentStaffingFor(product.id);
         final projection = ProductProjectionCache.estimate(
@@ -520,14 +528,40 @@ class ProductDetailScreen extends StatelessWidget {
                       'Разверните список, чтобы выбрать следующее обновление.',
                     ),
                     children: availableFeatures
-                        .map(
-                          (feature) => Padding(
+                        .map((feature) {
+                          final researchKey = state.researchKey(
+                            ResearchTargetKind.feature,
+                            feature.id,
+                          );
+                          final research = state.activeResearchFor(researchKey);
+                          final researched = state.researchCompleted(
+                            ResearchTargetKind.feature,
+                            feature.id,
+                          );
+                          return Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: _FeatureUpgradeCard(
                               feature: feature,
                               enabled:
                                   product.stage == ProductStage.live &&
-                                  activeFeatureWork == null,
+                                  activeFeatureWork == null &&
+                                  researched,
+                              researched: researched,
+                              researchInProgress: research != null,
+                              researchCost: state.researchCost(
+                                ResearchTargetKind.feature,
+                                feature.id,
+                              ),
+                              researchDays: state.researchDays(
+                                ResearchTargetKind.feature,
+                                feature.id,
+                              ),
+                              onResearch: () => controller.dispatch(
+                                StartCompanyResearch(
+                                  kind: ResearchTargetKind.feature,
+                                  targetId: feature.id,
+                                ),
+                              ),
                               onAdd: () => controller.dispatch(
                                 AddProductFeature(
                                   productId: product.id,
@@ -535,8 +569,8 @@ class ProductDetailScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-                          ),
-                        )
+                          );
+                        })
                         .toList(growable: false),
                   ),
                 ),
@@ -569,7 +603,7 @@ class ProductDetailScreen extends StatelessWidget {
                             ? 'Следующая смена через $monetizationCooldownDays дн.'
                             : 'После релиза модель можно менять раз в 30 игровых дней.',
                       ),
-                      items: strategy.allowedMonetizationModels
+                      items: monetizationOptions
                           .map(
                             (model) => DropdownMenuItem(
                               value: model,
@@ -1253,7 +1287,9 @@ class _AdvertisingCampaignCardState extends State<_AdvertisingCampaignCard> {
               )
               .toList(growable: false),
           onChanged: (value) {
-            if (value == null) return;
+            if (value == null) {
+              return;
+            }
             setState(() {
               _agencyId = value;
               _budget = math
@@ -1286,7 +1322,9 @@ class _AdvertisingCampaignCardState extends State<_AdvertisingCampaignCard> {
               )
               .toList(growable: false),
           onChanged: (value) {
-            if (value != null) setState(() => _channelId = value);
+            if (value != null) {
+              setState(() => _channelId = value);
+            }
           },
         ),
         const SizedBox(height: 8),
@@ -1518,11 +1556,21 @@ class _FeatureUpgradeCard extends StatelessWidget {
   const _FeatureUpgradeCard({
     required this.feature,
     required this.enabled,
+    required this.researched,
+    required this.researchInProgress,
+    required this.researchCost,
+    required this.researchDays,
+    required this.onResearch,
     required this.onAdd,
   });
 
   final FeatureOption feature;
   final bool enabled;
+  final bool researched;
+  final bool researchInProgress;
+  final double researchCost;
+  final int researchDays;
+  final VoidCallback onResearch;
   final VoidCallback onAdd;
 
   @override
@@ -1584,22 +1632,33 @@ class _FeatureUpgradeCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           AppText(
-            'Прямой цены нет. Пока команда выполняет $hours рабочих часов, продолжают списываться зарплаты и инфраструктура.',
+            researched
+                ? 'R&D завершён. Внедрение занимает $hours рабочих часов команды без отдельной покупки функции.'
+                : 'Сначала требуется платный R&D: ${money(researchCost)} • $researchDays дн. Исследование выполняется один раз на всю компанию.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
-            child: FilledButton.tonalIcon(
-              key: Key('add-feature-${feature.id}'),
-              onPressed: enabled ? onAdd : null,
-              icon: const Icon(Icons.add_task_outlined),
-              label: AppText(
-                enabled
-                    ? 'Начать разработку функции'
-                    : 'Сначала завершите текущее обновление',
-              ),
-            ),
+            child: researched
+                ? FilledButton.tonalIcon(
+                    key: Key('add-feature-${feature.id}'),
+                    onPressed: enabled ? onAdd : null,
+                    icon: const Icon(Icons.add_task_outlined),
+                    label: AppText(
+                      enabled
+                          ? 'Начать внедрение функции'
+                          : 'Сначала завершите текущее обновление',
+                    ),
+                  )
+                : FilledButton.tonalIcon(
+                    key: Key('research-detail-feature-${feature.id}'),
+                    onPressed: researchInProgress ? null : onResearch,
+                    icon: const Icon(Icons.science_outlined),
+                    label: AppText(
+                      researchInProgress ? 'R&D уже идёт' : 'Исследовать',
+                    ),
+                  ),
           ),
         ],
       ),

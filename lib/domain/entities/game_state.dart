@@ -8,6 +8,8 @@ import '../catalog/operations_catalog.dart';
 import '../catalog/product_evolution_catalog.dart';
 import '../catalog/product_strategy_catalog.dart';
 import '../catalog/v9_content_catalog.dart';
+import '../catalog/world_economy_catalog.dart';
+import '../catalog/v17_endgame_catalog.dart';
 import 'business_models.dart';
 import 'management_models.dart';
 import 'models.dart';
@@ -17,10 +19,12 @@ import 'product_strategy_models.dart';
 import 'v9_models.dart';
 import 'v10_models.dart';
 import 'v12_models.dart';
+import 'v16_models.dart';
+import 'v17_models.dart';
 
 part 'game_state_index.dart';
 
-const int currentSnapshotVersion = 13;
+const int currentSnapshotVersion = 16;
 
 enum GameSpeed {
   x1(1),
@@ -39,6 +43,32 @@ class GameState {
     required this.paused,
     required this.cash,
     this.companyProfile = const FounderCompanyProfile.unconfigured(),
+    this.headquartersCityId = 'moscow',
+    this.ownedOffices = const <OwnedOfficeSite>[],
+    this.ownedDataCenters = const <OwnedDataCenterSite>[],
+    this.employeeTrainings = const <EmployeeTrainingAssignment>[],
+    this.employeeGradeUpgrades = const <EmployeeGradeUpgrade>[],
+    this.employeeRelocations = const <EmployeeRelocationAssignment>[],
+    this.productServiceRoutes = const <ProductServiceRoute>[],
+    this.activeResearchProjects = const <CompanyResearchProject>[],
+    this.completedResearchKeys = const <String>[],
+    this.enabledCompanyPerkIds = const <String>[],
+    this.legendMarketOffers = const <LegendMarketOffer>[],
+    this.hiredLegendBonuses = const <HiredLegendBonus>[],
+    this.pendingEmployeeDepartures = const <PendingEmployeeDeparture>[],
+    this.companyFans = 0,
+    this.brandReputation = 10,
+    this.industryEventOpportunities = const <IndustryEventOpportunity>[],
+    this.bookedIndustryEvents = const <BookedIndustryEvent>[],
+    this.companyNotifications = const <CompanyNotification>[],
+    this.worldProjects = const <WorldProjectProgress>[],
+    this.ecosystemDoctrine = EcosystemDoctrine.balanced,
+    this.philanthropySpent = 0,
+    this.postGamePath = PostGamePath.none,
+    this.taxRecords = const <AnnualTaxRecord>[],
+    this.taxYearRevenueAccrued = 0,
+    this.taxYearExpensesAccrued = 0,
+    this.taxYearPayrollAccrued = 0,
     required this.products,
     required this.candidates,
     required this.employees,
@@ -92,6 +122,32 @@ class GameState {
     paused: true,
     cash: 450000,
     companyProfile: FounderCompanyProfile.unconfigured(),
+    headquartersCityId: 'moscow',
+    ownedOffices: const <OwnedOfficeSite>[],
+    ownedDataCenters: const <OwnedDataCenterSite>[],
+    employeeTrainings: const <EmployeeTrainingAssignment>[],
+    employeeGradeUpgrades: const <EmployeeGradeUpgrade>[],
+    employeeRelocations: const <EmployeeRelocationAssignment>[],
+    productServiceRoutes: const <ProductServiceRoute>[],
+    activeResearchProjects: const <CompanyResearchProject>[],
+    completedResearchKeys: const <String>[],
+    enabledCompanyPerkIds: const <String>[],
+    legendMarketOffers: const <LegendMarketOffer>[],
+    hiredLegendBonuses: const <HiredLegendBonus>[],
+    pendingEmployeeDepartures: const <PendingEmployeeDeparture>[],
+    companyFans: 0,
+    brandReputation: 10,
+    industryEventOpportunities: const <IndustryEventOpportunity>[],
+    bookedIndustryEvents: const <BookedIndustryEvent>[],
+    companyNotifications: const <CompanyNotification>[],
+    worldProjects: const <WorldProjectProgress>[],
+    ecosystemDoctrine: EcosystemDoctrine.balanced,
+    philanthropySpent: 0,
+    postGamePath: PostGamePath.none,
+    taxRecords: const <AnnualTaxRecord>[],
+    taxYearRevenueAccrued: 0,
+    taxYearExpensesAccrued: 0,
+    taxYearPayrollAccrued: 0,
     products: const <Product>[],
     candidates: List<Candidate>.unmodifiable(
       CandidateMarketCatalog.initialMarket(seed: seed),
@@ -148,6 +204,32 @@ class GameState {
   final bool paused;
   final double cash;
   final FounderCompanyProfile companyProfile;
+  final String headquartersCityId;
+  final List<OwnedOfficeSite> ownedOffices;
+  final List<OwnedDataCenterSite> ownedDataCenters;
+  final List<EmployeeTrainingAssignment> employeeTrainings;
+  final List<EmployeeGradeUpgrade> employeeGradeUpgrades;
+  final List<EmployeeRelocationAssignment> employeeRelocations;
+  final List<ProductServiceRoute> productServiceRoutes;
+  final List<CompanyResearchProject> activeResearchProjects;
+  final List<String> completedResearchKeys;
+  final List<String> enabledCompanyPerkIds;
+  final List<LegendMarketOffer> legendMarketOffers;
+  final List<HiredLegendBonus> hiredLegendBonuses;
+  final List<PendingEmployeeDeparture> pendingEmployeeDepartures;
+  final int companyFans;
+  final double brandReputation;
+  final List<IndustryEventOpportunity> industryEventOpportunities;
+  final List<BookedIndustryEvent> bookedIndustryEvents;
+  final List<CompanyNotification> companyNotifications;
+  final List<WorldProjectProgress> worldProjects;
+  final EcosystemDoctrine ecosystemDoctrine;
+  final double philanthropySpent;
+  final PostGamePath postGamePath;
+  final List<AnnualTaxRecord> taxRecords;
+  final double taxYearRevenueAccrued;
+  final double taxYearExpensesAccrued;
+  final double taxYearPayrollAccrued;
   final List<Product> products;
   final List<Candidate> candidates;
   final List<Employee> employees;
@@ -235,6 +317,108 @@ class GameState {
     'Вс',
   ][simulationDateTime.weekday - 1];
 
+  WorldCityOption get headquartersCity =>
+      WorldEconomyCatalog.cityById(headquartersCityId);
+
+  List<String> get staffingCityIds => _index.staffingCityIds;
+
+  String recruitmentCityIdFor(Candidate candidate) {
+    if (candidate.locationCityId.isNotEmpty) {
+      return candidate.locationCityId;
+    }
+    final cities = staffingCityIds;
+    if (cities.length == 1) {
+      return cities.first;
+    }
+    final hash = candidate.id.codeUnits.fold<int>(
+      0,
+      (sum, unit) => (sum * 31 + unit) & 0x7fffffff,
+    );
+    return cities[hash % cities.length];
+  }
+
+  String employeeCityId(Employee employee) => employee.locationCityId.isEmpty
+      ? headquartersCityId
+      : employee.locationCityId;
+
+  int ownedOfficeCapacityIn(String cityId) =>
+      _index.ownedOfficeCapacityByCity[cityId] ?? 0;
+
+  int onSiteEmployeesIn(String cityId) =>
+      _index.onSiteEmployeeCountByCity[cityId] ?? 0;
+
+  int bestOwnedOfficeComfortIn(String cityId) =>
+      _index.bestOwnedOfficeComfortByCity[cityId] ?? 0;
+
+  int availableOwnedOfficeSeatsIn(String cityId) {
+    final incoming = employeeRelocations
+        .where((item) => item.destinationCityId == cityId)
+        .length;
+    return math
+        .max(
+          0,
+          ownedOfficeCapacityIn(cityId) - onSiteEmployeesIn(cityId) - incoming,
+        )
+        .toInt();
+  }
+
+  double get ownedOfficeMonthlyCost => ownedOffices.fold<double>(
+    0,
+    (sum, site) => sum + WorldEconomyCatalog.officeMonthlyCost(site),
+  );
+
+  double get ownedDataCenterMonthlyCost => ownedDataCenters.fold<double>(
+    0,
+    (sum, site) => sum + WorldEconomyCatalog.dataCenterMonthlyCost(site),
+  );
+
+  double get effectiveCorporateTaxRate => headquartersCity.corporateTaxRate;
+  double get effectivePayrollTaxRate => headquartersCity.payrollTaxRate;
+
+  EmployeeTrainingAssignment? trainingForEmployee(String employeeId) =>
+      _index.trainingByEmployee[employeeId];
+
+  EmployeeGradeUpgrade? gradeUpgradeForEmployee(String employeeId) =>
+      _index.gradeUpgradeByEmployee[employeeId];
+
+  EmployeeRelocationAssignment? relocationForEmployee(String employeeId) =>
+      _index.relocationByEmployee[employeeId];
+
+  ProductServiceRoute? serviceRouteFor(
+    String productId,
+    InfrastructureService service,
+  ) =>
+      _index.serviceRouteByProductAndService[_GameStateIndex.pair(
+        productId,
+        service.name,
+      )];
+
+  String dataCenterRouteFor(String productId, InfrastructureService service) =>
+      serviceRouteFor(productId, service)?.dataCenterSiteId ?? '';
+
+  String ownedOfficeLabel(OwnedOfficeSite site) {
+    final index = ownedOffices.indexWhere((item) => item.id == site.id);
+    return 'Офис #${index < 0 ? 1 : index + 1}';
+  }
+
+  String ownedDataCenterLabel(OwnedDataCenterSite site) {
+    final index = ownedDataCenters.indexWhere((item) => item.id == site.id);
+    return 'ЦОД #${index < 0 ? 1 : index + 1}';
+  }
+
+  double employeeRelocationCost(Employee employee, OwnedOfficeSite office) {
+    final destination = WorldEconomyCatalog.cityById(office.cityId);
+    final origin = WorldEconomyCatalog.cityById(employeeCityId(employee));
+    final marketGap = (destination.salaryMultiplier - origin.salaryMultiplier)
+        .abs();
+    return 65000 + employee.salary * 0.55 + marketGap * 85000;
+  }
+
+  int employeeRelocationDurationDays(
+    Employee employee,
+    OwnedOfficeSite office,
+  ) => office.cityId == employeeCityId(employee) ? 2 : 5;
+
   OfficeOption get office => GameCatalog.officeById(selectedOfficeId);
   ServerRoomOption get serverRoom =>
       GameCatalog.serverRoomById(selectedServerRoomId);
@@ -244,7 +428,12 @@ class GameState {
 
   Product? productById(String id) => _index.productsById[id];
 
-  List<CompetitorBenchmark> competitorsForCategory(ProductCategory category) {
+  List<CompetitorBenchmark> competitorsForCategory(ProductCategory category) =>
+      _index.competitorsForCategory(category);
+
+  List<CompetitorBenchmark> _buildCompetitorsForCategory(
+    ProductCategory category,
+  ) {
     return GameCatalog.competitorsFor(category, rngSeed)
         .map((competitor) {
           final incidents = news
@@ -254,7 +443,9 @@ class GameState {
                     item.title.startsWith('${competitor.productName}:'),
               )
               .length;
-          if (incidents == 0) return competitor;
+          if (incidents == 0) {
+            return competitor;
+          }
           return competitor.copyWith(
             users: (competitor.users * math.pow(0.97, incidents)).round(),
             marketScore: math
@@ -358,15 +549,36 @@ class GameState {
           .clamp(0, 109)
           .toDouble();
 
+  double get companyPerkProductivityMultiplier =>
+      (1 +
+              enabledCompanyPerkIds.fold<double>(
+                0,
+                (sum, id) =>
+                    sum + V17EndgameCatalog.perkById(id).productivityBonus,
+              ))
+          .clamp(1.0, 1.18)
+          .toDouble();
+
   double employeeProductivityPercent(Employee employee) =>
       (employeeCoreProductivityPercent(employee) *
               parallelEfficiencyForEmployee(employee.id) *
-              officeProductivityMultiplier(employee))
-          .clamp(0, 109)
+              officeProductivityMultiplier(employee) *
+              companyPerkProductivityMultiplier)
+          .clamp(0, 118)
           .toDouble();
 
   double officeProductivityMultiplier(Employee employee) {
-    if (employee.remote || office.id == 'remote_first') return 1;
+    if (employee.remote) {
+      return 1;
+    }
+    final cityId = employeeCityId(employee);
+    final comfort = bestOwnedOfficeComfortIn(cityId);
+    if (comfort > 0) {
+      return (1.02 + comfort / 850).clamp(1.0, 1.20).toDouble();
+    }
+    if (cityId != headquartersCityId || office.id == 'remote_first') {
+      return 1;
+    }
     final comfortBonus = office.comfortScore / 1000;
     final communicationBonus = (office.communicationEfficiency - 0.90) * 0.25;
     return (1.02 + comfortBonus + communicationBonus)
@@ -400,9 +612,10 @@ class GameState {
     } else {
       factors.add('Нет активной работы: сотрудник не создаёт вклад');
     }
-    if (!employee.remote && office.id != 'remote_first') {
+    if (!employee.remote && officeProductivityMultiplier(employee) > 1) {
+      final city = WorldEconomyCatalog.cityById(employeeCityId(employee));
       factors.add(
-        'Офис ${office.name}: ×${officeProductivityMultiplier(employee).toStringAsFixed(2)} только для on-site',
+        'Офис в ${city.cityRu}: ×${officeProductivityMultiplier(employee).toStringAsFixed(2)} только для on-site',
       );
     } else if (employee.remote) {
       factors.add('Remote: офисный бонус не применяется');
@@ -427,8 +640,15 @@ class GameState {
   int get remoteEmployeeCount =>
       employees.where((employee) => employee.remote).length;
 
+  int get totalOfficeCapacity =>
+      office.capacity +
+      ownedOffices.fold<int>(
+        0,
+        (sum, site) => sum + WorldEconomyCatalog.officeCapacity(site.size),
+      );
+
   int get availableOfficeSeats =>
-      math.max(0, office.capacity - onSiteEmployeeCount).toInt();
+      math.max(0, totalOfficeCapacity - onSiteEmployeeCount).toInt();
 
   List<ClientContract> get activeContracts => clientContracts
       .where((contract) => contract.status == ContractStatus.active)
@@ -589,12 +809,18 @@ class GameState {
     final categoryRisk = product.category == ProductCategory.cryptoWallet
         ? 0.20
         : 0.05;
-    final scaleRisk = math.min(0.18, product.users / 5000000);
+    final servesTraffic = product.stage == ProductStage.live;
+    final scaleRisk = servesTraffic
+        ? math.min(0.18, product.users / 5000000)
+        : 0.0;
+    final infrastructureRisk = servesTraffic
+        ? math.max(0, productServerLoad(product) - 0.85) * 0.20
+        : 0.0;
     final raw =
         (100 - product.securityScore) / 100 * 0.58 +
         categoryRisk +
         scaleRisk +
-        math.max(0, productServerLoad(product) - 0.85) * 0.20;
+        infrastructureRisk;
     return (raw * productIncidentMultiplier(product.id))
         .clamp(0.01, 0.95)
         .toDouble();
@@ -730,10 +956,15 @@ class GameState {
     final selectedLanguages = product.languageIds.toSet();
     var effectiveFte = 0.0;
     for (final employee in team) {
+      if (trainingForEmployee(employee.id) != null ||
+          gradeUpgradeForEmployee(employee.id) != null) {
+        continue;
+      }
       final productivity =
           employeeCoreProductivityPercent(employee) /
           100 *
           officeProductivityMultiplier(employee) *
+          companyPerkProductivityMultiplier *
           productCrunchMultiplier(productId);
       final phaseWeight = phase.criticalRoles.contains(employee.role)
           ? 1.0
@@ -760,7 +991,9 @@ class GameState {
     final productManagers = employeesForProduct(
       productId,
     ).where((employee) => employee.role == EmployeeRole.productManager);
-    if (productManagers.isEmpty) return 0;
+    if (productManagers.isEmpty) {
+      return 0;
+    }
     final bestGrade = productManagers
         .map((employee) => employee.grade)
         .reduce((left, right) => left.index >= right.index ? left : right);
@@ -1000,8 +1233,38 @@ class GameState {
 
   double productFreshnessCeiling(Product product) {
     final age = productAgeDays(product);
-    if (age <= 180) return 100;
-    return (100 - (age - 180) * 0.18).clamp(0, 100).toDouble();
+    final addedFeatures = math.max(0, product.featureIds.length - 1);
+    final addedStack = product.technologyIds.length;
+    final improvementLevels = ProductImprovementType.values.fold<int>(
+      0,
+      (sum, type) => sum + improvementLevel(product.id, type),
+    );
+    final supportedLifetimeDays =
+        (180 +
+                math.min(180, addedFeatures * 18) +
+                math.min(140, addedStack * 14) +
+                math.min(180, improvementLevels * 20))
+            .toDouble();
+    if (age <= supportedLifetimeDays) {
+      return 100;
+    }
+    return (100 - (age - supportedLifetimeDays) * 0.18)
+        .clamp(0, 100)
+        .toDouble();
+  }
+
+  double productSupportedLifetimeDays(Product product) {
+    final addedFeatures = math.max(0, product.featureIds.length - 1);
+    final addedStack = product.technologyIds.length;
+    final improvementLevels = ProductImprovementType.values.fold<int>(
+      0,
+      (sum, type) => sum + improvementLevel(product.id, type),
+    );
+    return (180 +
+            math.min(180, addedFeatures * 18) +
+            math.min(140, addedStack * 14) +
+            math.min(180, improvementLevels * 20))
+        .toDouble();
   }
 
   double productFreshnessScore(Product product) {
@@ -1040,6 +1303,53 @@ class GameState {
   int installedCount(String hardwareId) =>
       _index.installedCountByHardwareId[hardwareId] ?? 0;
 
+  double usedRackUnitsAtDataCenter(String siteId) =>
+      (_index.serversByDataCenter[siteId] ?? const <InstalledServer>[])
+          .fold<double>(0, (sum, item) {
+            final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+            return sum + hardware.rackUnits * item.count;
+          });
+
+  double usedPowerKwAtDataCenter(String siteId) =>
+      (_index.serversByDataCenter[siteId] ?? const <InstalledServer>[])
+          .fold<double>(0, (sum, item) {
+            final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+            return sum + hardware.powerKw * item.count;
+          });
+
+  double usedCoolingKwAtDataCenter(String siteId) =>
+      (_index.serversByDataCenter[siteId] ?? const <InstalledServer>[])
+          .fold<double>(0, (sum, item) {
+            final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+            return sum + hardware.heatKw * item.count;
+          });
+
+  double get ownedDataCenterRackUnits => ownedDataCenters.fold<double>(
+    0,
+    (sum, site) => sum + WorldEconomyCatalog.dataCenterRackUnits(site.size),
+  );
+
+  double get ownedDataCenterPowerKw => ownedDataCenters.fold<double>(
+    0,
+    (sum, site) => sum + WorldEconomyCatalog.dataCenterPowerKw(site),
+  );
+
+  double get ownedDataCenterCoolingKw => ownedDataCenters.fold<double>(
+    0,
+    (sum, site) => sum + WorldEconomyCatalog.dataCenterCoolingKw(site),
+  );
+
+  double get ownedDataCenterNetworkGbps => ownedDataCenters.fold<double>(
+    0,
+    (sum, site) => sum + WorldEconomyCatalog.dataCenterNetworkGbps(site),
+  );
+
+  double get effectiveRackUnits =>
+      serverRoom.rackUnits + ownedDataCenterRackUnits;
+  double get effectivePowerKw => serverRoom.powerKw + ownedDataCenterPowerKw;
+  double get effectiveCoolingKw =>
+      serverRoom.coolingKw + ownedDataCenterCoolingKw;
+
   double get usedRackUnits => installedServers.fold<double>(0, (sum, item) {
     final hardware = GameCatalog.serverHardwareById(item.hardwareId);
     return sum + hardware.rackUnits * item.count;
@@ -1054,6 +1364,75 @@ class GameState {
     final hardware = GameCatalog.serverHardwareById(item.hardwareId);
     return sum + hardware.powerKw * item.count;
   });
+
+  double preparedComputeUnitsAtDataCenter(String siteId) =>
+      (_index.serversByDataCenter[siteId] ?? const <InstalledServer>[])
+          .fold<double>(0, (sum, item) {
+            final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+            return sum + hardware.computeUnits * item.count;
+          });
+
+  Iterable<InstalledServer> _serversAtForService(
+    String siteId,
+    InfrastructureService service,
+  ) => (_index.serversByDataCenter[siteId] ?? const <InstalledServer>[]).where(
+    (item) =>
+        item.service == InfrastructureService.sharedLegacy ||
+        item.service == service,
+  );
+
+  double preparedComputeUnitsAtDataCenterForService(
+    String siteId,
+    InfrastructureService service,
+  ) => _serversAtForService(siteId, service).fold<double>(0, (sum, item) {
+    final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+    return sum + hardware.computeUnits * item.count;
+  });
+
+  double preparedMemoryGbAtDataCenterForService(
+    String siteId,
+    InfrastructureService service,
+  ) => _serversAtForService(siteId, service).fold<double>(0, (sum, item) {
+    final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+    return sum + hardware.memoryGb * item.count;
+  });
+
+  double preparedStorageGbAtDataCenterForService(
+    String siteId,
+    InfrastructureService service,
+  ) => _serversAtForService(siteId, service).fold<double>(0, (sum, item) {
+    final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+    return sum + hardware.storageGb * item.count;
+  });
+
+  double preparedNetworkGbpsAtDataCenterForService(
+    String siteId,
+    InfrastructureService service,
+  ) => _serversAtForService(siteId, service).fold<double>(0, (sum, item) {
+    final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+    return sum + hardware.networkGbps * item.count;
+  });
+
+  double preparedMemoryGbAtDataCenter(String siteId) =>
+      (_index.serversByDataCenter[siteId] ?? const <InstalledServer>[])
+          .fold<double>(0, (sum, item) {
+            final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+            return sum + hardware.memoryGb * item.count;
+          });
+
+  double preparedStorageGbAtDataCenter(String siteId) =>
+      (_index.serversByDataCenter[siteId] ?? const <InstalledServer>[])
+          .fold<double>(0, (sum, item) {
+            final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+            return sum + hardware.storageGb * item.count;
+          });
+
+  double preparedNetworkGbpsAtDataCenter(String siteId) =>
+      (_index.serversByDataCenter[siteId] ?? const <InstalledServer>[])
+          .fold<double>(0, (sum, item) {
+            final hardware = GameCatalog.serverHardwareById(item.hardwareId);
+            return sum + hardware.networkGbps * item.count;
+          });
 
   double get preparedComputeUnits =>
       installedServers.fold<double>(0, (sum, item) {
@@ -1111,7 +1490,7 @@ class GameState {
     }
     return math
         .min(
-          serverRoom.networkGbps,
+          serverRoom.networkGbps + ownedDataCenterNetworkGbps,
           installedServers.fold<double>(0, (sum, item) {
             final hardware = GameCatalog.serverHardwareById(item.hardwareId);
             return sum + hardware.networkGbps * item.count;
@@ -1139,33 +1518,116 @@ class GameState {
 
   bool get infrastructureFitsRoom =>
       !usingOwnedInfrastructure ||
-      (usedRackUnits <= serverRoom.rackUnits &&
-          usedCoolingKw <= serverRoom.coolingKw &&
-          usedPowerKw <= serverRoom.powerKw);
+      (usedRackUnits <= effectiveRackUnits &&
+          usedCoolingKw <= effectiveCoolingKw &&
+          usedPowerKw <= effectivePowerKw);
 
   double get totalAllocatedPercent => products.fold<double>(
     0,
     (sum, item) => sum + item.allocatedCapacityPercent,
   );
 
+  double _capacityAtRoute(
+    String productId,
+    InfrastructureService service,
+    double Function(String siteId, InfrastructureService service) ownedCapacity,
+    double rentedCapacity,
+  ) {
+    if (!usingOwnedInfrastructure) {
+      return rentedCapacity;
+    }
+    final route = dataCenterRouteFor(productId, service);
+    return ownedCapacity(route, service);
+  }
+
+  double _allocationShareForRoute(
+    String productId,
+    InfrastructureService service,
+  ) {
+    final product = productById(productId);
+    if (product == null) {
+      return 0;
+    }
+    if (!usingOwnedInfrastructure) {
+      final total = products.fold<double>(
+        0,
+        (sum, item) => sum + item.allocatedCapacityPercent,
+      );
+      final denominator = math.max(100, total).toDouble();
+      return (product.allocatedCapacityPercent / denominator)
+          .clamp(0, 1)
+          .toDouble();
+    }
+    final route = dataCenterRouteFor(productId, service);
+    final totalAtRoute = products.fold<double>(0, (sum, item) {
+      return dataCenterRouteFor(item.id, service) == route
+          ? sum + item.allocatedCapacityPercent
+          : sum;
+    });
+    final denominator = math.max(100, totalAtRoute).toDouble();
+    return (product.allocatedCapacityPercent / denominator)
+        .clamp(0, 1)
+        .toDouble();
+  }
+
   double allocatedComputeFor(String productId) {
     final product = productById(productId);
     if (product == null) {
       return 0;
     }
-    return totalComputeUnits * product.allocatedCapacityPercent / 100;
+    final capacity = _capacityAtRoute(
+      productId,
+      InfrastructureService.aiCompute,
+      preparedComputeUnitsAtDataCenterForService,
+      totalComputeUnits,
+    );
+    return capacity *
+        _allocationShareForRoute(productId, InfrastructureService.aiCompute);
   }
 
   double allocatedMemoryFor(String productId) {
     final product = productById(productId);
-    if (product == null) return 0;
-    return totalMemoryGb * product.allocatedCapacityPercent / 100;
+    if (product == null) {
+      return 0;
+    }
+    final capacity = _capacityAtRoute(
+      productId,
+      InfrastructureService.appApi,
+      preparedMemoryGbAtDataCenterForService,
+      totalMemoryGb,
+    );
+    return capacity *
+        _allocationShareForRoute(productId, InfrastructureService.appApi);
   }
 
   double allocatedStorageFor(String productId) {
     final product = productById(productId);
-    if (product == null) return 0;
-    return totalStorageGb * product.allocatedCapacityPercent / 100;
+    if (product == null) {
+      return 0;
+    }
+    final capacity = _capacityAtRoute(
+      productId,
+      InfrastructureService.dataStorage,
+      preparedStorageGbAtDataCenterForService,
+      totalStorageGb,
+    );
+    return capacity *
+        _allocationShareForRoute(productId, InfrastructureService.dataStorage);
+  }
+
+  double allocatedNetworkFor(String productId) {
+    final product = productById(productId);
+    if (product == null) {
+      return 0;
+    }
+    final capacity = _capacityAtRoute(
+      productId,
+      InfrastructureService.appApi,
+      preparedNetworkGbpsAtDataCenterForService,
+      totalNetworkGbps,
+    );
+    return capacity *
+        _allocationShareForRoute(productId, InfrastructureService.appApi);
   }
 
   double productComputeDemand(Product product) {
@@ -1180,52 +1642,84 @@ class GameState {
         : 0;
     return ((baseline + userDemand) *
             product.computeMultiplier *
-            productImprovementComputeMultiplier(product.id)) +
+            productImprovementComputeMultiplier(product.id) *
+            _resourceOptimizationMultiplier(product)) +
         aiProviderDemand;
   }
 
+  double _resourceOptimizationMultiplier(Product product) {
+    final performance = improvementLevel(
+      product.id,
+      ProductImprovementType.performance,
+    );
+    final algorithms = improvementLevel(
+      product.id,
+      ProductImprovementType.algorithms,
+    );
+    return (math.pow(0.93, performance) * math.pow(0.90, algorithms))
+        .clamp(0.42, 1.0)
+        .toDouble();
+  }
+
   double productMemoryDemand(Product product) {
-    if (product.stage == ProductStage.failed) return 0;
+    if (product.stage == ProductStage.failed) {
+      return 0;
+    }
     final baselineMemoryGb = product.blueprintId == 'company_website'
-        ? 0.45
-        : 2.0;
+        ? 0.75
+        : 3.0;
     final categoryMultiplier = switch (product.category) {
-      ProductCategory.aiAssistant => 2.6,
-      ProductCategory.cloud => 1.8,
-      ProductCategory.saas => 1.1,
-      ProductCategory.browser => 0.8,
-      ProductCategory.cryptoWallet => 1.2,
-      ProductCategory.developerTool => 1.4,
+      ProductCategory.aiAssistant => 4.8,
+      ProductCategory.cloud => 2.5,
+      ProductCategory.saas => 1.8,
+      ProductCategory.browser => 1.1,
+      ProductCategory.cryptoWallet => 1.5,
+      ProductCategory.developerTool => 2.0,
     };
-    return baselineMemoryGb + product.users / 1000 * 0.035 * categoryMultiplier;
+    return (baselineMemoryGb +
+            product.users / 1000 * 0.055 * categoryMultiplier) *
+        _resourceOptimizationMultiplier(product);
   }
 
   double productStorageDemand(Product product) {
-    if (product.stage == ProductStage.failed) return 0;
+    if (product.stage == ProductStage.failed) {
+      return 0;
+    }
     final perThousand = switch (product.category) {
-      ProductCategory.aiAssistant => 1.8,
-      ProductCategory.cloud => 14.0,
-      ProductCategory.saas => 2.4,
-      ProductCategory.browser => 0.6,
-      ProductCategory.cryptoWallet => 0.9,
-      ProductCategory.developerTool => 4.2,
+      ProductCategory.aiAssistant => 3.8,
+      ProductCategory.cloud => 18.0,
+      ProductCategory.saas => 4.2,
+      ProductCategory.browser => 1.1,
+      ProductCategory.cryptoWallet => 1.4,
+      ProductCategory.developerTool => 6.2,
     };
-    return 12 + product.users / 1000 * perThousand;
+    final baselineStorageGb = product.blueprintId == 'company_website'
+        ? 8.0
+        : 18.0;
+    return (baselineStorageGb + product.users / 1000 * perThousand) *
+        _resourceOptimizationMultiplier(product);
   }
 
   double productResourceLoad(Product product) {
     final allocation = product.allocatedCapacityPercent / 100;
-    if (allocation <= 0) return product.stage == ProductStage.live ? 9.99 : 0;
+    if (allocation <= 0) {
+      return product.stage == ProductStage.live ? 9.99 : 0;
+    }
     final compute =
         productComputeDemand(product) /
-        math.max(0.001, totalComputeUnits * allocation);
+        math.max(0.001, allocatedComputeFor(product.id));
     final memory =
         productMemoryDemand(product) /
-        math.max(0.001, totalMemoryGb * allocation);
+        math.max(0.001, allocatedMemoryFor(product.id));
     final storage =
         productStorageDemand(product) /
-        math.max(0.001, totalStorageGb * allocation);
-    return math.max(compute, math.max(memory, storage)).toDouble();
+        math.max(0.001, allocatedStorageFor(product.id));
+    final networkDemand = math.max(0.02, product.users / 120000).toDouble();
+    final network =
+        networkDemand / math.max(0.001, allocatedNetworkFor(product.id));
+    return math
+        .max(compute, math.max(memory, math.max(storage, network)))
+        .toDouble();
   }
 
   double productServerLoad(Product product) {
@@ -1287,6 +1781,64 @@ class GameState {
       }
     }
     return latest;
+  }
+
+  MonetizationExperienceImpact monetizationExperienceImpact(Product product) {
+    final intensity = product.monetizationIntensity.clamp(0.1, 1.0).toDouble();
+    final blueprint = GameCatalog.blueprintById(product.blueprintId);
+    final basePrice = math.max(1.0, blueprint.basePrice).toDouble();
+    final absolutePricePressure =
+        math.max(0, product.price / basePrice - 1) * 0.22;
+    final pricePressure = math
+        .max(currentPriceSentiment(product), absolutePricePressure)
+        .clamp(-0.25, 0.85)
+        .toDouble();
+    final freeTier = product.freeTierPercent.clamp(0, 0.9).toDouble();
+    final activationDelta = switch (product.monetization) {
+      MonetizationModel.free => 0.025,
+      MonetizationModel.subscription =>
+        -(0.025 + intensity * 0.055 + pricePressure * 0.16 - freeTier * 0.035),
+      MonetizationModel.usageBased =>
+        -(0.012 + intensity * 0.038 + pricePressure * 0.11 - freeTier * 0.025),
+      MonetizationModel.advertising => -(intensity * 0.030),
+      MonetizationModel.transactionFee =>
+        -(0.010 + intensity * 0.045 + pricePressure * 0.10),
+    };
+    final retentionDelta = switch (product.monetization) {
+      MonetizationModel.free => 0.012,
+      MonetizationModel.subscription =>
+        -(intensity * 0.045 + pricePressure * 0.10),
+      MonetizationModel.usageBased =>
+        -(intensity * 0.025 + pricePressure * 0.06),
+      MonetizationModel.advertising => -(intensity * 0.090),
+      MonetizationModel.transactionFee =>
+        -(intensity * 0.035 + pricePressure * 0.05),
+    };
+    final churnDelta = switch (product.monetization) {
+      MonetizationModel.free => -0.006,
+      MonetizationModel.subscription =>
+        intensity * 0.038 + pricePressure * 0.10,
+      MonetizationModel.usageBased => intensity * 0.023 + pricePressure * 0.065,
+      MonetizationModel.advertising => intensity * 0.070,
+      MonetizationModel.transactionFee =>
+        intensity * 0.032 + pricePressure * 0.055,
+    };
+    final trustDelta = switch (product.monetization) {
+      MonetizationModel.free => 0.004,
+      MonetizationModel.subscription =>
+        -(intensity * 0.012 + pricePressure * 0.025),
+      MonetizationModel.usageBased =>
+        -(intensity * 0.008 + pricePressure * 0.018),
+      MonetizationModel.advertising => -(intensity * 0.020),
+      MonetizationModel.transactionFee =>
+        -(intensity * 0.012 + pricePressure * 0.018),
+    };
+    return MonetizationExperienceImpact(
+      activationDelta: activationDelta.clamp(-0.25, 0.08).toDouble(),
+      retentionDelta: retentionDelta.clamp(-0.20, 0.05).toDouble(),
+      churnDelta: churnDelta.clamp(-0.03, 0.22).toDouble(),
+      trustDelta: trustDelta.clamp(-0.06, 0.02).toDouble(),
+    );
   }
 
   double currentPriceSentiment(Product product) {
@@ -1365,6 +1917,9 @@ class GameState {
             .clamp(0.48, 1.0)
             .toDouble();
     final founderGrowthMultiplier = companyProfile.growthEfficiencyMultiplier;
+    final marketAccessMultiplier = (headquartersCity.marketAccessScore / 76)
+        .clamp(0.82, 1.22)
+        .toDouble();
     final channelConversion = switch (channel.id) {
       'search_ads' => 0.38,
       'social_feed' => 0.12,
@@ -1385,7 +1940,8 @@ class GameState {
         maturity *
         qualityFactor *
         categoryFit *
-        founderGrowthMultiplier;
+        founderGrowthMultiplier *
+        marketAccessMultiplier;
     // Paid acquisition must be a viable growth lever, not a cosmetic channel.
     // The multiplier represents retargeting, view-through attribution and
     // referral lift that are not visible in the raw click count.
@@ -1420,15 +1976,49 @@ class GameState {
     return base * companyProfile.officeRentMultiplier;
   }
 
-  double get monthlyServerRoomCost => usingOwnedInfrastructure
-      ? serverRoom.monthlyRent * companyProfile.officeRentMultiplier
-      : 0;
+  double get monthlyServerRoomCost {
+    final headquartersFacilityMultiplier =
+        (headquartersCity.rentMultiplier + headquartersCity.utilityMultiplier) /
+        2;
+    final rented = usingOwnedInfrastructure
+        ? serverRoom.monthlyRent * headquartersFacilityMultiplier
+        : 0.0;
+    return (rented + ownedDataCenterMonthlyCost) *
+        companyProfile.officeRentMultiplier;
+  }
 
   double get monthlyOfficeCost =>
-      office.monthlyRent * companyProfile.officeRentMultiplier;
+      (office.monthlyRent * headquartersCity.rentMultiplier +
+          ownedOfficeMonthlyCost) *
+      companyProfile.officeRentMultiplier;
 
-  double get monthlyProductRevenue =>
-      products.fold<double>(0, (sum, item) => sum + item.monthlyRevenue);
+  double get regulatoryComplianceMultiplier =>
+      (1 + (58 - headquartersCity.regulationScore) / 250)
+          .clamp(0.82, 1.12)
+          .toDouble();
+
+  double get monthlyRegulatoryComplianceCost {
+    if (!companyProfile.configured) {
+      return 0;
+    }
+    final regulatedProducts = products
+        .where((item) => item.stage == ProductStage.live)
+        .length;
+    return regulatedProducts * 18000 * regulatoryComplianceMultiplier;
+  }
+
+  double get monthlyProductRevenue {
+    final base = products.fold<double>(
+      0,
+      (sum, item) => sum + item.monthlyRevenue,
+    );
+    final doctrineMultiplier = switch (ecosystemDoctrine) {
+      EcosystemDoctrine.balanced => 1.0,
+      EcosystemDoctrine.open => 0.96,
+      EcosystemDoctrine.dominant => 1.08,
+    };
+    return base * doctrineMultiplier;
+  }
 
   double get investorPayouts => investorAgreements.fold<double>(0, (sum, item) {
     final product = productById(item.productId);
@@ -1449,13 +2039,88 @@ class GameState {
         sum + OperationsCatalog.securityControlById(item.controlId).monthlyCost,
   );
 
+  double get monthlyAdvertisingSpend => advertisingCampaigns
+      .where((item) => item.status == AdvertisingCampaignStatus.active)
+      .fold<double>(0, (sum, item) => sum + item.budget);
+
+  /// Variable support, observability, third-party API and operations pressure.
+  /// A hit product is valuable, but it is not free to operate at scale.
+  double get monthlyScaleOperationsCost {
+    final raw = products
+        .where((item) => item.stage == ProductStage.live)
+        .fold<double>(0, (sum, product) {
+          final perMau = switch (product.category) {
+            ProductCategory.aiAssistant => 16.0,
+            ProductCategory.cloud => 8.5,
+            ProductCategory.saas => 3.6,
+            ProductCategory.browser => 0.75,
+            ProductCategory.cryptoWallet => 2.8,
+            ProductCategory.developerTool => 4.4,
+          };
+          final maturityPressure =
+              (1 + math.max(0, product.mau - 500000) / 5000000)
+                  .clamp(1.0, 1.35)
+                  .toDouble();
+          return sum + product.mau * perMau * maturityPressure;
+        });
+    return raw * (worldProjectCompleted('planet_compute') ? 0.78 : 1.0);
+  }
+
+  double get monthlyCompanyPerkCost => enabledCompanyPerkIds.fold<double>(
+    0,
+    (sum, id) => sum + V17EndgameCatalog.perkById(id).monthlyCost,
+  );
+
+  int get companyPerkLoyaltyBonus => enabledCompanyPerkIds.fold<int>(
+    0,
+    (sum, id) => sum + V17EndgameCatalog.perkById(id).loyaltyBonus,
+  );
+
+  int get companyPerkMoraleBonus => enabledCompanyPerkIds.fold<int>(
+    0,
+    (sum, id) => sum + V17EndgameCatalog.perkById(id).moraleBonus,
+  );
+
+  double get monthlyWorldProjectOperatingCost => worldProjects.fold<double>(
+    0,
+    (sum, progress) => worldProjectBaseCompleted(progress.projectId)
+        ? sum +
+              V17EndgameCatalog.worldProjectById(
+                progress.projectId,
+              ).monthlyOperatingCost
+        : sum,
+  );
+
+  double get brandDemandMultiplier {
+    final doctrine = switch (ecosystemDoctrine) {
+      EcosystemDoctrine.balanced => 0.0,
+      EcosystemDoctrine.open => 0.07,
+      EcosystemDoctrine.dominant => -0.035,
+    };
+    final worldBonus =
+        (worldProjectCompleted('world_os') ? 0.06 : 0.0) +
+        (worldProjectCompleted('free_ai') ? 0.08 : 0.0);
+    return (0.86 +
+            brandReputation.clamp(0, 100) / 250 +
+            math.min(0.12, math.log(companyFans + 1) / 120) +
+            doctrine +
+            worldBonus)
+        .clamp(0.82, 1.48)
+        .toDouble();
+  }
+
   double get monthlyCosts =>
       monthlyPayroll +
+      monthlyCompanyPerkCost +
+      monthlyWorldProjectOperatingCost +
       monthlyOfficeCost +
       monthlyServerRoomCost +
       monthlyHardwareCost +
       monthlySecurityCost +
+      monthlyRegulatoryComplianceCost +
       monthlyCorporateAiCost +
+      monthlyAdvertisingSpend +
+      monthlyScaleOperationsCost +
       products.fold<double>(
         0,
         (sum, item) =>
@@ -1486,18 +2151,25 @@ class GameState {
     );
     final ecosystem = ecosystemLinks.length * 180000;
     final profitPremium = math.max(0, monthlyProfit) * 18;
+    final brandValue = companyFans * 24 + brandReputation * 2500000;
+    final researchValue = completedResearchKeys.length * 1800000;
     return math
         .max(
           500000,
-          recurring + usersValue + technology + ecosystem + profitPremium,
+          recurring +
+              usersValue +
+              technology +
+              ecosystem +
+              profitPremium +
+              brandValue +
+              researchValue,
         )
         .toDouble();
   }
 
   double get founderPortfolioValue => valuation * founderOwnershipPercent / 100;
 
-  int get requiredReleasedBlueprintsForLegacy =>
-      (GameCatalog.productBlueprints.length * 0.70).ceil();
+  int get requiredReleasedBlueprintsForLegacy => 0;
 
   int get releasedBlueprintCount {
     final catalogIds = GameCatalog.productBlueprints
@@ -1515,14 +2187,8 @@ class GameState {
         .length;
   }
 
-  double get legacyProductProgress =>
-      (releasedBlueprintCount /
-              math.max(1, requiredReleasedBlueprintsForLegacy))
-          .clamp(0, 1)
-          .toDouble();
-
-  bool get legacyProductRequirementMet =>
-      releasedBlueprintCount >= requiredReleasedBlueprintsForLegacy;
+  double get legacyProductProgress => worldProjectCompletionProgress;
+  bool get legacyProductRequirementMet => founderLegacyCompleted;
 
   bool marketCompanyFullyAcquired(String companyId) =>
       fullyAcquiredCompanyIds.contains(companyId);
@@ -1535,8 +2201,165 @@ class GameState {
       .max(0, GameCatalog.marketCompanies.length - acquiredRivalCount)
       .toInt();
 
+  WorldProjectProgress? worldProjectProgressFor(String projectId) {
+    for (final item in worldProjects) {
+      if (item.projectId == projectId) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  bool worldProjectBaseCompleted(String projectId) {
+    final progress = worldProjectProgressFor(projectId);
+    final definition = V17EndgameCatalog.worldProjectById(projectId);
+    return progress != null &&
+        progress.completedPhases >= definition.phaseCosts.length;
+  }
+
+  bool worldProjectCompleted(String projectId) {
+    final progress = worldProjectProgressFor(projectId);
+    final definition = V17EndgameCatalog.worldProjectById(projectId);
+    return worldProjectBaseCompleted(projectId) &&
+        progress != null &&
+        progress.completedUpgradeIds.length >= definition.requiredUpgradeCount;
+  }
+
+  double get worldProjectCompletionProgress {
+    var sum = 0.0;
+    for (final definition in V17EndgameCatalog.worldProjects) {
+      final progress = worldProjectProgressFor(definition.id);
+      if (progress == null) {
+        continue;
+      }
+      final phaseProgress =
+          progress.completedPhases / math.max(1, definition.phaseCosts.length);
+      final upgradeProgress =
+          progress.completedUpgradeIds.length /
+          math.max(1, definition.requiredUpgradeCount);
+      sum += (phaseProgress * 0.72 + math.min(1, upgradeProgress) * 0.28).clamp(
+        0,
+        1,
+      );
+    }
+    return (sum / V17EndgameCatalog.worldProjects.length)
+        .clamp(0, 1)
+        .toDouble();
+  }
+
   bool get founderLegacyCompleted =>
-      !gameOver && legacyProductRequirementMet && remainingRivalCount == 0;
+      !gameOver &&
+      V17EndgameCatalog.worldProjects.every(
+        (item) => worldProjectCompleted(item.id),
+      );
+
+  int get unreadCompanyNotificationCount =>
+      companyNotifications.where((item) => !item.read).length;
+
+  CompanyResearchProject? activeResearchFor(String key) {
+    for (final item in activeResearchProjects) {
+      if (item.key == key) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  String researchKey(ResearchTargetKind kind, String targetId) =>
+      '${kind.name}:$targetId';
+
+  bool researchCompleted(ResearchTargetKind kind, String targetId) =>
+      completedResearchKeys.contains(researchKey(kind, targetId));
+
+  double researchCost(ResearchTargetKind kind, String targetId) {
+    return switch (kind) {
+      ResearchTargetKind.feature => math.max(
+        120000,
+        GameCatalog.featureById(targetId).developmentCost * 0.65,
+      ),
+      ResearchTargetKind.technology => math.max(
+        220000,
+        GameCatalog.technologyById(targetId).developmentCost * 0.80,
+      ),
+    }.toDouble();
+  }
+
+  int researchDays(ResearchTargetKind kind, String targetId) {
+    final cost = researchCost(kind, targetId);
+    final scale = (math.log(cost / 100000 + 1) / math.ln2).round();
+    return (kind == ResearchTargetKind.feature ? 3 + scale : 5 + scale)
+        .clamp(3, 24)
+        .toInt();
+  }
+
+  PendingEmployeeDeparture? pendingDepartureFor(String employeeId) {
+    for (final item in pendingEmployeeDepartures) {
+      if (item.employeeId == employeeId) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  LegendMarketOffer? legendOfferFor(String legendId) {
+    for (final item in legendMarketOffers) {
+      if (item.legendId == legendId) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  HiredLegendBonus? legendBonusForProduct(String productId) {
+    for (final item in hiredLegendBonuses) {
+      if (item.productId == productId &&
+          employeeById(item.employeeId) != null) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  double legendProductMetricBonus(
+    String productId,
+    LegendProductBonusKind kind,
+  ) {
+    return hiredLegendBonuses
+        .where(
+          (item) =>
+              item.productId == productId &&
+              item.bonusKind == kind &&
+              employeeById(item.employeeId) != null,
+        )
+        .fold<double>(0, (sum, _) => sum + 1);
+  }
+
+  bool hasLegendRequirement(String legendId) {
+    final legend = V17EndgameCatalog.legendById(legendId);
+    if (releasedBlueprintCount < legend.requiredReleasedProducts ||
+        valuation < legend.requiredValuation) {
+      return false;
+    }
+    if (legend.requiredOfficeQuality == null) {
+      return true;
+    }
+    return ownedOffices.any((office) {
+      if (legend.requiredOfficeCityId.isNotEmpty &&
+          office.cityId != legend.requiredOfficeCityId) {
+        return false;
+      }
+      return office.fitoutQuality.index >=
+              legend.requiredOfficeQuality!.index &&
+          office.equipmentQuality.index >= legend.requiredOfficeQuality!.index;
+    });
+  }
+
+  double get companyLegacyScore =>
+      brandReputation * 12 +
+      math.log(companyFans + 1) * 90 +
+      completedResearchKeys.length * 8 +
+      philanthropySpent / 10000000 +
+      worldProjectCompletionProgress * 2000;
 
   List<ProductMetricPoint> metricHistoryFor(String productId) =>
       _index.metricHistoryByProduct[productId] ?? const <ProductMetricPoint>[];
@@ -1627,7 +2450,9 @@ class GameState {
 
   double ecosystemBoostFor(String productId) {
     final source = productById(productId);
-    if (source == null) return 0;
+    if (source == null) {
+      return 0;
+    }
     var boost = 0.0;
     for (final link in ecosystemLinks) {
       if (!link.contains(productId) ||
@@ -1635,7 +2460,9 @@ class GameState {
         continue;
       }
       final other = productById(link.other(productId));
-      if (other == null) continue;
+      if (other == null) {
+        continue;
+      }
       boost += V9ContentCatalog.integrationFor(
         source.category.name,
         other.category.name,
@@ -1651,6 +2478,32 @@ class GameState {
     bool? paused,
     double? cash,
     FounderCompanyProfile? companyProfile,
+    String? headquartersCityId,
+    List<OwnedOfficeSite>? ownedOffices,
+    List<OwnedDataCenterSite>? ownedDataCenters,
+    List<EmployeeTrainingAssignment>? employeeTrainings,
+    List<EmployeeGradeUpgrade>? employeeGradeUpgrades,
+    List<EmployeeRelocationAssignment>? employeeRelocations,
+    List<ProductServiceRoute>? productServiceRoutes,
+    List<CompanyResearchProject>? activeResearchProjects,
+    List<String>? completedResearchKeys,
+    List<String>? enabledCompanyPerkIds,
+    List<LegendMarketOffer>? legendMarketOffers,
+    List<HiredLegendBonus>? hiredLegendBonuses,
+    List<PendingEmployeeDeparture>? pendingEmployeeDepartures,
+    int? companyFans,
+    double? brandReputation,
+    List<IndustryEventOpportunity>? industryEventOpportunities,
+    List<BookedIndustryEvent>? bookedIndustryEvents,
+    List<CompanyNotification>? companyNotifications,
+    List<WorldProjectProgress>? worldProjects,
+    EcosystemDoctrine? ecosystemDoctrine,
+    double? philanthropySpent,
+    PostGamePath? postGamePath,
+    List<AnnualTaxRecord>? taxRecords,
+    double? taxYearRevenueAccrued,
+    double? taxYearExpensesAccrued,
+    double? taxYearPayrollAccrued,
     List<Product>? products,
     List<Candidate>? candidates,
     List<Employee>? employees,
@@ -1706,6 +2559,69 @@ class GameState {
       paused: paused ?? this.paused,
       cash: cash ?? this.cash,
       companyProfile: companyProfile ?? this.companyProfile,
+      headquartersCityId: headquartersCityId ?? this.headquartersCityId,
+      ownedOffices: List<OwnedOfficeSite>.unmodifiable(
+        ownedOffices ?? this.ownedOffices,
+      ),
+      ownedDataCenters: List<OwnedDataCenterSite>.unmodifiable(
+        ownedDataCenters ?? this.ownedDataCenters,
+      ),
+      employeeTrainings: List<EmployeeTrainingAssignment>.unmodifiable(
+        employeeTrainings ?? this.employeeTrainings,
+      ),
+      employeeGradeUpgrades: List<EmployeeGradeUpgrade>.unmodifiable(
+        employeeGradeUpgrades ?? this.employeeGradeUpgrades,
+      ),
+      employeeRelocations: List<EmployeeRelocationAssignment>.unmodifiable(
+        employeeRelocations ?? this.employeeRelocations,
+      ),
+      productServiceRoutes: List<ProductServiceRoute>.unmodifiable(
+        productServiceRoutes ?? this.productServiceRoutes,
+      ),
+      activeResearchProjects: List<CompanyResearchProject>.unmodifiable(
+        activeResearchProjects ?? this.activeResearchProjects,
+      ),
+      completedResearchKeys: List<String>.unmodifiable(
+        completedResearchKeys ?? this.completedResearchKeys,
+      ),
+      enabledCompanyPerkIds: List<String>.unmodifiable(
+        enabledCompanyPerkIds ?? this.enabledCompanyPerkIds,
+      ),
+      legendMarketOffers: List<LegendMarketOffer>.unmodifiable(
+        legendMarketOffers ?? this.legendMarketOffers,
+      ),
+      hiredLegendBonuses: List<HiredLegendBonus>.unmodifiable(
+        hiredLegendBonuses ?? this.hiredLegendBonuses,
+      ),
+      pendingEmployeeDepartures: List<PendingEmployeeDeparture>.unmodifiable(
+        pendingEmployeeDepartures ?? this.pendingEmployeeDepartures,
+      ),
+      companyFans: companyFans ?? this.companyFans,
+      brandReputation: brandReputation ?? this.brandReputation,
+      industryEventOpportunities: List<IndustryEventOpportunity>.unmodifiable(
+        industryEventOpportunities ?? this.industryEventOpportunities,
+      ),
+      bookedIndustryEvents: List<BookedIndustryEvent>.unmodifiable(
+        bookedIndustryEvents ?? this.bookedIndustryEvents,
+      ),
+      companyNotifications: List<CompanyNotification>.unmodifiable(
+        companyNotifications ?? this.companyNotifications,
+      ),
+      worldProjects: List<WorldProjectProgress>.unmodifiable(
+        worldProjects ?? this.worldProjects,
+      ),
+      ecosystemDoctrine: ecosystemDoctrine ?? this.ecosystemDoctrine,
+      philanthropySpent: philanthropySpent ?? this.philanthropySpent,
+      postGamePath: postGamePath ?? this.postGamePath,
+      taxRecords: List<AnnualTaxRecord>.unmodifiable(
+        taxRecords ?? this.taxRecords,
+      ),
+      taxYearRevenueAccrued:
+          taxYearRevenueAccrued ?? this.taxYearRevenueAccrued,
+      taxYearExpensesAccrued:
+          taxYearExpensesAccrued ?? this.taxYearExpensesAccrued,
+      taxYearPayrollAccrued:
+          taxYearPayrollAccrued ?? this.taxYearPayrollAccrued,
       products: List<Product>.unmodifiable(products ?? this.products),
       candidates: List<Candidate>.unmodifiable(candidates ?? this.candidates),
       employees: List<Employee>.unmodifiable(employees ?? this.employees),
@@ -1815,6 +2731,54 @@ class GameState {
     'paused': paused,
     'cash': cash,
     'companyProfile': companyProfile.toJson(),
+    'headquartersCityId': headquartersCityId,
+    'ownedOffices': ownedOffices.map((item) => item.toJson()).toList(),
+    'ownedDataCenters': ownedDataCenters.map((item) => item.toJson()).toList(),
+    'employeeTrainings': employeeTrainings
+        .map((item) => item.toJson())
+        .toList(),
+    'employeeGradeUpgrades': employeeGradeUpgrades
+        .map((item) => item.toJson())
+        .toList(),
+    'employeeRelocations': employeeRelocations
+        .map((item) => item.toJson())
+        .toList(),
+    'productServiceRoutes': productServiceRoutes
+        .map((item) => item.toJson())
+        .toList(),
+    'activeResearchProjects': activeResearchProjects
+        .map((item) => item.toJson())
+        .toList(),
+    'completedResearchKeys': completedResearchKeys,
+    'enabledCompanyPerkIds': enabledCompanyPerkIds,
+    'legendMarketOffers': legendMarketOffers
+        .map((item) => item.toJson())
+        .toList(),
+    'hiredLegendBonuses': hiredLegendBonuses
+        .map((item) => item.toJson())
+        .toList(),
+    'pendingEmployeeDepartures': pendingEmployeeDepartures
+        .map((item) => item.toJson())
+        .toList(),
+    'companyFans': companyFans,
+    'brandReputation': brandReputation,
+    'industryEventOpportunities': industryEventOpportunities
+        .map((item) => item.toJson())
+        .toList(),
+    'bookedIndustryEvents': bookedIndustryEvents
+        .map((item) => item.toJson())
+        .toList(),
+    'companyNotifications': companyNotifications
+        .map((item) => item.toJson())
+        .toList(),
+    'worldProjects': worldProjects.map((item) => item.toJson()).toList(),
+    'ecosystemDoctrine': ecosystemDoctrine.name,
+    'philanthropySpent': philanthropySpent,
+    'postGamePath': postGamePath.name,
+    'taxRecords': taxRecords.map((item) => item.toJson()).toList(),
+    'taxYearRevenueAccrued': taxYearRevenueAccrued,
+    'taxYearExpensesAccrued': taxYearExpensesAccrued,
+    'taxYearPayrollAccrued': taxYearPayrollAccrued,
     'products': products.map((item) => item.toJson()).toList(),
     'candidates': candidates.map((item) => item.toJson()).toList(),
     'employees': employees.map((item) => item.toJson()).toList(),
@@ -1914,6 +2878,84 @@ class GameState {
               (json['companyProfile']! as Map).cast<String, Object?>(),
             )
           : FounderCompanyProfile.legacy(),
+      headquartersCityId: json['headquartersCityId'] as String? ?? 'moscow',
+      ownedOffices: _decodeList(json['ownedOffices'], OwnedOfficeSite.fromJson),
+      ownedDataCenters: _decodeList(
+        json['ownedDataCenters'],
+        OwnedDataCenterSite.fromJson,
+      ),
+      employeeTrainings: _decodeList(
+        json['employeeTrainings'],
+        EmployeeTrainingAssignment.fromJson,
+      ),
+      employeeGradeUpgrades: _decodeList(
+        json['employeeGradeUpgrades'],
+        EmployeeGradeUpgrade.fromJson,
+      ),
+      employeeRelocations: _decodeList(
+        json['employeeRelocations'],
+        EmployeeRelocationAssignment.fromJson,
+      ),
+      productServiceRoutes: _decodeList(
+        json['productServiceRoutes'],
+        ProductServiceRoute.fromJson,
+      ),
+      activeResearchProjects: _decodeList(
+        json['activeResearchProjects'],
+        CompanyResearchProject.fromJson,
+      ),
+      completedResearchKeys:
+          (json['completedResearchKeys'] as List?)?.cast<String>() ??
+          const <String>[],
+      enabledCompanyPerkIds:
+          (json['enabledCompanyPerkIds'] as List?)?.cast<String>() ??
+          const <String>[],
+      legendMarketOffers: _decodeList(
+        json['legendMarketOffers'],
+        LegendMarketOffer.fromJson,
+      ),
+      hiredLegendBonuses: _decodeList(
+        json['hiredLegendBonuses'],
+        HiredLegendBonus.fromJson,
+      ),
+      pendingEmployeeDepartures: _decodeList(
+        json['pendingEmployeeDepartures'],
+        PendingEmployeeDeparture.fromJson,
+      ),
+      companyFans: (json['companyFans'] as num?)?.toInt() ?? 0,
+      brandReputation: (json['brandReputation'] as num?)?.toDouble() ?? 10,
+      industryEventOpportunities: _decodeList(
+        json['industryEventOpportunities'],
+        IndustryEventOpportunity.fromJson,
+      ),
+      bookedIndustryEvents: _decodeList(
+        json['bookedIndustryEvents'],
+        BookedIndustryEvent.fromJson,
+      ),
+      companyNotifications: _decodeList(
+        json['companyNotifications'],
+        CompanyNotification.fromJson,
+      ),
+      worldProjects: _decodeList(
+        json['worldProjects'],
+        WorldProjectProgress.fromJson,
+      ),
+      ecosystemDoctrine: EcosystemDoctrine.values.firstWhere(
+        (item) => item.name == json['ecosystemDoctrine'],
+        orElse: () => EcosystemDoctrine.balanced,
+      ),
+      philanthropySpent: (json['philanthropySpent'] as num?)?.toDouble() ?? 0,
+      postGamePath: PostGamePath.values.firstWhere(
+        (item) => item.name == json['postGamePath'],
+        orElse: () => PostGamePath.none,
+      ),
+      taxRecords: _decodeList(json['taxRecords'], AnnualTaxRecord.fromJson),
+      taxYearRevenueAccrued:
+          (json['taxYearRevenueAccrued'] as num?)?.toDouble() ?? 0,
+      taxYearExpensesAccrued:
+          (json['taxYearExpensesAccrued'] as num?)?.toDouble() ?? 0,
+      taxYearPayrollAccrued:
+          (json['taxYearPayrollAccrued'] as num?)?.toDouble() ?? 0,
       products: _decodeList(json['products'], Product.fromJson),
       candidates: _decodeList(json['candidates'], Candidate.fromJson),
       employees: _decodeList(json['employees'], Employee.fromJson),
@@ -2077,6 +3119,21 @@ class GameState {
         );
       }
     }
+    if (version <= 14) {
+      migrated = migrated.copyWith(
+        advertisingCampaigns: migrated.advertisingCampaigns
+            .map((campaign) {
+              if (campaign.status == AdvertisingCampaignStatus.active &&
+                  campaign.endsAtMinutes >= 0) {
+                return campaign.copyWith(
+                  status: AdvertisingCampaignStatus.stopped,
+                );
+              }
+              return campaign;
+            })
+            .toList(growable: false),
+      );
+    }
     if (version < currentSnapshotVersion && migrated.productUpdates.isEmpty) {
       return migrated.copyWith(
         productUpdates: migrated.products
@@ -2127,7 +3184,9 @@ class GameState {
     Map<String, Object?> json,
   ) {
     final stored = json['fullyAcquiredCompanyIds'];
-    if (stored is List) return stored.cast<String>();
+    if (stored is List) {
+      return stored.cast<String>();
+    }
 
     // Older v12 saves represented a full company acquisition only by the
     // retained acquisition team. Promote that stable marker once on decode.

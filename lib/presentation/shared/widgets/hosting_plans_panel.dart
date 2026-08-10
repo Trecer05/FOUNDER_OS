@@ -41,59 +41,44 @@ class HostingPlansPanel extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            AppText(
-                              plan.name,
-                              translate: false,
-                              style: Theme.of(context).textTheme.titleMedium,
+                  AppText(
+                    plan.name,
+                    translate: false,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 2),
+                  AppText(
+                    plan.provider,
+                    translate: false,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 2),
+                  AppText(
+                    owned ? 'CAPEX' : '${money(plan.monthlyCost)}/мес.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: current
+                        ? const Chip(label: AppText('Текущий'))
+                        : owned
+                        ? const Chip(
+                            avatar: Icon(Icons.pie_chart_outline, size: 18),
+                            label: AppText('Миграция в «Мощностях»'),
+                          )
+                        : SizedBox(
+                            width: double.infinity,
+                            child: FilledButton(
+                              key: Key('select-hosting-${plan.id}'),
+                              onPressed: reasons.isEmpty
+                                  ? () => controller.dispatch(
+                                      RentHostingPlan(plan.id),
+                                    )
+                                  : null,
+                              child: const AppText('Арендовать'),
                             ),
-                            const SizedBox(height: 2),
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: AppText(
-                                    plan.provider,
-                                    translate: false,
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
-                                  ),
-                                ),
-                                AppText(
-                                  ' • ${owned ? 'CAPEX' : '${money(plan.monthlyCost)}/мес.'}',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (current)
-                        const Chip(label: AppText('Текущий'))
-                      else if (owned)
-                        const Chip(
-                          avatar: Icon(Icons.pie_chart_outline, size: 18),
-                          label: AppText('Миграция в «Мощностях»'),
-                        )
-                      else
-                        FilledButton(
-                          key: Key('select-hosting-${plan.id}'),
-                          onPressed: reasons.isEmpty
-                              ? () => controller.dispatch(
-                                  RentHostingPlan(plan.id),
-                                )
-                              : null,
-                          child: const AppText('Арендовать'),
-                        ),
-                    ],
+                          ),
                   ),
                   const SizedBox(height: 8),
                   AppText(plan.description),

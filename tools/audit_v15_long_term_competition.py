@@ -34,7 +34,7 @@ def require_ordered(relative: str, needles: tuple[str, ...], label: str) -> None
 
 
 checks = (
-    ("lib/domain/entities/game_state.dart", "currentSnapshotVersion = 13", "snapshot v13"),
+    ("lib/domain/entities/game_state.dart", "currentSnapshotVersion = 14", "snapshot v14 compatibility"),
     ("lib/domain/simulation/engine/game_engine.dart", "next.productIncidentMultiplier(target.id) /\n                3", "player attacks divided by three"),
     ("lib/domain/simulation/engine/game_engine.dart", "rivalCyberRoll < 0.035", "rival cyber incidents"),
     ("lib/persistence/storage/snapshot_store.dart", "BankruptcyRecoveryStore", "weekly recovery contract"),

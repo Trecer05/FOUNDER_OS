@@ -5,6 +5,7 @@ import '../../../application/controllers/game_controller.dart';
 import '../../../application/settings/display_preferences.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/v12_models.dart';
+import '../../../domain/catalog/world_economy_catalog.dart';
 import '../../shared/widgets/company_logo.dart';
 
 Future<void> showCompanySetup(
@@ -38,6 +39,7 @@ class _CompanySetupDialogState extends State<_CompanySetupDialog> {
   );
   FounderBackground _background = FounderBackground.engineer;
   String _logoId = 'company_logo_01';
+  String _headquartersCityId = 'moscow';
   double _budget = 450000;
   final Map<FounderSkill, int> _skills = <FounderSkill, int>{
     FounderSkill.engineering: 4,
@@ -136,6 +138,79 @@ class _CompanySetupDialogState extends State<_CompanySetupDialog> {
                   'The budget is a starting setup choice, not free money after the game begins.',
                 ),
                 style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 20),
+              _SectionTitle(_t('Где открыть компанию', 'Company headquarters')),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                key: const Key('company-headquarters-city'),
+                initialValue: _headquartersCityId,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: _t('Город и страна', 'City and country'),
+                  helperText: _t(
+                    'HQ определяет налоги и базовую стоимость найма. Позже можно строить офисы и ЦОД в других городах.',
+                    'HQ determines taxes and baseline hiring costs. Later you can build offices and data centers in other cities.',
+                  ),
+                ),
+                items: WorldEconomyCatalog.cities
+                    .map(
+                      (city) => DropdownMenuItem<String>(
+                        value: city.id,
+                        child: Text(
+                          DisplayPreferences.instance.isEnglish
+                              ? '${city.cityEn}, ${city.countryEn}'
+                              : '${city.cityRu}, ${city.countryRu}',
+                        ),
+                      ),
+                    )
+                    .toList(growable: false),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _headquartersCityId = value);
+                  }
+                },
+              ),
+              const SizedBox(height: 10),
+              Builder(
+                builder: (context) {
+                  final city = WorldEconomyCatalog.cityById(
+                    _headquartersCityId,
+                  );
+                  return Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _t('Стратегический профиль', 'Strategic profile'),
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _t(
+                              'Налог на прибыль ${(city.corporateTaxRate * 100).toStringAsFixed(1)}% • payroll tax ${(city.payrollTaxRate * 100).toStringAsFixed(1)}%',
+                              'Profit tax ${(city.corporateTaxRate * 100).toStringAsFixed(1)}% • payroll tax ${(city.payrollTaxRate * 100).toStringAsFixed(1)}%',
+                            ),
+                          ),
+                          Text(
+                            _t(
+                              'Зарплаты ×${city.salaryMultiplier.toStringAsFixed(2)} • аренда ×${city.rentMultiplier.toStringAsFixed(2)} • коммунальные ×${city.utilityMultiplier.toStringAsFixed(2)}',
+                              'Salaries ×${city.salaryMultiplier.toStringAsFixed(2)} • rent ×${city.rentMultiplier.toStringAsFixed(2)} • utilities ×${city.utilityMultiplier.toStringAsFixed(2)}',
+                            ),
+                          ),
+                          Text(
+                            _t(
+                              'Таланты ${city.talentScore}/100 • инвесторы ${city.investorScore}/100 • рынок ${city.marketAccessScore}/100 • регулирование ${city.regulationScore}/100 • сеть ${city.networkScore}/100',
+                              'Talent ${city.talentScore}/100 • investors ${city.investorScore}/100 • market ${city.marketAccessScore}/100 • regulation ${city.regulationScore}/100 • network ${city.networkScore}/100',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 20),
               _SectionTitle(_t('Логотип', 'Logo')),
@@ -346,6 +421,7 @@ class _CompanySetupDialogState extends State<_CompanySetupDialog> {
         startingBudget: profile.startingBudget,
         background: profile.background,
         skills: profile.skills,
+        headquartersCityId: _headquartersCityId,
       ),
       playSound: false,
     );

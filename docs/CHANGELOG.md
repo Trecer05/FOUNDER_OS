@@ -1,4 +1,55 @@
+## V17 R14 — transactional M&A cleanup hotfix
+
+- Added explicit idempotent `delete_once()` and fixed `replace_once()` so empty replacements can never falsely report `already applied`.
+- This makes the R13 analyzer cleanup actually remove obsolete `finalAcquisitionLocked` state and its unreachable warning from Market UI.
+- No gameplay/economy changes versus R13.
+
+## V17 R13 — analyzer cleanup
+
+- Fixed two `curly_braces_in_flow_control_structures` findings in legend requirement/hiring logic without changing behavior.
+- Removed obsolete `finalAcquisitionLocked` state and unreachable warning from Market UI; M&A remains independent from campaign victory.
+- R12 user-Mac verification reached `flutter analyze` after all focused regressions, migrations and V14 compatibility passed.
+
+## V17 R12 — bootstrap hosting compatibility
+
+- Restored the first `company_website` bootstrap footprint to 0.75 GB RAM and 8 GB storage baseline so `shared_launch` remains a viable first host.
+- Kept V17 scale pressure intact: a 100k-user website still consumes >5 GB RAM and >100 GB storage.
+- Added a focused regression for `productServerLoad <= 1.35` on the first basic website.
+- This also prevents server-overload critical events from masking the existing mostly-repaid-loan grace flow.
+
+## V17 R11 — self-contained narrow infrastructure selector
+- Narrow Infrastructure `ChoiceChip` navigation now owns a transparent `Material` ancestor, so it renders safely even when `InfrastructureScreen` is embedded without its own Scaffold/Material.
+- This closes the R10 widget crash `No Material widget found` for all five `infra-tab-*` controls.
+- Desktop navigation and all V17 gameplay/economy behavior are unchanged.
+
+## V17 R10 — navigation stability on narrow iPhone
+- Infrastructure tab selector is fully visible below 620px using wrapping ChoiceChips; `Серверные`, `Серверы` and `Мощности` no longer sit outside the viewport.
+- Product Workspace section controls now expose stable keys; rapid-switch regression targets actual controls instead of a mismatched text label.
+- Existing V17 gameplay/economy contracts are unchanged.
+
+## V17 R9 — UI stability: legacy monetization + narrow hosting
+- Dropdown монетизации в Workspace и Product Detail устойчив к legacy/аномальному save, где текущая модель больше не входит в стратегию: текущая + разрешённые модели дедуплицируются через Set.
+- Hosting plan cards больше не используют конфликтующие горизонтальные Rows на узком iPhone; provider/cost/action уложены вертикально.
+- Добавлен Product Detail regression; старые narrow/runtime regressions не ослаблены.
+
+
+## V17 R8 — Product Pressure widget compile hotfix
+- Добавлен отсутствующий import `operations_models.dart` в V17 Product Pressure widget regression, чтобы extension `Employee.managedCopyWith` был доступен. Production-код не менялся.
 # CHANGELOG
+
+## v16 — Global company, people development and tax economy
+
+- Added 12 strategic HQ locations with visible salary, tax, construction, utilities, talent, investor, market and network trade-offs; these are gameplay balance values, not legal or tax reference data.
+- Added multiple owned offices with size, fit-out and equipment quality; office capacity and productivity are city-specific.
+- Added multiple owned data centers with size, facility/equipment quality and site-specific rack, power, cooling and network limits.
+- Servers now belong to a concrete rented room or owned data-center site.
+- Added 365-day corporate-profit and payroll-tax settlement with a visible accrued reserve; HQ rent/utilities and regulatory OPEX now follow the selected gameplay location.
+- Reworked employee development: 2–3 day courses, bulk selection/training, work-earned skill and automatic grade progression.
+- Simplified explicit employee upgrades to one target-grade choice with calculated duration/cost.
+- Added one-click bulk bug fixing as real queued technical work.
+- Expanded onboarding/tutorial and product monetization guidance.
+- Added immutable indexes for training, grade plans, server sites, competitor rankings and city capacity/occupancy/comfort to reduce repeated UI/simulation work.
+- Snapshot schema advanced to v14 with controlled V15/v13 defaults.
 
 ## v15 — Long-term competition and recovery
 
@@ -211,3 +262,146 @@ Added floating time controls, hosting plans, owned migration, dynamic stack sele
 - severe infrastructure load still triggers the 135% critical event, but the market-quality penalty is capped at that boundary so product quality is not inverted by an already-fatal overload value;
 - the larger weekday/date/time display is rendered as one rich undecorated text block and no longer breaks the v10 global-bar UX regression;
 - added a focused compatibility suite covering the four failures that first appeared when R3 reached the complete Flutter test suite.
+
+## V16 — Global company, people development, taxes and performance
+- Курсы сотрудников теперь занимают 2–3 игровых дня; сотрудник временно выпадает из активной разработки.
+- Skill растёт от реальной работы над продуктами, а грейд автоматически следует за накопленным навыком.
+- Добавлены массовый выбор сотрудников, «выбрать всех», групповые курсы и простой план повышения до выбранного грейда.
+- Добавлена география компании: HQ выбирается при старте, а собственные офисы и ЦОД можно строить в нескольких городах мира.
+- Город влияет на налоги, зарплаты, строительство, содержание, talent pool, инвесторов, market access, regulation и network.
+- Добавлены собственные офисы/ЦОД с размером, качеством помещения/ремонта и оборудования; серверы устанавливаются на конкретную площадку.
+- Добавлены ежегодный profit tax и payroll tax с отдельным накоплением и видимым резервом в финансах.
+- Добавлено пакетное исправление всех открытых багов продукта одной технической задачей.
+- Расширено обучение по монетизации: Free, Subscription, Usage based, Advertising и Transaction fee объясняются через бизнес-модель и риски.
+- Добавлены immutable-state индексы для обучения, грейдов, серверных площадок и таблиц конкурентов, чтобы снизить повторные вычисления на UI rebuild.
+- Snapshot schema поднята до v14 с обратной миграцией старых сохранений.
+
+## V16 R2 — widget compile hotfix
+
+- Добавлен явный import `models.dart` в Infrastructure для `ServerHardwareOption`.
+- Добавлен import `v12_game_state_extensions.dart` в Team для `founderSalaryMultiplier`.
+- V16 static audit закрепляет оба compile-контракта.
+
+
+## V16 R3 — Team widget fixture hotfix
+
+- Новый V16 Team widget regression теперь поднимает `TeamScreen` внутри `Scaffold`, как в реальном приложении, чтобы `TextField` имел Material ancestor.
+- Проверка bulk development controls прокручивает `team-screen-list` до lazy-child вместо зависимости от искусственной высоты test viewport.
+- Production Team/engine/economy из-за этого hotfix не изменялись.
+
+
+## Unreleased — v16 R4 monetization regression hotfix
+
+### Fixed
+
+- legacy V14 workspace regression now scrolls the Monetization ListView until the V16 monetization controls are actually built;
+- the large V16 monetization education guide remains before the controls in production UI and is no longer mistaken for a missing monetization surface by the legacy widget test.
+
+
+## Unreleased — v16 R5 analyzer hotfix
+
+### Fixed
+
+- removed the unused `_firstValueBy` helper left behind after V16 server aggregation moved to `_sumValueBy`;
+- migrated eight new Infrastructure `DropdownButtonFormField` instances from deprecated `value` to `initialValue`;
+- added braces around V16 Infrastructure form callbacks required by the project lint set;
+- removed an unused `models.dart` import from the V16 widget regression.
+
+No gameplay, economy, persistence or UI behavior was changed by this verifier hotfix.
+
+## Unreleased — V17 Product Pressure & Segmented Infrastructure
+
+### Added
+- Monetization now affects activation, retention, churn and brand trust; excessive pricing, ad load, paywall pressure and transaction fees create visible user-side trade-offs.
+- Advertising channels are always-on monthly campaigns with proportional daily spend, monthly acquisition forecasts, a three-channel cap and explicit stop controls.
+- Weekly deterministic churn shocks can remove users when bugs, staleness or aggressive monetization raise pressure.
+- Product lifespan is extensible: features, technologies and post-release improvements increase the supported freshness window.
+- Employee relocation from remote work to owned offices costs money, takes game days and reserves an office seat.
+- Senior employees no longer use ordinary courses; target-grade promotion is longer, materially more expensive and raises several competencies on completion.
+- Owned infrastructure supports explicit product service routing for API/app, data/storage and AI/compute.
+- Newly purchased server pools are dedicated to a service; V16 hardware migrates as legacy/shared so old saves remain usable.
+- Successful products now incur variable scale-operations costs based on MAU and category, making late-game growth profitable but not free.
+- Finance history supports finger scrubbing and the ledger retains more one-time and daily recurring expense explanations.
+- Offices and data centers use stable numbered labels throughout infrastructure and assignment UI.
+
+### Changed
+- Organic product growth is approximately three times slower; sustained market success depends more heavily on product readiness, retention, marketing and portfolio depth.
+- Initial product development is about 14% faster to reduce launch friction while long-term success is harder to maintain.
+- Performance and algorithm improvements reduce compute, RAM and storage demand as well as improving product metrics.
+- AI, cloud and high-usage products consume materially more RAM/storage; network is part of the bottleneck model.
+- The monetization guide is collapsed by default and the old player-facing “Интенсивность монетизации” label is replaced with model-specific terms.
+- Feature, technology and bug work now expose progress bars and remaining team-hours like other product improvements.
+- Owned-office/DC cards were reflowed into stable metric rows for narrow iPhones instead of oversized wrapping chip clouds.
+
+### Fixed
+- Removed the dashboard's disposable `ActiveTabScope`/forced-key wrapper that could tear down an inherited scope while descendants were still dependent, covering the observed `_dependents.isEmpty` runtime assertion with a rapid-navigation regression.
+- Detailed finance ledger entries now explain recurring infrastructure, advertising, scale operations and other operating cash movement instead of leaving large cash changes unexplained.
+- Internally recorded hosting/migration/server/integration transactions are not duplicated by the generic action ledger recorder.
+
+### Persistence
+- Snapshot schema is v15. V16/v14 saves migrate with empty relocation/service-route state. Finite legacy week-long advertising campaigns are stopped on migration so they are not accidentally converted into recurring monthly spend.
+
+## Unreleased — V17 R2 Endgame Ecosystem & Company Culture
+
+### Added
+- Paid, timed company R&D is required before post-release feature/technology implementation and is reusable across products.
+- Six recurring employee-benefit programs create new cash sinks while improving loyalty, morale and productivity.
+- Employee retention now reacts to overload, boredom, poor on-site conditions and benefits; low-loyalty employees can resign after a three-day counter-offer window.
+- Five rare market legends have 100 work stats, exceptional compensation, strategic eligibility requirements and a random product-specific bonus.
+- Company fans and brand reputation now grow from products, events and open-ecosystem choices and can fall after organizational failures.
+- Rare paid industry events support up to three separately paid showcase slots and create product users plus company fans.
+- A dedicated Events tab centralizes employee, legend, investor, tax, research, event and legacy notifications.
+- Three massive world projects — AURA OS, OpenMind AI and Planet Compute Grid — replace the old released-product victory condition.
+- AURA OS has a deep dedicated upgrade tree; OpenMind AI and Planet Compute have separate non-aging capability trees and massive persistent OPEX.
+- Company doctrine, philanthropy, competitor comparison, Legacy Score and post-game paths extend late-game decisions beyond cash accumulation.
+
+### Changed
+- Campaign completion no longer depends on 12 releases, 70% of the product catalog or buying the last rival.
+- M&A remains a strategic system in free play but cannot complete the campaign by itself.
+- Finance cost structure includes employee perks and world-project OPEX.
+- Snapshot schema is v16.
+
+
+## Unreleased — V17 R3 audit-format hotfix
+- Fixed false-negative V17 static audit after `dart format`: positive invariants now accept whitespace-only formatting changes.
+- No production gameplay logic changed; event showcase still caps at three products and event completion still grants base fans plus user-derived fans.
+
+
+## V17 R5 — widget compile import hotfix
+
+- TeamScreen imports v16_models.dart so FacilityQuality resolves in the perks/relocation UI.
+- V17 endgame widget regression imports v12_models.dart so FounderCompanyProfile.legacy() resolves.
+- V17 audit locks both import contracts to prevent the same compile regression.
+
+
+## V17 R6 — product-pressure fixture compile hotfix
+
+- Replaced invalid `copyWith(usingOwnedInfrastructure: true)` in the V17 R1 service-routing regression with `selectedHostingPlanId: 'owned'`, matching the real computed `usingOwnedInfrastructure` contract.
+- No production gameplay, balance, persistence or UI logic changed.
+
+
+## V17 R7 — product pressure formula hotfix
+
+- Fixed compute resource economics: performance/algorithm optimization now reduces product CPU/compute demand as well as RAM/storage.
+- Raised the severe live churn ceiling from 38% to 65% so extreme price/paywall/advertising pressure remains distinguishable in simulation instead of flattening at the old cap.
+- Kept the failing Product Pressure regressions intact; production formulas were corrected rather than weakening tests.
+
+- V17 R9: legacy-safe monetization dropdown и narrow hosting-plan layout; UI regression gate усилен.
+
+- V17 R11: narrow Infrastructure `ChoiceChip` selector is self-contained with a local transparent Material ancestor; R10 had a widget crash when rendered without an inherited Material.
+
+## V17 R15 full-suite compatibility polish — 2026-08-10
+- Вернул блок «Средние показатели» сразу под заголовок Team, чтобы ключевая сводка снова была видна без прокрутки и старые narrow-screen контракты сохранялись.
+- Предрелизные продукты больше не получают live scale/server-overload часть security risk; инвесторы оценивают архитектурный риск до релиза, а runtime overload — только после выхода в live.
+- Нижняя NavigationBar зафиксирована на 68 pt, чтобы все шесть пунктов оставались hit-testable на высоте 600 px.
+- Добавлены ранние V17 regressions для investor counter-offer, Team averages и 800×600 dashboard navigation.
+
+## V17 R16 full-suite navigation compatibility — 2026-08-10
+- Исправлена последняя регрессия полного suite из R15: скрытая подпись невыбранной bottom-navigation вкладки больше не находится за hit-test viewport.
+- Все шесть `NavigationDestination` теперь всегда показывают labels; существующая компактная высота 68 pt сохранена.
+- Ранний V17 regression теперь нажимает сам текст вкладки, а не только иконку.
+
+## V17 R17 verifier EOF cleanup — 2026-08-10
+- R16 прошёл все static/EN/focused/legacy проверки, `flutter analyze`, полный `flutter test` 278/278, iOS Simulator Debug build и Android Debug APK.
+- Финальный verifier остановился только на `git diff --check`: три markdown-файла имели лишнюю пустую строку в EOF.
+- R17 нормализует EOF документации и добавляет static guard; production-код, gameplay и тестовые контракты R16 не меняются.

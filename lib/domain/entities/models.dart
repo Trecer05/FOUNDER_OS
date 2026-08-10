@@ -1,3 +1,5 @@
+import 'v17_models.dart';
+
 enum EmployeeRole {
   productManager,
   frontend,
@@ -17,6 +19,20 @@ enum EmployeeRole {
 /// It defines realistic compensation and skill bands while the actual values
 /// inside those bands are generated for every market refresh.
 enum EmployeeGrade { intern, junior, middle, senior }
+
+int employeeGradeMinimumSkill(EmployeeGrade grade) => switch (grade) {
+  EmployeeGrade.intern => 0,
+  EmployeeGrade.junior => 45,
+  EmployeeGrade.middle => 63,
+  EmployeeGrade.senior => 79,
+};
+
+EmployeeGrade employeeGradeForSkill(int skill) => switch (skill) {
+  < 45 => EmployeeGrade.intern,
+  < 63 => EmployeeGrade.junior,
+  < 79 => EmployeeGrade.middle,
+  _ => EmployeeGrade.senior,
+};
 
 enum ProductCategory {
   aiAssistant,
@@ -77,6 +93,7 @@ class Candidate {
     this.languageIds = const <String>[],
     this.isHr = false,
     this.grade = EmployeeGrade.middle,
+    this.locationCityId = '',
   });
 
   final String id;
@@ -94,28 +111,33 @@ class Candidate {
   final List<String> languageIds;
   final bool isHr;
   final EmployeeGrade grade;
+  final String locationCityId;
 
-  Employee toEmployee({int hiredAtMinutes = 0, double salaryMultiplier = 1}) =>
-      Employee(
-        id: id,
-        name: name,
-        role: role,
-        skill: skill,
-        speed: speed,
-        quality: quality,
-        autonomy: autonomy,
-        communication: communication,
-        reliability: reliability,
-        salary: salary * salaryMultiplier,
-        loyalty: loyalty,
-        morale: 78,
-        workload: 35,
-        remote: remote,
-        languageIds: languageIds,
-        hiredAtMinutes: hiredAtMinutes,
-        isHr: isHr,
-        grade: grade,
-      );
+  Employee toEmployee({
+    int hiredAtMinutes = 0,
+    double salaryMultiplier = 1,
+    String locationCityId = '',
+  }) => Employee(
+    id: id,
+    name: name,
+    role: role,
+    skill: skill,
+    speed: speed,
+    quality: quality,
+    autonomy: autonomy,
+    communication: communication,
+    reliability: reliability,
+    salary: salary * salaryMultiplier,
+    loyalty: loyalty,
+    morale: 78,
+    workload: 35,
+    remote: remote,
+    languageIds: languageIds,
+    hiredAtMinutes: hiredAtMinutes,
+    isHr: isHr,
+    grade: grade,
+    locationCityId: locationCityId,
+  );
 
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
@@ -133,6 +155,7 @@ class Candidate {
     'languageIds': languageIds,
     'isHr': isHr,
     'grade': grade.name,
+    'locationCityId': locationCityId,
   };
 
   factory Candidate.fromJson(Map<String, Object?> json) => Candidate(
@@ -152,6 +175,7 @@ class Candidate {
         (json['languageIds'] as List?)?.cast<String>() ?? const <String>[],
     isHr: json['isHr'] as bool? ?? false,
     grade: _employeeGradeFromJson(json),
+    locationCityId: json['locationCityId'] as String? ?? '',
   );
 }
 
@@ -175,6 +199,7 @@ class Employee {
     this.hiredAtMinutes = 0,
     this.isHr = false,
     this.grade = EmployeeGrade.middle,
+    this.locationCityId = '',
   });
 
   final String id;
@@ -195,6 +220,7 @@ class Employee {
   final int hiredAtMinutes;
   final bool isHr;
   final EmployeeGrade grade;
+  final String locationCityId;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
@@ -215,6 +241,7 @@ class Employee {
     'hiredAtMinutes': hiredAtMinutes,
     'isHr': isHr,
     'grade': grade.name,
+    'locationCityId': locationCityId,
   };
 
   factory Employee.fromJson(Map<String, Object?> json) => Employee(
@@ -237,13 +264,16 @@ class Employee {
     hiredAtMinutes: (json['hiredAtMinutes'] as num?)?.toInt() ?? 0,
     isHr: json['isHr'] as bool? ?? false,
     grade: _employeeGradeFromJson(json),
+    locationCityId: json['locationCityId'] as String? ?? '',
   );
 }
 
 EmployeeGrade _employeeGradeFromJson(Map<String, Object?> json) {
   final raw = json['grade'] as String?;
   for (final grade in EmployeeGrade.values) {
-    if (grade.name == raw) return grade;
+    if (grade.name == raw) {
+      return grade;
+    }
   }
 
   // v12 and older snapshots did not persist a grade. Infer it from the
@@ -838,23 +868,45 @@ class ServerHardwareOption {
 }
 
 class InstalledServer {
-  const InstalledServer({required this.hardwareId, required this.count});
+  const InstalledServer({
+    required this.hardwareId,
+    required this.count,
+    this.dataCenterSiteId = '',
+    this.service = InfrastructureService.sharedLegacy,
+  });
 
   final String hardwareId;
   final int count;
+  final String dataCenterSiteId;
+  final InfrastructureService service;
 
-  InstalledServer copyWith({int? count}) =>
-      InstalledServer(hardwareId: hardwareId, count: count ?? this.count);
+  InstalledServer copyWith({
+    int? count,
+    String? dataCenterSiteId,
+    InfrastructureService? service,
+  }) => InstalledServer(
+    hardwareId: hardwareId,
+    count: count ?? this.count,
+    dataCenterSiteId: dataCenterSiteId ?? this.dataCenterSiteId,
+    service: service ?? this.service,
+  );
 
   Map<String, Object?> toJson() => <String, Object?>{
     'hardwareId': hardwareId,
     'count': count,
+    'dataCenterSiteId': dataCenterSiteId,
+    'service': service.name,
   };
 
   factory InstalledServer.fromJson(Map<String, Object?> json) =>
       InstalledServer(
         hardwareId: json['hardwareId']! as String,
         count: (json['count']! as num).toInt(),
+        dataCenterSiteId: json['dataCenterSiteId'] as String? ?? '',
+        service: InfrastructureService.values.firstWhere(
+          (item) => item.name == json['service'],
+          orElse: () => InfrastructureService.sharedLegacy,
+        ),
       );
 }
 

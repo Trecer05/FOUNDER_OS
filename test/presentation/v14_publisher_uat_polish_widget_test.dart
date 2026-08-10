@@ -154,10 +154,15 @@ void main() {
     await tester.tap(find.text('Монетизация'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const Key('workspace-monetization-controls')),
-      findsOneWidget,
+    final monetizationControls = find.byKey(
+      const Key('workspace-monetization-controls'),
     );
+    await _dragListUntilHitTestable(
+      tester,
+      list: find.byType(ListView),
+      target: monetizationControls,
+    );
+    expect(monetizationControls, findsOneWidget);
     expect(
       find.byKey(
         ValueKey(

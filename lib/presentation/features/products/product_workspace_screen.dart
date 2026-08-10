@@ -12,6 +12,7 @@ import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/models.dart';
 import '../../../domain/entities/v12_game_state_extensions.dart';
 import '../../../domain/entities/product_evolution_models.dart';
+import '../../../domain/entities/v17_models.dart';
 import '../../../domain/explainability/staffing_deficit_resolver.dart';
 import '../../../domain/explainability/product_configuration_resolver.dart';
 import '../../../domain/simulation/product_projection_cache.dart';
@@ -109,13 +110,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                 if (current == null) {
                   return const SizedBox.shrink();
                 }
-                return AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 160),
-                  child: KeyedSubtree(
-                    key: ValueKey<_WorkspaceSection>(_section),
-                    child: _buildSection(current),
-                  ),
-                );
+                return _buildSection(current);
               },
             ),
           ),
@@ -476,7 +471,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
           key: const Key('post-release-roadmap'),
           hintTitle: 'Функции после релиза',
           hintBody:
-              'Новые функции не покупаются мгновенно: каждая занимает рабочие часы назначенной команды. Одновременно продукт ведёт одну техническую работу.',
+              'Новая функция проходит два этапа: сначала платный R&D компании, затем внедрение рабочими часами команды. Исследование выполняется один раз и после этого доступно всем продуктам.',
           child: ExpansionTile(
             tilePadding: EdgeInsets.zero,
             childrenPadding: EdgeInsets.zero,
@@ -491,24 +486,108 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             ),
             children: availableFeatures
                 .take(20)
-                .map(
-                  (feature) => ListTile(
+                .map((feature) {
+                  final ownWork = activeWork?.featureId == feature.id;
+                  final researchKey = state.researchKey(
+                    ResearchTargetKind.feature,
+                    feature.id,
+                  );
+                  final research = state.activeResearchFor(researchKey);
+                  final researched = state.researchCompleted(
+                    ResearchTargetKind.feature,
+                    feature.id,
+                  );
+                  final researchCost = state.researchCost(
+                    ResearchTargetKind.feature,
+                    feature.id,
+                  );
+                  final researchDays = state.researchDays(
+                    ResearchTargetKind.feature,
+                    feature.id,
+                  );
+                  final researchProgress = research == null
+                      ? 0.0
+                      : ((state.simulationMinutes - research.startedAtMinutes) /
+                                math.max(
+                                  1,
+                                  research.completesAtMinutes -
+                                      research.startedAtMinutes,
+                                ))
+                            .clamp(0, 1)
+                            .toDouble();
+                  return ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: AppText(feature.name),
-                    subtitle: AppText(feature.description),
-                    trailing: FilledButton(
-                      onPressed: activeWork == null
-                          ? () => widget.controller.dispatch(
-                              AddProductFeature(
-                                productId: product.id,
-                                featureId: feature.id,
-                              ),
-                            )
-                          : null,
-                      child: const AppText('Разработать'),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AppText(feature.description),
+                        const SizedBox(height: 5),
+                        if (!researched && research == null)
+                          AppText(
+                            'R&D: ${money(researchCost)} • $researchDays дн. До исследования внедрение недоступно.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        if (research != null) ...[
+                          const SizedBox(height: 6),
+                          LinearProgressIndicator(value: researchProgress),
+                          const SizedBox(height: 4),
+                          AppText(
+                            'Исследование ${(researchProgress * 100).round()}% • осталось ${math.max(0, ((research.completesAtMinutes - state.simulationMinutes) / 1440).ceil())} дн.',
+                          ),
+                        ],
+                        if (researched && !ownWork)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 4),
+                            child: AppText('R&D готово • можно внедрять'),
+                          ),
+                        if (ownWork) ...[
+                          const SizedBox(height: 7),
+                          LinearProgressIndicator(
+                            value: activeWork!.progress.clamp(0, 1).toDouble(),
+                          ),
+                          const SizedBox(height: 4),
+                          AppText(
+                            'В работе ${(activeWork.progress * 100).round()}% • осталось ${state.featureDevelopmentRemainingHours(product.id).round()} командо-часов',
+                          ),
+                        ],
+                      ],
                     ),
-                  ),
-                )
+                    trailing: researched
+                        ? FilledButton(
+                            onPressed: activeWork == null
+                                ? () => widget.controller.dispatch(
+                                    AddProductFeature(
+                                      productId: product.id,
+                                      featureId: feature.id,
+                                    ),
+                                  )
+                                : null,
+                            child: AppText(
+                              ownWork
+                                  ? '${(activeWork!.progress * 100).round()}%'
+                                  : 'Внедрить',
+                            ),
+                          )
+                        : FilledButton.tonal(
+                            key: Key('research-feature-${feature.id}'),
+                            onPressed:
+                                research == null && state.cash >= researchCost
+                                ? () => widget.controller.dispatch(
+                                    StartCompanyResearch(
+                                      kind: ResearchTargetKind.feature,
+                                      targetId: feature.id,
+                                    ),
+                                  )
+                                : null,
+                            child: AppText(
+                              research == null
+                                  ? 'Исследовать'
+                                  : '${(researchProgress * 100).round()}%',
+                            ),
+                          ),
+                  );
+                })
                 .toList(growable: false),
           ),
         ),
@@ -530,26 +609,111 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             ),
             children: availableTechnologies
                 .take(16)
-                .map(
-                  (technology) => ListTile(
+                .map((technology) {
+                  final ownWork =
+                      activeWork?.featureId == '__technology_${technology.id}';
+                  final researchKey = state.researchKey(
+                    ResearchTargetKind.technology,
+                    technology.id,
+                  );
+                  final research = state.activeResearchFor(researchKey);
+                  final researched = state.researchCompleted(
+                    ResearchTargetKind.technology,
+                    technology.id,
+                  );
+                  final researchCost = state.researchCost(
+                    ResearchTargetKind.technology,
+                    technology.id,
+                  );
+                  final researchDays = state.researchDays(
+                    ResearchTargetKind.technology,
+                    technology.id,
+                  );
+                  final researchProgress = research == null
+                      ? 0.0
+                      : ((state.simulationMinutes - research.startedAtMinutes) /
+                                math.max(
+                                  1,
+                                  research.completesAtMinutes -
+                                      research.startedAtMinutes,
+                                ))
+                            .clamp(0, 1)
+                            .toDouble();
+                  return ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: AppText(technology.name),
-                    subtitle: AppText(
-                      '${technology.description} • performance +${technology.performanceDelta.toStringAsFixed(0)} • ${money(technology.monthlyCost)}/мес.',
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AppText(
+                          '${technology.description} • performance +${technology.performanceDelta.toStringAsFixed(0)} • ${money(technology.monthlyCost)}/мес.',
+                        ),
+                        const SizedBox(height: 5),
+                        if (!researched && research == null)
+                          AppText(
+                            'R&D: ${money(researchCost)} • $researchDays дн. Исследование открывает технологию для всех продуктов.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        if (research != null) ...[
+                          const SizedBox(height: 6),
+                          LinearProgressIndicator(value: researchProgress),
+                          const SizedBox(height: 4),
+                          AppText(
+                            'Исследование ${(researchProgress * 100).round()}% • осталось ${math.max(0, ((research.completesAtMinutes - state.simulationMinutes) / 1440).ceil())} дн.',
+                          ),
+                        ],
+                        if (researched && !ownWork)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 4),
+                            child: AppText('R&D готово • можно интегрировать'),
+                          ),
+                        if (ownWork) ...[
+                          const SizedBox(height: 7),
+                          LinearProgressIndicator(
+                            value: activeWork!.progress.clamp(0, 1).toDouble(),
+                          ),
+                          const SizedBox(height: 4),
+                          AppText(
+                            'Интеграция ${(activeWork.progress * 100).round()}% • осталось ${state.featureDevelopmentRemainingHours(product.id).round()} командо-часов',
+                          ),
+                        ],
+                      ],
                     ),
-                    trailing: FilledButton(
-                      onPressed: activeWork == null
-                          ? () => widget.controller.dispatch(
-                              AddProductTechnology(
-                                productId: product.id,
-                                technologyId: technology.id,
-                              ),
-                            )
-                          : null,
-                      child: const AppText('Добавить'),
-                    ),
-                  ),
-                )
+                    trailing: researched
+                        ? FilledButton(
+                            onPressed: activeWork == null
+                                ? () => widget.controller.dispatch(
+                                    AddProductTechnology(
+                                      productId: product.id,
+                                      technologyId: technology.id,
+                                    ),
+                                  )
+                                : null,
+                            child: AppText(
+                              ownWork
+                                  ? '${(activeWork!.progress * 100).round()}%'
+                                  : 'Интегрировать',
+                            ),
+                          )
+                        : FilledButton.tonal(
+                            key: Key('research-technology-${technology.id}'),
+                            onPressed:
+                                research == null && state.cash >= researchCost
+                                ? () => widget.controller.dispatch(
+                                    StartCompanyResearch(
+                                      kind: ResearchTargetKind.technology,
+                                      targetId: technology.id,
+                                    ),
+                                  )
+                                : null,
+                            child: AppText(
+                              research == null
+                                  ? 'Исследовать'
+                                  : '${(researchProgress * 100).round()}%',
+                            ),
+                          ),
+                  );
+                })
                 .toList(growable: false),
           ),
         ),
@@ -569,14 +733,58 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               if (product.openBugs.isEmpty) ...[
                 const SizedBox(height: 8),
                 const AppText('Открытых дефектов нет.'),
-              ] else
-                ...product.openBugs.map(
-                  (bug) => ListTile(
+              ] else ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    key: Key('fix-all-bugs-${product.id}'),
+                    onPressed: activeWork == null
+                        ? () => widget.controller.dispatch(
+                            FixAllProductBugs(product.id),
+                          )
+                        : null,
+                    icon: const Icon(Icons.auto_fix_high_outlined),
+                    label: AppText(
+                      'Исправить все баги разом • ${product.openBugs.length} шт.',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                if (activeWork?.featureId == '__bug_all__') ...[
+                  LinearProgressIndicator(
+                    key: Key('fix-all-bugs-progress-${product.id}'),
+                    value: activeWork!.progress.clamp(0, 1).toDouble(),
+                  ),
+                  const SizedBox(height: 4),
+                  AppText(
+                    'Пакетное исправление ${(activeWork.progress * 100).round()}% • осталось ${state.featureDevelopmentRemainingHours(product.id).round()} командо-часов',
+                  ),
+                  const SizedBox(height: 6),
+                ],
+                ...product.openBugs.map((bug) {
+                  final ownWork = activeWork?.featureId == '__bug_${bug.id}';
+                  return ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(child: AppText('${bug.weight}')),
                     title: AppText(bug.title),
-                    subtitle: AppText(
-                      '${bug.severity.name} • найден ${state.formatDateAt(bug.openedAtMinutes)}',
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AppText(
+                          '${bug.severity.name} • найден ${state.formatDateAt(bug.openedAtMinutes)}',
+                        ),
+                        if (ownWork) ...[
+                          const SizedBox(height: 7),
+                          LinearProgressIndicator(
+                            value: activeWork!.progress.clamp(0, 1).toDouble(),
+                          ),
+                          const SizedBox(height: 4),
+                          AppText(
+                            'Исправление ${(activeWork.progress * 100).round()}%',
+                          ),
+                        ],
+                      ],
                     ),
                     trailing: FilledButton(
                       onPressed: activeWork == null
@@ -587,10 +795,15 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                               ),
                             )
                           : null,
-                      child: const AppText('Исправить'),
+                      child: AppText(
+                        ownWork
+                            ? '${(activeWork!.progress * 100).round()}%'
+                            : 'Исправить',
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                }),
+              ],
             ],
           ),
         ),
@@ -612,8 +825,12 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                 'Максимум для возраста продукта',
                 '${state.productFreshnessCeiling(product).round()}/100',
               ),
+              _row(
+                'Поддерживаемый возраст',
+                '${state.productSupportedLifetimeDays(product).round()} дн.',
+              ),
               AppText(
-                'Обновления возвращают свежесть только до возрастного потолка. После 180 дней потолок необратимо снижается; старый продукт придётся заменить новым поколением или продать.',
+                'Функции, новый стек и технические улучшения продлевают поддерживаемый срок жизни продукта. После этого потолок свежести постепенно снижается; просто смена даты обновления не обнуляет возраст.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -684,7 +901,9 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             final load = state
                 .activeAssignmentCountForEmployee(left.id)
                 .compareTo(state.activeAssignmentCountForEmployee(right.id));
-            if (load != 0) return load;
+            if (load != 0) {
+              return load;
+            }
             return right.skill.compareTo(left.skill);
           });
     final candidates =
@@ -952,6 +1171,13 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
   Widget _monetization(Product product) {
     final state = widget.controller.state;
     final strategy = ProductStrategyCatalog.strategyFor(product.blueprintId);
+    // A migrated/legacy save can keep a model that is no longer allowed by the
+    // current strategy. Keep that current value renderable, while GameEngine
+    // remains the source of truth for which new models may be selected.
+    final monetizationOptions = <MonetizationModel>{
+      product.monetization,
+      ...strategy.allowedMonetizationModels,
+    }.toList(growable: false);
     final cooldown = state.monetizationCooldownRemainingDays(product.id);
     final forecast = state.revenueForecastFor(product);
     final blueprint = GameCatalog.blueprintById(product.blueprintId);
@@ -975,6 +1201,14 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
     final freeTier = (_freeTierDraft ?? product.freeTierPercent)
         .clamp(0, 0.9)
         .toDouble();
+    final experienceImpact = state.monetizationExperienceImpact(product);
+    final intensityLabel = switch (product.monetization) {
+      MonetizationModel.free => 'Монетизация отключена',
+      MonetizationModel.subscription => 'Жёсткость paywall',
+      MonetizationModel.usageBased => 'Доля платного использования',
+      MonetizationModel.advertising => 'Рекламная агрессивность',
+      MonetizationModel.transactionFee => 'Агрессивность комиссии',
+    };
     final settingLabel = switch (product.monetization) {
       MonetizationModel.free => 'Настроек оплаты нет',
       MonetizationModel.subscription => 'Цена подписки',
@@ -999,6 +1233,60 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
       ),
       const SizedBox(height: 12),
       AppCard(
+        key: const Key('workspace-monetization-guide'),
+        hintTitle: 'Как выбрать монетизацию',
+        hintBody:
+            'Справочник свернут по умолчанию. Разверните его, когда нужно сравнить модели и их риски.',
+        child: ExpansionTile(
+          key: const Key('workspace-monetization-guide-expansion'),
+          initiallyExpanded: false,
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: EdgeInsets.zero,
+          title: const AppText(
+            'Справочник по моделям монетизации',
+            style: TextStyle(fontWeight: FontWeight.w900),
+          ),
+          subtitle: const AppText(
+            'Свернуто по умолчанию • нажмите, чтобы открыть подробности',
+          ),
+          children: const [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppText(
+                    '• Free — быстрый набор аудитории без прямой выручки. KPI: activation, retention, MAU. Риск: инфраструктура растёт быстрее дохода.',
+                  ),
+                  SizedBox(height: 7),
+                  AppText(
+                    '• Subscription — повторяющаяся выручка. KPI: платящие, MRR, retention, churn. Риск: высокий прайс и жёсткий paywall выталкивают пользователей.',
+                  ),
+                  SizedBox(height: 7),
+                  AppText(
+                    '• Usage based — оплата за реальное использование. KPI: ARPU, активность, маржа после compute. Риск: себестоимость растёт быстрее выручки.',
+                  ),
+                  SizedBox(height: 7),
+                  AppText(
+                    '• Advertising — бесплатный вход, доход от аудитории. KPI: MAU, DAU, вовлечённость. Риск: рекламный перегруз повышает churn и снижает доверие.',
+                  ),
+                  SizedBox(height: 7),
+                  AppText(
+                    '• Transaction fee — комиссия с операций. KPI: объём операций, activation, доверие. Риск: высокая комиссия уменьшает число операций.',
+                  ),
+                  Divider(height: 22),
+                  AppText(
+                    'Правило: максимизируйте не доход с пользователя, а устойчивую связку revenue + activation + retention + churn + trust.',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+      AppCard(
         key: const Key('workspace-monetization-controls'),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1015,7 +1303,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                     ? trContext(context, 'Следующая смена через $cooldown дн.')
                     : trContext(context, 'Изменение доступно сейчас.'),
               ),
-              items: strategy.allowedMonetizationModels
+              items: monetizationOptions
                   .map(
                     (model) => DropdownMenuItem(
                       value: model,
@@ -1026,7 +1314,9 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               onChanged: product.stage == ProductStage.live && cooldown > 0
                   ? null
                   : (model) {
-                      if (model == null) return;
+                      if (model == null) {
+                        return;
+                      }
                       setState(() => _priceDraft = null);
                       widget.controller.dispatch(
                         SetProductMonetization(
@@ -1040,6 +1330,14 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             _row(
               'Прогноз дохода',
               '${money(forecast.low)} – ${money(forecast.high)} / мес.',
+            ),
+            _row(
+              'Влияние на пользователей',
+              'activation ${experienceImpact.activationDelta >= 0 ? '+' : ''}${(experienceImpact.activationDelta * 100).toStringAsFixed(1)} п.п. • retention ${experienceImpact.retentionDelta >= 0 ? '+' : ''}${(experienceImpact.retentionDelta * 100).toStringAsFixed(1)} п.п.',
+            ),
+            _row(
+              'Отток и доверие',
+              'churn ${experienceImpact.churnDelta >= 0 ? '+' : ''}${(experienceImpact.churnDelta * 100).toStringAsFixed(1)} п.п. • trust ${experienceImpact.trustDelta >= 0 ? '+' : ''}${(experienceImpact.trustDelta * 100).toStringAsFixed(1)} п.п.',
             ),
             if (product.monetization != MonetizationModel.free) ...[
               const SizedBox(height: 12),
@@ -1070,7 +1368,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Expanded(child: AppText('Интенсивность монетизации')),
+                  Expanded(child: AppText(intensityLabel)),
                   AppText(
                     percent(intensity),
                     style: const TextStyle(fontWeight: FontWeight.w900),
@@ -1148,10 +1446,10 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
     return _list([
       SectionHeader(
         title: 'Реклама и рост',
-        subtitle: 'Активных кампаний: ${campaigns.length}/2',
+        subtitle: 'Активных каналов: ${campaigns.length}/3',
         hintTitle: 'Отдельный рекламный раздел',
         hintBody:
-            'Кампании сгруппированы отдельно от разработки. Перед запуском видны агентство, канал, бюджет и прогноз пользователей.',
+            'Канал работает постоянно, пока вы его не остановите. Бюджет задаётся на месяц, списание идёт ежедневно, а пользователи приходят постепенно.',
       ),
       const SizedBox(height: 12),
       AppCard(
@@ -1177,7 +1475,9 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                   )
                   .toList(growable: false),
               onChanged: (value) {
-                if (value == null) return;
+                if (value == null) {
+                  return;
+                }
                 final minimum = ProductStrategyCatalog.agencyById(
                   value,
                 ).minimumBudget;
@@ -1190,7 +1490,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               },
             ),
             const SizedBox(height: 12),
-            AppText('Бюджет: ${money(effectiveBudget)}'),
+            AppText('Бюджет / мес.: ${money(effectiveBudget)}'),
             Slider(
               value: effectiveBudget,
               min: selectedAgency.minimumBudget,
@@ -1281,8 +1581,8 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               child: FilledButton.icon(
                 onPressed:
                     product.stage == ProductStage.live &&
-                        campaigns.length < 2 &&
-                        state.cash >= effectiveBudget
+                        campaigns.length < 3 &&
+                        state.cash >= effectiveBudget / 6
                     ? () => widget.controller.dispatch(
                         StartAdvertisingCampaign(
                           productId: product.id,
@@ -1293,7 +1593,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                       )
                     : null,
                 icon: const Icon(Icons.campaign),
-                label: const AppText('Запустить кампанию на 7 дней'),
+                label: const AppText('Включить рекламный канал'),
               ),
             ),
           ],
@@ -1311,21 +1611,24 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                   ProductStrategyCatalog.channelById(campaign.channelId).name,
                   style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
-                const SizedBox(height: 8),
-                LinearProgressIndicator(
-                  value:
-                      ((state.simulationMinutes - campaign.startedAtMinutes) /
-                              math.max(
-                                1,
-                                campaign.endsAtMinutes -
-                                    campaign.startedAtMinutes,
-                              ))
-                          .clamp(0, 1)
-                          .toDouble(),
+                const SizedBox(height: 6),
+                AppText(
+                  'Постоянный канал • ${money(campaign.budget)}/мес. • списание ${(campaign.budget / 30).round()} ₽/день',
+                ),
+                const SizedBox(height: 4),
+                AppText(
+                  'Прогноз ${campaign.projectedUsersLow}–${campaign.projectedUsersHigh} пользователей/мес. • уже приведено ${campaign.deliveredUsers}',
                 ),
                 const SizedBox(height: 8),
-                AppText(
-                  'Прогноз ${campaign.projectedUsersLow}–${campaign.projectedUsersHigh} пользователей • ${money(campaign.budget)}',
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => widget.controller.dispatch(
+                      StopAdvertisingCampaign(campaign.id),
+                    ),
+                    icon: const Icon(Icons.stop_circle_outlined),
+                    label: const AppText('Остановить канал'),
+                  ),
                 ),
               ],
             ),
@@ -1459,6 +1762,74 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             'Здесь показывается реальный blueprint продукта, а не техническая enum-категория. Сайт компании остаётся сайтом, даже если внутри экономики использует web/SaaS-механику.',
       ),
       const SizedBox(height: 12),
+      if (state.usingOwnedInfrastructure)
+        AppCard(
+          key: const Key('workspace-service-routing'),
+          hintTitle: 'Раздельная инфраструктура по сервисам',
+          hintBody:
+              'API/приложение, данные и AI/compute можно направить на разные ЦОД. Мощность делится только между продуктами, использующими ту же площадку и тот же тип сервиса.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const AppText(
+                'Маршрутизация сервисов',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 8),
+              ...const <InfrastructureService>[
+                InfrastructureService.appApi,
+                InfrastructureService.dataStorage,
+                InfrastructureService.aiCompute,
+              ].map((service) {
+                final route = state.dataCenterRouteFor(product.id, service);
+                final serviceLabel = switch (service) {
+                  InfrastructureService.sharedLegacy => 'Legacy shared',
+                  InfrastructureService.appApi =>
+                    'API / приложение / RAM / сеть',
+                  InfrastructureService.dataStorage => 'Данные / storage',
+                  InfrastructureService.aiCompute =>
+                    'Compute / AI / backend jobs',
+                };
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: DropdownButtonFormField<String>(
+                    key: Key('service-route-${product.id}-${service.name}'),
+                    initialValue: route,
+                    isExpanded: true,
+                    decoration: InputDecoration(labelText: serviceLabel),
+                    items: <DropdownMenuItem<String>>[
+                      DropdownMenuItem<String>(
+                        value: '',
+                        child: AppText(
+                          'Арендная серверная • ${state.serverRoom.name}',
+                        ),
+                      ),
+                      ...state.ownedDataCenters.map(
+                        (site) => DropdownMenuItem<String>(
+                          value: site.id,
+                          child: AppText(state.ownedDataCenterLabel(site)),
+                        ),
+                      ),
+                    ],
+                    onChanged: (siteId) {
+                      if (siteId == null) {
+                        return;
+                      }
+                      widget.controller.dispatch(
+                        AssignProductInfrastructureService(
+                          productId: product.id,
+                          service: service,
+                          dataCenterSiteId: siteId,
+                        ),
+                      );
+                    },
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      if (state.usingOwnedInfrastructure) const SizedBox(height: 12),
       AppCard(
         hintTitle: 'Активная и подготовленная мощность',
         hintBody:
@@ -1605,7 +1976,9 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
     );
     if ((confirmed ?? false) && mounted) {
       widget.controller.dispatch(SellProduct(product.id));
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     }
   }
 
@@ -1706,6 +2079,7 @@ class _SectionRail extends StatelessWidget {
                       ),
                     ),
                     child: InkWell(
+                      key: Key('workspace-section-${item.$1.name}'),
                       borderRadius: BorderRadius.circular(13),
                       onTap: () => onSelected(item.$1),
                       child: Padding(

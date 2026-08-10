@@ -7,6 +7,7 @@ import 'package:founder_os/domain/entities/game_state.dart';
 import 'package:founder_os/domain/entities/models.dart';
 import 'package:founder_os/domain/entities/operations_models.dart';
 import 'package:founder_os/domain/entities/product_strategy_models.dart';
+import 'package:founder_os/domain/entities/v17_models.dart';
 import 'package:founder_os/domain/simulation/engine/game_engine.dart';
 import 'package:founder_os/domain/simulation/product_estimator.dart';
 
@@ -38,9 +39,18 @@ void main() {
         .toSet();
 
     expect(candidates.length, greaterThanOrEqualTo(40));
-    expect(candidates.map((item) => item.name).toSet(), hasLength(candidates.length));
-    expect(candidates.map((item) => item.grade).toSet(), containsAll(EmployeeGrade.values));
-    expect(candidates.map((item) => item.role).toSet(), containsAll(EmployeeRole.values));
+    expect(
+      candidates.map((item) => item.name).toSet(),
+      hasLength(candidates.length),
+    );
+    expect(
+      candidates.map((item) => item.grade).toSet(),
+      containsAll(EmployeeGrade.values),
+    );
+    expect(
+      candidates.map((item) => item.role).toSet(),
+      containsAll(EmployeeRole.values),
+    );
     expect(candidateLanguages.length, greaterThanOrEqualTo(10));
   });
 
@@ -149,7 +159,9 @@ void main() {
         monetization: MonetizationModel.advertising,
       ),
     );
-    final teamCandidates = state.candidates.where((item) => item.remote).take(7);
+    final teamCandidates = state.candidates
+        .where((item) => item.remote)
+        .take(7);
     for (final candidate in teamCandidates) {
       state = engine.reduce(state, HireCandidate(candidate.id));
     }
@@ -229,6 +241,11 @@ void main() {
     var state = _releasedWebsite(engine).copyWith(cash: 350000);
     final product = state.products.single;
     final beforeCash = state.cash;
+    state = state.copyWith(
+      completedResearchKeys: <String>[
+        state.researchKey(ResearchTargetKind.feature, 'contact_form'),
+      ],
+    );
 
     state = engine.reduce(
       state,

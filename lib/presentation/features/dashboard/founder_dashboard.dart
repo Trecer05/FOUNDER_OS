@@ -5,6 +5,7 @@ import '../../../application/controllers/game_controller.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/models.dart';
 import '../../../domain/entities/v12_game_state_extensions.dart';
+import '../company/company_hub_screen.dart';
 import '../infrastructure/infrastructure_screen.dart';
 import '../more/more_screen.dart';
 import '../overview/overview_screen.dart';
@@ -50,6 +51,7 @@ class _FounderDashboardState extends State<FounderDashboard> {
       () => ProductsScreen(controller: widget.controller),
       () => TeamScreen(controller: widget.controller),
       () => InfrastructureScreen(controller: widget.controller),
+      () => CompanyHubScreen(controller: widget.controller),
       () => MoreScreen(controller: widget.controller),
     ];
     widget.controller.addListener(_handleControllerUpdate);
@@ -78,7 +80,9 @@ class _FounderDashboardState extends State<FounderDashboard> {
     try {
       if (!state.companyProfile.configured) {
         await showCompanySetup(context, widget.controller);
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
         state = widget.controller.state;
       }
 
@@ -193,9 +197,9 @@ class _FounderDashboardState extends State<FounderDashboard> {
             color: AppColors.yellow,
             size: 46,
           ),
-          title: const AppText('Founder Legacy завершён'),
+          title: const AppText('Мировая технологическая эпоха создана'),
           content: AppText(
-            'Вы самостоятельно выпустили ${state.releasedBlueprintCount} направлений и поглотили всех ${state.acquiredRivalCount} крупных конкурентов. Это полноценный финал кампании — компанию можно продолжить развивать в свободном режиме.',
+            'AURA OS, OpenMind AI и Planet Compute Grid достигли мирового статуса. Legacy score ${state.companyLegacyScore.toStringAsFixed(0)}, фанаты ${state.companyFans}. Кампания пройдена — во вкладке «События» можно выбрать дальнейший путь и продолжить свободную игру.',
           ),
           actions: [
             FilledButton(
@@ -211,7 +215,9 @@ class _FounderDashboardState extends State<FounderDashboard> {
   }
 
   void _selectTab(int value) {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     setState(() => _tab = value);
   }
 
@@ -240,11 +246,17 @@ class _FounderDashboardState extends State<FounderDashboard> {
               onPressed: () async {
                 final restored = await widget.controller
                     .restoreWeekBeforeBankruptcy();
-                if (!mounted) return;
-                if (!dialogContext.mounted) return;
+                if (!mounted) {
+                  return;
+                }
+                if (!dialogContext.mounted) {
+                  return;
+                }
                 if (restored) {
                   Navigator.of(dialogContext).pop();
-                  if (mounted) setState(() => _tab = 0);
+                  if (mounted) {
+                    setState(() => _tab = 0);
+                  }
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -339,10 +351,14 @@ class _FounderDashboardState extends State<FounderDashboard> {
                   );
                 }
                 await widget.controller.saveNow();
-                if (mounted) widget.onExitToMainMenu?.call();
+                if (mounted) {
+                  widget.onExitToMainMenu?.call();
+                }
                 return;
               }
-              if (value != 'reset') return;
+              if (value != 'reset') {
+                return;
+              }
               final confirmed = await showDialog<bool>(
                 context: context,
                 builder: (dialogContext) => AlertDialog(
@@ -390,20 +406,16 @@ class _FounderDashboardState extends State<FounderDashboard> {
       ),
       body: SafeArea(
         top: false,
-        child: KeyedSubtree(
-          key: ValueKey<int>(_tab),
-          child: ActiveTabScope(
-            active: true,
-            child: ScopedListenableBuilder(
-              listenable: widget.controller,
-              builder: (context, _) => _screenBuilders[_tab](),
-            ),
-          ),
+        child: ScopedListenableBuilder(
+          listenable: widget.controller,
+          builder: (context, _) => _screenBuilders[_tab](),
         ),
       ),
       bottomNavigationBar: NavigationBar(
+        height: 68,
         selectedIndex: _tab,
         onDestinationSelected: _selectTab,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: <NavigationDestination>[
           NavigationDestination(
             icon: const Icon(Icons.space_dashboard_outlined),
@@ -424,6 +436,23 @@ class _FounderDashboardState extends State<FounderDashboard> {
             icon: const Icon(Icons.dns_outlined),
             selectedIcon: const Icon(Icons.dns),
             label: trContext(context, 'Инфра'),
+          ),
+          NavigationDestination(
+            icon: ScopedListenableBuilder(
+              listenable: widget.controller,
+              builder: (context, _) {
+                final count =
+                    widget.controller.state.unreadCompanyNotificationCount;
+                return count > 0
+                    ? Badge(
+                        label: Text(count > 99 ? '99+' : '$count'),
+                        child: const Icon(Icons.notifications_outlined),
+                      )
+                    : const Icon(Icons.notifications_outlined);
+              },
+            ),
+            selectedIcon: const Icon(Icons.notifications),
+            label: trContext(context, 'События'),
           ),
           NavigationDestination(
             icon: const Icon(Icons.grid_view_rounded),

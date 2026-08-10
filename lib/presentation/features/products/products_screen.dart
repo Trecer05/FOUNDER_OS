@@ -79,28 +79,31 @@ class _ProductsScreenState extends State<ProductsScreen> {
           ),
           const SizedBox(height: 12),
           AppCard(
+            key: const Key('world-project-legacy-summary'),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.flag_outlined, color: AppColors.primary),
+                    const Icon(Icons.public_outlined, color: AppColors.primary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: AppText(
-                        'Путь основателя: ${state.releasedBlueprintCount}/${state.requiredReleasedBlueprintsForLegacy} разных релизов',
+                        'Мировые проекты: ${(state.worldProjectCompletionProgress * 100).round()}%',
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 9),
-                LinearProgressIndicator(value: state.legacyProductProgress),
+                LinearProgressIndicator(
+                  value: state.worldProjectCompletionProgress,
+                ),
                 const SizedBox(height: 7),
                 AppText(
-                  state.legacyProductRequirementMet
-                      ? 'Порог 70% пройден. Финальная консолидация рынка доступна.'
-                      : 'Для финала нужно самостоятельно выпустить не меньше 70% направлений каталога. Купленные продукты не засчитываются.',
+                  state.founderLegacyCompleted
+                      ? 'Все три мировых проекта завершены. Кампания пройдена, свободная игра продолжается.'
+                      : 'Обычные продукты больше не закрывают кампанию. Финал — AURA OS, OpenMind AI и Planet Compute Grid во вкладке «События».',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

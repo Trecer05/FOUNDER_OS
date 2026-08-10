@@ -7,6 +7,8 @@ import '../../catalog/operations_catalog.dart';
 import '../../catalog/product_evolution_catalog.dart';
 import '../../catalog/product_strategy_catalog.dart';
 import '../../catalog/v9_content_catalog.dart';
+import '../../catalog/world_economy_catalog.dart';
+import '../../catalog/v17_endgame_catalog.dart';
 import '../../commands/game_action.dart';
 import '../../entities/business_models.dart';
 import '../../entities/game_state.dart';
@@ -19,6 +21,8 @@ import '../../entities/v9_models.dart';
 import '../../entities/v10_models.dart';
 import '../../entities/v12_game_state_extensions.dart';
 import '../../entities/v12_models.dart';
+import '../../entities/v16_models.dart';
+import '../../entities/v17_models.dart';
 import '../../explainability/language_limit_resolver.dart';
 import '../../explainability/product_configuration_resolver.dart';
 import '../product_projection_cache.dart';
@@ -61,6 +65,7 @@ class GameEngine {
         action.technologyId,
       ),
       FixProductBug() => _fixProductBug(state, action.productId, action.bugId),
+      FixAllProductBugs() => _fixAllProductBugs(state, action.productId),
       SetAiDeploymentMode() => _setAiDeploymentMode(
         state,
         action.productId,
@@ -146,18 +151,45 @@ class GameEngine {
         action.employeeId,
         action.programId,
       ),
+      TrainEmployees() => _trainEmployees(
+        state,
+        action.employeeIds,
+        action.programId,
+      ),
+      UpgradeEmployeesToGrade() => _upgradeEmployeesToGrade(
+        state,
+        action.employeeIds,
+        action.targetGrade,
+      ),
+      RelocateEmployeeToOffice() => _relocateEmployeeToOffice(
+        state,
+        action.employeeId,
+        action.officeSiteId,
+      ),
       PurchaseSecurityControl() => _purchaseSecurityControl(
         state,
         action.productId,
         action.controlId,
       ),
       RunSecurityAudit() => _runSecurityAudit(state, action.productId),
+      BuildOwnedOffice() => _buildOwnedOffice(state, action),
+      BuildOwnedDataCenter() => _buildOwnedDataCenter(state, action),
       RentOffice() => _rentOffice(state, action.officeId),
       RentServerRoom() => _rentServerRoom(state, action.serverRoomId),
       RentHostingPlan() => _rentHostingPlan(state, action.hostingPlanId),
       MigrateToOwnedInfrastructure() => _migrateToOwnedInfrastructure(state),
-      InstallServer() => _installServer(state, action.hardwareId),
-      RemoveServer() => _removeServer(state, action.hardwareId),
+      InstallServer() => _installServer(
+        state,
+        action.hardwareId,
+        dataCenterSiteId: action.dataCenterSiteId,
+        service: action.service,
+      ),
+      RemoveServer() => _removeServer(
+        state,
+        action.hardwareId,
+        dataCenterSiteId: action.dataCenterSiteId,
+        service: action.service,
+      ),
       ConnectProducts() => _connectProducts(
         state,
         action.firstProductId,
@@ -169,7 +201,31 @@ class GameEngine {
         action.secondProductId,
       ),
       AcceptClientContract() => _acceptClientContract(state, action.templateId),
+      AssignProductInfrastructureService() =>
+        _assignProductInfrastructureService(state, action),
       StartAdvertisingCampaign() => _startAdvertisingCampaign(state, action),
+      StopAdvertisingCampaign() => _stopAdvertisingCampaign(
+        state,
+        action.campaignId,
+      ),
+      StartCompanyResearch() => _startCompanyResearch(state, action),
+      ToggleCompanyPerk() => _toggleCompanyPerk(state, action.perkId),
+      HireMarketLegend() => _hireMarketLegend(state, action),
+      CounterOfferEmployee() => _counterOfferEmployee(state, action.employeeId),
+      JoinIndustryEvent() => _joinIndustryEvent(state, action),
+      MarkAllCompanyNotificationsRead() => state.copyWith(
+        companyNotifications: state.companyNotifications
+            .map((item) => item.copyWith(read: true))
+            .toList(growable: false),
+      ),
+      FundWorldProjectPhase() => _fundWorldProjectPhase(
+        state,
+        action.projectId,
+      ),
+      StartWorldProjectUpgrade() => _startWorldProjectUpgrade(state, action),
+      SetEcosystemDoctrine() => _setEcosystemDoctrine(state, action.doctrine),
+      FundPhilanthropy() => _fundPhilanthropy(state, action.amount),
+      ChoosePostGamePath() => _choosePostGamePath(state, action.path),
       RequestBusinessLoan() => _requestBusinessLoan(state),
       AcceptEmergencyLoan() => _acceptEmergencyLoan(state),
       RedeemDebugPromo() => _redeemDebugPromo(state, action.code),
@@ -221,6 +277,7 @@ class GameEngine {
         founderName.length > 24 ||
         !validBudget ||
         !validLogo ||
+        !WorldEconomyCatalog.containsCity(action.headquartersCityId) ||
         !profile.hasValidSkillBudget) {
       return _withFeed(
         state,
@@ -229,6 +286,7 @@ class GameEngine {
     }
     return state.copyWith(
       companyProfile: profile,
+      headquartersCityId: action.headquartersCityId,
       cash: action.startingBudget,
       selectedOfficeId: 'remote_first',
       feed: <String>[
@@ -352,7 +410,8 @@ class GameEngine {
             );
             final completedHours =
                 productiveHours * (developmentCapacity + founderCapacity);
-            final progressDelta = completedHours / projection.developmentHours;
+            final progressDelta =
+                completedHours / (projection.developmentHours * 0.86);
             final staffing = state.developmentStaffingFor(product.id);
             final qualityAdjustment = staffing.efficiency < 0.55
                 ? -0.015 * monthFraction
@@ -437,12 +496,41 @@ class GameEngine {
           final bugPenalty = state.productBugPenalty(product);
           final aiQualityBonus = state.productAiQualityBoost(product.id);
 
+          final legendPerformance = state.legendProductMetricBonus(
+            product.id,
+            LegendProductBonusKind.performance,
+          );
+          final legendReliability = state.legendProductMetricBonus(
+            product.id,
+            LegendProductBonusKind.reliability,
+          );
+          final legendSecurity = state.legendProductMetricBonus(
+            product.id,
+            LegendProductBonusKind.security,
+          );
+          final legendAiQuality = state.legendProductMetricBonus(
+            product.id,
+            LegendProductBonusKind.aiQuality,
+          );
+          final legendRetention = state.legendProductMetricBonus(
+            product.id,
+            LegendProductBonusKind.retention,
+          );
+          final legendActivation = state.legendProductMetricBonus(
+            product.id,
+            LegendProductBonusKind.activation,
+          );
+          final legendBrand = state.legendProductMetricBonus(
+            product.id,
+            LegendProductBonusKind.brand,
+          );
           final speedMs =
               (projection.speedMs *
                       math.pow(
                         performanceOption.speedMultiplier,
                         performanceLevel,
                       ) *
+                      (1 - legendPerformance * 0.12) *
                       (1 + overload * 1.8) *
                       (1 + bugPenalty * 0.55) *
                       (1 - math.min(0.18, teamQuality / 900)))
@@ -459,7 +547,8 @@ class GameEngine {
                       securityTeam * 0.10 +
                       state.productSecurityBonus(product.id) +
                       securityOption.securityDelta * securityLevel +
-                      reliabilityOption.securityDelta * reliabilityLevel)
+                      reliabilityOption.securityDelta * reliabilityLevel +
+                      legendSecurity * 12)
                   .clamp(1, 100)
                   .toDouble();
           final reliability =
@@ -471,7 +560,8 @@ class GameEngine {
                       performanceOption.reliabilityDelta * performanceLevel +
                       algorithmOption.reliabilityDelta * algorithmLevel -
                       overload * 0.035 -
-                      bugPenalty * 0.085)
+                      bugPenalty * 0.085 +
+                      legendReliability * 0.012)
                   .clamp(0.50, 0.9999)
                   .toDouble();
 
@@ -488,12 +578,15 @@ class GameEngine {
                 designOption.qualityDelta * designLevel +
                 securityOption.qualityDelta * securityLevel +
                 reliabilityOption.qualityDelta * reliabilityLevel -
-                bugPenalty * 26,
+                bugPenalty * 26 +
+                legendAiQuality * 10 +
+                legendActivation * 7,
             retentionBonus:
                 algorithmOption.retentionDelta * algorithmLevel +
                 designOption.retentionDelta * designLevel +
                 securityOption.retentionDelta * securityLevel +
-                reliabilityOption.retentionDelta * reliabilityLevel,
+                reliabilityOption.retentionDelta * reliabilityLevel +
+                legendRetention * 0.055,
             freshnessPenalty: freshnessPenalty,
           );
 
@@ -501,8 +594,14 @@ class GameEngine {
               product.category != ProductCategory.aiAssistant ||
               state.aiDeploymentModeFor(product.id) ==
                   AiDeploymentMode.publicMarket;
+          final legendGrowth = state.legendProductMetricBonus(
+            product.id,
+            LegendProductBonusKind.growth,
+          );
           final potentialNewUsers =
               (publicAi ? outcome.monthlyNewUsers : 0) *
+              state.brandDemandMultiplier *
+              (1 + legendGrowth * 0.24) *
               (1 - freshnessPenalty * 0.90) *
               monthFraction;
           final churnedUsers =
@@ -551,14 +650,17 @@ class GameEngine {
                 product.users * outcome.churnRate,
             brandAwareness:
                 (product.brandAwareness +
-                        math.min(0.012, potentialNewUsers / 500000))
+                        math.min(0.012, potentialNewUsers / 500000) +
+                        legendBrand * 0.006)
                     .clamp(0, 1)
                     .toDouble(),
             brandTrust:
                 (product.brandTrust +
                         (outcome.retention30d - product.churnRate) *
                             monthFraction *
-                            0.08)
+                            0.08 +
+                        state.monetizationExperienceImpact(product).trustDelta *
+                            monthFraction)
                     .clamp(0.01, 1)
                     .toDouble(),
             priceSentiment: state.currentPriceSentiment(product),
@@ -573,12 +675,21 @@ class GameEngine {
     );
     next = _advanceProductFeatureDevelopments(state, next, deltaMinutes);
     next = _advanceEmployeeWellbeing(next, deltaMinutes);
+    next = _advanceEmployeeDevelopment(state, next);
+    next = _advanceEmployeeRelocations(next);
+    next = _advanceCompanyResearch(next);
+    next = _advanceWorldProjects(next);
+    next = _advanceBookedIndustryEvents(next);
+    next = _advanceTaxLedger(state, next, deltaMinutes);
     next = _advanceInvestorNegotiations(next);
     final cashDelta = next.monthlyProfit * monthFraction;
     next = next.copyWith(cash: next.cash + cashDelta);
     next = _appendPayrollTransactions(state, next, deltaMinutes);
     next = _advanceClientContracts(next, deltaMinutes);
     next = _advanceAdvertisingCampaigns(next, deltaMinutes);
+    next = _appendRecurringMarketingTransactions(state, next);
+    next = _appendRecurringOperatingTransactions(state, next);
+    next = _advanceChurnShocks(state, next);
     next = _advanceLoanAndLiquidity(state, next);
     final previousDay = state.simulationMinutes ~/ 1440;
     final currentDay = next.simulationMinutes ~/ 1440;
@@ -705,7 +816,9 @@ class GameEngine {
   }
 
   GameState _advanceEmployeeWellbeing(GameState state, int deltaMinutes) {
-    if (state.employees.isEmpty || deltaMinutes <= 0) return state;
+    if (state.employees.isEmpty || deltaMinutes <= 0) {
+      return state;
+    }
     final days = deltaMinutes / 1440;
     final employees = state.employees
         .map((employee) {
@@ -746,6 +859,258 @@ class GameEngine {
         })
         .toList(growable: false);
     return state.copyWith(employees: employees);
+  }
+
+  GameState _advanceEmployeeDevelopment(GameState previous, GameState state) {
+    if (state.employees.isEmpty) {
+      return state;
+    }
+    final oldThreeDay = previous.simulationMinutes ~/ (3 * 1440);
+    final newThreeDay = state.simulationMinutes ~/ (3 * 1440);
+    var employees = List<Employee>.of(state.employees);
+    var trainings = List<EmployeeTrainingAssignment>.of(
+      state.employeeTrainings,
+    );
+    var upgrades = List<EmployeeGradeUpgrade>.of(state.employeeGradeUpgrades);
+    final messages = <String>[];
+
+    if (newThreeDay > oldThreeDay) {
+      employees = employees
+          .map((employee) {
+            if (state.trainingForEmployee(employee.id) != null ||
+                state.gradeUpgradeForEmployee(employee.id) != null) {
+              return employee;
+            }
+            final active = previous.activeAssignmentCountForEmployee(
+              employee.id,
+            );
+            if (active <= 0) {
+              return employee;
+            }
+            final periods = newThreeDay - oldThreeDay;
+            final gain = math.min(2, active).toInt() * periods;
+            final skill = math.min(100, employee.skill + gain).toInt();
+            return employee.managedCopyWith(
+              skill: skill,
+              grade: employeeGradeForSkill(skill),
+            );
+          })
+          .toList(growable: false);
+    }
+
+    final completedTraining = trainings
+        .where((item) => item.completesAtMinutes <= state.simulationMinutes)
+        .toList(growable: false);
+    if (completedTraining.isNotEmpty) {
+      for (final assignment in completedTraining) {
+        final program = OperationsCatalog.trainingProgramById(
+          assignment.programId,
+        );
+        employees = employees
+            .map((employee) {
+              if (employee.id != assignment.employeeId) {
+                return employee;
+              }
+              final skill = math
+                  .min(100, employee.skill + program.skillDelta)
+                  .toInt();
+              final grade = employeeGradeForSkill(skill);
+              messages.add(
+                '${employee.name}: курс «${program.name}» завершён. Skill $skill, грейд ${grade.name}.',
+              );
+              return employee.managedCopyWith(
+                skill: skill,
+                speed: math
+                    .min(100, employee.speed + program.speedDelta)
+                    .toInt(),
+                quality: math
+                    .min(100, employee.quality + program.qualityDelta)
+                    .toInt(),
+                autonomy: math
+                    .min(100, employee.autonomy + program.autonomyDelta)
+                    .toInt(),
+                communication: math
+                    .min(
+                      100,
+                      employee.communication + program.communicationDelta,
+                    )
+                    .toInt(),
+                reliability: math
+                    .min(100, employee.reliability + program.reliabilityDelta)
+                    .toInt(),
+                morale: math.min(100, employee.morale + 3).toInt(),
+                grade: grade,
+              );
+            })
+            .toList(growable: false);
+      }
+      final doneIds = completedTraining.map((item) => item.id).toSet();
+      trainings = trainings
+          .where((item) => !doneIds.contains(item.id))
+          .toList(growable: false);
+    }
+
+    final completedUpgrades = upgrades
+        .where((item) => item.completesAtMinutes <= state.simulationMinutes)
+        .toList(growable: false);
+    if (completedUpgrades.isNotEmpty) {
+      for (final plan in completedUpgrades) {
+        employees = employees
+            .map((employee) {
+              if (employee.id != plan.employeeId) {
+                return employee;
+              }
+              final targetSkill = employeeGradeMinimumSkill(plan.targetGrade);
+              final steps = (plan.targetGrade.index - employee.grade.index)
+                  .clamp(1, 3);
+              final seniorBonus = plan.targetGrade == EmployeeGrade.senior
+                  ? 2
+                  : 0;
+              final competencyBoost = steps * 2 + seniorBonus;
+              final skill = math
+                  .max(employee.skill + competencyBoost, targetSkill)
+                  .clamp(0, 100)
+                  .toInt();
+              final salaryMultiplier = 1 + steps * 0.15;
+              messages.add(
+                '${employee.name}: повышение до ${plan.targetGrade.name} завершено. Skill $skill, профильные навыки выросли.',
+              );
+              return employee.managedCopyWith(
+                skill: skill,
+                speed: math.min(100, employee.speed + competencyBoost).toInt(),
+                quality: math
+                    .min(100, employee.quality + competencyBoost)
+                    .toInt(),
+                autonomy: math
+                    .min(100, employee.autonomy + steps * 3 + seniorBonus)
+                    .toInt(),
+                communication: math
+                    .min(100, employee.communication + steps * 2)
+                    .toInt(),
+                reliability: math
+                    .min(100, employee.reliability + steps * 2 + seniorBonus)
+                    .toInt(),
+                grade: plan.targetGrade,
+                salary: employee.salary * salaryMultiplier,
+                morale: math.min(100, employee.morale + 7).toInt(),
+              );
+            })
+            .toList(growable: false);
+      }
+      final doneIds = completedUpgrades.map((item) => item.id).toSet();
+      upgrades = upgrades
+          .where((item) => !doneIds.contains(item.id))
+          .toList(growable: false);
+    }
+
+    var next = state.copyWith(
+      employees: employees,
+      employeeTrainings: trainings,
+      employeeGradeUpgrades: upgrades,
+    );
+    for (final message in messages) {
+      next = _withFeed(next, message);
+    }
+    return next;
+  }
+
+  GameState _advanceEmployeeRelocations(GameState state) {
+    final completed = state.employeeRelocations
+        .where((item) => item.completesAtMinutes <= state.simulationMinutes)
+        .toList(growable: false);
+    if (completed.isEmpty) {
+      return state;
+    }
+    var employees = List<Employee>.of(state.employees);
+    var next = state;
+    for (final relocation in completed) {
+      employees = employees
+          .map((employee) {
+            if (employee.id != relocation.employeeId) {
+              return employee;
+            }
+            return employee.managedCopyWith(
+              remote: false,
+              locationCityId: relocation.destinationCityId,
+              morale: math.min(100, employee.morale + 5).toInt(),
+            );
+          })
+          .toList(growable: false);
+      final employee = state.employeeById(relocation.employeeId);
+      final city = WorldEconomyCatalog.cityById(relocation.destinationCityId);
+      if (employee != null) {
+        next = _withFeed(
+          next,
+          '${employee.name}: релокация завершена, теперь работает из офиса в ${city.cityRu}.',
+        );
+      }
+    }
+    final doneIds = completed.map((item) => item.id).toSet();
+    return next.copyWith(
+      employees: employees,
+      employeeRelocations: state.employeeRelocations
+          .where((item) => !doneIds.contains(item.id))
+          .toList(growable: false),
+    );
+  }
+
+  GameState _advanceTaxLedger(
+    GameState previous,
+    GameState state,
+    int deltaMinutes,
+  ) {
+    if (deltaMinutes <= 0 || !state.companyProfile.configured) {
+      return state;
+    }
+    final fraction = deltaMinutes / 43200;
+    var next = state.copyWith(
+      taxYearRevenueAccrued:
+          state.taxYearRevenueAccrued +
+          (state.monthlyProductRevenue + state.portfolioIncome) * fraction,
+      taxYearExpensesAccrued:
+          state.taxYearExpensesAccrued + state.monthlyCosts * fraction,
+      taxYearPayrollAccrued:
+          state.taxYearPayrollAccrued + state.monthlyPayroll * fraction,
+    );
+    final oldYear = previous.simulationMinutes ~/ (365 * 1440);
+    final newYear = state.simulationMinutes ~/ (365 * 1440);
+    if (newYear <= oldYear) {
+      return next;
+    }
+    final taxableProfit = math
+        .max(0, next.taxYearRevenueAccrued - next.taxYearExpensesAccrued)
+        .toDouble();
+    final corporate = taxableProfit * next.effectiveCorporateTaxRate;
+    final payroll = next.taxYearPayrollAccrued * next.effectivePayrollTaxRate;
+    final total = corporate + payroll;
+    final record = AnnualTaxRecord(
+      yearIndex: newYear,
+      cityId: next.headquartersCityId,
+      corporateTax: corporate,
+      payrollTax: payroll,
+      paidAtMinutes: next.simulationMinutes,
+    );
+    next = next.copyWith(
+      cash: next.cash - total,
+      taxRecords: <AnnualTaxRecord>[...next.taxRecords, record],
+      taxYearRevenueAccrued: 0,
+      taxYearExpensesAccrued: 0,
+      taxYearPayrollAccrued: 0,
+      financeTransactions: <FinanceTransaction>[
+        FinanceTransaction(
+          id: 'annual_tax_${newYear}_${next.simulationMinutes}',
+          simulationMinutes: next.simulationMinutes,
+          amount: -total,
+          category: FinanceTransactionCategory.other,
+          description: 'Годовые налоги • ${next.headquartersCity.cityRu}',
+        ),
+        ...next.financeTransactions,
+      ].take(120).toList(growable: false),
+    );
+    return _withFeed(
+      next,
+      'Годовые налоги: ${total.round()} ₽ (прибыль ${corporate.round()} ₽ + сотрудники ${payroll.round()} ₽).',
+    );
   }
 
   int _investorDecisionDays(InvestorOffer offer) {
@@ -794,9 +1159,13 @@ class GameEngine {
       final categoryFits = investor.preferredCategories.contains(
         product.category,
       );
+      final investorAccessBonus =
+          ((state.headquartersCity.investorScore - 62) / 500)
+              .clamp(-0.04, 0.08)
+              .toDouble();
       final approved =
           categoryFits &&
-          readiness + state.successfulProducts * 0.04 >=
+          readiness + state.successfulProducts * 0.04 + investorAccessBonus >=
               investor.minimumReadiness &&
           productRisk <= investor.riskTolerance + 0.18;
       if (!approved) {
@@ -894,10 +1263,14 @@ class GameEngine {
     GameState state,
     int deltaMinutes,
   ) {
-    if (previous.employees.isEmpty || deltaMinutes <= 0) return state;
+    if (previous.employees.isEmpty || deltaMinutes <= 0) {
+      return state;
+    }
     final previousDay = previous.simulationMinutes ~/ 1440;
     final currentDay = state.simulationMinutes ~/ 1440;
-    if (currentDay <= previousDay) return state;
+    if (currentDay <= previousDay) {
+      return state;
+    }
     final longAdvance = deltaMinutes >= 1440;
     final periodEnd = longAdvance ? state.simulationMinutes : currentDay * 1440;
     final defaultPeriodStart = longAdvance
@@ -983,10 +1356,34 @@ class GameEngine {
         continue;
       }
       final product = products[productIndex];
+      if (work.featureId == '__bug_all__') {
+        final fixed = product.openBugs.length;
+        if (fixed == 0) {
+          continue;
+        }
+        products[productIndex] = product.copyWith(
+          openBugs: const <ProductBug>[],
+          fixedBugCount: product.fixedBugCount + fixed,
+          reliability: math
+              .min(0.9999, product.reliability + 0.0035)
+              .toDouble(),
+        );
+        updates.add(
+          ProductUpdateRecord(
+            productId: product.id,
+            updatedAtMinutes: state.simulationMinutes,
+            reason: 'Пакетное исправление: $fixed багов',
+          ),
+        );
+        messages.add('${product.name}: исправлены все $fixed открытых багов.');
+        continue;
+      }
       if (work.featureId.startsWith('__bug_')) {
         final bugId = work.featureId.substring('__bug_'.length);
         final bugMatches = product.openBugs.where((item) => item.id == bugId);
-        if (bugMatches.isEmpty) continue;
+        if (bugMatches.isEmpty) {
+          continue;
+        }
         final bug = bugMatches.first;
         products[productIndex] = product.copyWith(
           openBugs: product.openBugs
@@ -1046,7 +1443,9 @@ class GameEngine {
       if (work.featureId.startsWith('__improvement_')) {
         final payload = work.featureId.substring('__improvement_'.length);
         final separator = payload.lastIndexOf('_');
-        if (separator <= 0) continue;
+        if (separator <= 0) {
+          continue;
+        }
         final typeName = payload.substring(0, separator);
         final level = int.tryParse(payload.substring(separator + 1)) ?? 1;
         ProductImprovementType? type;
@@ -1177,18 +1576,27 @@ class GameEngine {
     if (state.advertisingCampaigns.isEmpty || deltaMinutes <= 0) {
       return state;
     }
+    final previousMinutes = state.simulationMinutes - deltaMinutes;
+    final oldDay = previousMinutes ~/ 1440;
+    final newDay = state.simulationMinutes ~/ 1440;
+    final daysCrossed = math.max(0, newDay - oldDay).toInt();
+    if (daysCrossed <= 0) {
+      return state;
+    }
+
     var nextCounter = state.rngCounter;
-    final completedMessages = <String>[];
-    final completedNow = <AdvertisingCampaign>[];
     final deliveredByProduct = <String, int>{};
+    final brandByProduct = <String, double>{};
+    final trustByProduct = <String, double>{};
+    final stoppedIds = <String>{};
     final updated = state.advertisingCampaigns
         .map((campaign) {
-          if (campaign.status != AdvertisingCampaignStatus.active ||
-              state.simulationMinutes < campaign.endsAtMinutes) {
+          if (campaign.status != AdvertisingCampaignStatus.active) {
             return campaign;
           }
           final product = state.productById(campaign.productId);
           if (product == null || product.stage != ProductStage.live) {
+            stoppedIds.add(campaign.id);
             return campaign.copyWith(status: AdvertisingCampaignStatus.stopped);
           }
           final forecast = state.advertisingForecast(
@@ -1197,36 +1605,48 @@ class GameEngine {
             channelId: campaign.channelId,
             budget: campaign.budget,
           );
-          final roll = _random01(state.rngSeed, nextCounter++);
-          final delivered =
-              (forecast.usersLow +
-                      (forecast.usersHigh - forecast.usersLow) * roll)
-                  .round()
-                  .clamp(0, forecast.usersHigh)
-                  .toInt();
+          var delivered = 0;
+          for (var index = 0; index < daysCrossed; index += 1) {
+            final roll = 0.82 + _random01(state.rngSeed, nextCounter++) * 0.36;
+            delivered += (forecast.usersExpected / 30 * roll).round();
+          }
+          delivered = math.max(0, delivered).toInt();
           deliveredByProduct.update(
             product.id,
             (value) => value + delivered,
             ifAbsent: () => delivered,
           );
-          completedMessages.add(
-            '${product.name}: кампания завершена, пришло $delivered пользователей при прогнозе ${forecast.usersLow}–${forecast.usersHigh}.',
+          final channel = ProductStrategyCatalog.channelById(
+            campaign.channelId,
           );
-          final completedCampaign = campaign.copyWith(
-            status: AdvertisingCampaignStatus.completed,
-            deliveredUsers: delivered,
+          brandByProduct.update(
+            product.id,
+            (value) =>
+                value +
+                delivered / 220000 +
+                forecast.impressions /
+                    30 /
+                    8500000 *
+                    daysCrossed *
+                    channel.brandWeight,
+            ifAbsent: () =>
+                delivered / 220000 +
+                forecast.impressions /
+                    30 /
+                    8500000 *
+                    daysCrossed *
+                    channel.brandWeight,
           );
-          completedNow.add(completedCampaign);
-          return completedCampaign;
+          trustByProduct.update(
+            product.id,
+            (value) => value + channel.trustWeight * 0.0015 * daysCrossed,
+            ifAbsent: () => channel.trustWeight * 0.0015 * daysCrossed,
+          );
+          return campaign.copyWith(
+            deliveredUsers: campaign.deliveredUsers + delivered,
+          );
         })
         .toList(growable: false);
-
-    if (deliveredByProduct.isEmpty) {
-      return state.copyWith(
-        advertisingCampaigns: updated,
-        rngCounter: nextCounter,
-      );
-    }
 
     final products = state.products
         .map((product) {
@@ -1234,27 +1654,15 @@ class GameEngine {
           if (delivered <= 0) {
             return product;
           }
-          final campaigns = completedNow.where(
-            (item) => item.productId == product.id,
-          );
-          var brandDelta = delivered / 250000;
-          var trustDelta = delivered / 1000000;
-          for (final campaign in campaigns) {
-            final channel = ProductStrategyCatalog.channelById(
-              campaign.channelId,
-            );
-            brandDelta +=
-                campaign.projectedImpressions / 8000000 * channel.brandWeight;
-            trustDelta += channel.trustWeight * 0.006;
-          }
           return product.copyWith(
             users: product.users + delivered,
             mau: product.mau + (delivered * 0.72).round(),
             dau: product.dau + (delivered * 0.14).round(),
-            brandAwareness: (product.brandAwareness + brandDelta)
-                .clamp(0, 1)
-                .toDouble(),
-            brandTrust: (product.brandTrust + trustDelta)
+            brandAwareness:
+                (product.brandAwareness + (brandByProduct[product.id] ?? 0))
+                    .clamp(0, 1)
+                    .toDouble(),
+            brandTrust: (product.brandTrust + (trustByProduct[product.id] ?? 0))
                 .clamp(0.01, 1)
                 .toDouble(),
           );
@@ -1266,7 +1674,158 @@ class GameEngine {
       advertisingCampaigns: updated,
       rngCounter: nextCounter,
     );
-    for (final message in completedMessages) {
+    if (stoppedIds.isNotEmpty) {
+      next = _withFeed(
+        next,
+        'Реклама остановлена у ${stoppedIds.length} кампаний: продукт больше не находится на рынке.',
+      );
+    }
+    return next;
+  }
+
+  GameState _appendRecurringMarketingTransactions(
+    GameState previous,
+    GameState state,
+  ) {
+    final oldDay = previous.simulationMinutes ~/ 1440;
+    final newDay = state.simulationMinutes ~/ 1440;
+    final daysCrossed = math.max(0, newDay - oldDay).toInt();
+    if (daysCrossed <= 0) {
+      return state;
+    }
+    final active = state.advertisingCampaigns
+        .where((item) => item.status == AdvertisingCampaignStatus.active)
+        .toList(growable: false);
+    if (active.isEmpty) {
+      return state;
+    }
+    final records = <FinanceTransaction>[];
+    for (final campaign in active) {
+      final product = state.productById(campaign.productId);
+      final channel = ProductStrategyCatalog.channelById(campaign.channelId);
+      records.add(
+        FinanceTransaction(
+          id: 'ads_daily_${campaign.id}_${state.simulationMinutes}',
+          simulationMinutes: state.simulationMinutes,
+          amount: -(campaign.budget / 30 * daysCrossed),
+          category: FinanceTransactionCategory.marketing,
+          description:
+              'Реклама • ${product?.name ?? campaign.productId} • ${channel.name} • $daysCrossed дн.',
+        ),
+      );
+    }
+    return state.copyWith(
+      financeTransactions: <FinanceTransaction>[
+        ...records,
+        ...state.financeTransactions,
+      ].take(180).toList(growable: false),
+    );
+  }
+
+  GameState _appendRecurringOperatingTransactions(
+    GameState previous,
+    GameState state,
+  ) {
+    final oldDay = previous.simulationMinutes ~/ 1440;
+    final newDay = state.simulationMinutes ~/ 1440;
+    final daysCrossed = math.max(0, newDay - oldDay).toInt();
+    if (daysCrossed <= 0) {
+      return state;
+    }
+
+    final productServices = state.products.fold<double>(
+      0,
+      (sum, product) =>
+          sum +
+          product.monthlyCost +
+          state.productImprovementMonthlyCost(product.id),
+    );
+    final infra =
+        state.monthlyOfficeCost +
+        state.monthlyServerRoomCost +
+        state.monthlyHardwareCost;
+    final operations =
+        state.monthlySecurityCost +
+        state.monthlyRegulatoryComplianceCost +
+        state.monthlyCorporateAiCost +
+        state.monthlyScaleOperationsCost +
+        productServices +
+        state.investorPayouts;
+    final dailyInfra = infra / 30 * daysCrossed;
+    final dailyOperations = operations / 30 * daysCrossed;
+    final records = <FinanceTransaction>[
+      if (dailyInfra.abs() > 0.01)
+        FinanceTransaction(
+          id: 'ops_infra_${state.simulationMinutes}',
+          simulationMinutes: state.simulationMinutes,
+          amount: -dailyInfra,
+          category: FinanceTransactionCategory.infrastructure,
+          description:
+              'Инфраструктура • офисы, ЦОД, серверная и оборудование • $daysCrossed дн.',
+        ),
+      if (dailyOperations.abs() > 0.01)
+        FinanceTransaction(
+          id: 'ops_services_${state.simulationMinutes}',
+          simulationMinutes: state.simulationMinutes,
+          amount: -dailyOperations,
+          category: FinanceTransactionCategory.other,
+          description:
+              'Операционные расходы • сервисы, security, compliance, AI и investor share • $daysCrossed дн.',
+        ),
+    ];
+    if (records.isEmpty) {
+      return state;
+    }
+    return state.copyWith(
+      financeTransactions: <FinanceTransaction>[
+        ...records,
+        ...state.financeTransactions,
+      ].take(240).toList(growable: false),
+    );
+  }
+
+  GameState _advanceChurnShocks(GameState previous, GameState state) {
+    final oldWeek = previous.simulationMinutes ~/ (7 * 1440);
+    final newWeek = state.simulationMinutes ~/ (7 * 1440);
+    if (newWeek <= oldWeek) {
+      return state;
+    }
+    var counter = state.rngCounter;
+    final messages = <String>[];
+    final products = state.products
+        .map((product) {
+          if (product.stage != ProductStage.live || product.users < 100) {
+            return product;
+          }
+          final impact = state.monetizationExperienceImpact(product);
+          final pressure =
+              (0.07 +
+                      state.productStalenessPenalty(product) * 0.10 +
+                      state.productBugPenalty(product) * 0.12 +
+                      impact.churnDelta * 0.60)
+                  .clamp(0.05, 0.28)
+                  .toDouble();
+          final roll = _random01(state.rngSeed, counter++);
+          if (roll > pressure) {
+            return product;
+          }
+          final severity = 0.008 + _random01(state.rngSeed, counter++) * 0.032;
+          final lost = math.max(1, (product.users * severity).round()).toInt();
+          messages.add(
+            '${product.name}: рыночный отток −$lost пользователей за неделю.',
+          );
+          return product.copyWith(
+            users: math.max(0, product.users - lost).toInt(),
+            mau: math.max(0, product.mau - (lost * 0.72).round()).toInt(),
+            dau: math.max(0, product.dau - (lost * 0.14).round()).toInt(),
+            brandTrust: math
+                .max(0.01, product.brandTrust - severity * 0.12)
+                .toDouble(),
+          );
+        })
+        .toList(growable: false);
+    var next = state.copyWith(products: products, rngCounter: counter);
+    for (final message in messages) {
       next = _withFeed(next, message);
     }
     return next;
@@ -1394,13 +1953,17 @@ class GameEngine {
   }
 
   GameState _advanceClientContracts(GameState state, int deltaMinutes) {
-    if (state.activeContracts.isEmpty || deltaMinutes <= 0) return state;
+    if (state.activeContracts.isEmpty || deltaMinutes <= 0) {
+      return state;
+    }
     var cashDelta = 0.0;
     final messages = <String>[];
     final transactions = <FinanceTransaction>[];
     final updated = state.clientContracts
         .map((contract) {
-          if (contract.status != ContractStatus.active) return contract;
+          if (contract.status != ContractStatus.active) {
+            return contract;
+          }
           final template = ContractCatalog.byId(contract.templateId);
           final roleCoverage = state.contractRoleCoverageFor(contract.id);
           final effectiveCapacity =
@@ -1520,6 +2083,942 @@ class GameEngine {
     return next;
   }
 
+  GameState _startCompanyResearch(
+    GameState state,
+    StartCompanyResearch action,
+  ) {
+    final key = state.researchKey(action.kind, action.targetId);
+    if (state.completedResearchKeys.contains(key) ||
+        state.activeResearchFor(key) != null) {
+      return state;
+    }
+    try {
+      if (action.kind == ResearchTargetKind.feature) {
+        GameCatalog.featureById(action.targetId);
+      } else {
+        GameCatalog.technologyById(action.targetId);
+      }
+    } on Object {
+      return state;
+    }
+    final cost = state.researchCost(action.kind, action.targetId);
+    if (state.cash < cost) {
+      return _withFeed(
+        state,
+        'Недостаточно денег на R&D: нужно ${cost.round()} ₽.',
+      );
+    }
+    final days = state.researchDays(action.kind, action.targetId);
+    final project = CompanyResearchProject(
+      key: key,
+      kind: action.kind,
+      targetId: action.targetId,
+      startedAtMinutes: state.simulationMinutes,
+      completesAtMinutes: state.simulationMinutes + days * 1440,
+      cost: cost,
+    );
+    final name = action.kind == ResearchTargetKind.feature
+        ? GameCatalog.featureById(action.targetId).name
+        : GameCatalog.technologyById(action.targetId).name;
+    return _withCompanyNotification(
+      _withFeed(
+        state.copyWith(
+          cash: state.cash - cost,
+          activeResearchProjects: <CompanyResearchProject>[
+            ...state.activeResearchProjects,
+            project,
+          ],
+        ),
+        'R&D: начато исследование «$name» на $days дн. за ${cost.round()} ₽.',
+      ),
+      CompanyNotification(
+        id: 'research_start_${key}_${state.simulationMinutes}',
+        kind: CompanyNotificationKind.research,
+        title: 'R&D запущен',
+        body: '$name • $days дн. • ${cost.round()} ₽',
+        simulationMinutes: state.simulationMinutes,
+        read: false,
+      ),
+    );
+  }
+
+  GameState _advanceCompanyResearch(GameState state) {
+    final completed = state.activeResearchProjects
+        .where((item) => state.simulationMinutes >= item.completesAtMinutes)
+        .toList(growable: false);
+    if (completed.isEmpty) {
+      return state;
+    }
+    final keys = <String>{...state.completedResearchKeys};
+    var next = state;
+    for (final project in completed) {
+      keys.add(project.key);
+      final name = project.kind == ResearchTargetKind.feature
+          ? GameCatalog.featureById(project.targetId).name
+          : GameCatalog.technologyById(project.targetId).name;
+      next = _withCompanyNotification(
+        _withFeed(
+          next,
+          'R&D завершён: «$name» теперь можно внедрять в продукты.',
+        ),
+        CompanyNotification(
+          id: 'research_done_${project.key}_${state.simulationMinutes}',
+          kind: CompanyNotificationKind.research,
+          title: 'Исследование завершено',
+          body: '$name теперь доступно для внедрения.',
+          simulationMinutes: state.simulationMinutes,
+          read: false,
+        ),
+      );
+    }
+    final done = completed.map((item) => item.key).toSet();
+    return next.copyWith(
+      completedResearchKeys: keys.toList(growable: false),
+      activeResearchProjects: state.activeResearchProjects
+          .where((item) => !done.contains(item.key))
+          .toList(growable: false),
+    );
+  }
+
+  GameState _toggleCompanyPerk(GameState state, String perkId) {
+    final definition = V17EndgameCatalog.perkById(perkId);
+    final enabled = state.enabledCompanyPerkIds.contains(perkId);
+    if (enabled) {
+      return _withFeed(
+        state.copyWith(
+          enabledCompanyPerkIds: state.enabledCompanyPerkIds
+              .where((id) => id != perkId)
+              .toList(growable: false),
+        ),
+        '${definition.name}: программа отключена.',
+      );
+    }
+    if (state.cash < definition.upfrontCost) {
+      return state;
+    }
+    return _withFeed(
+      state.copyWith(
+        cash: state.cash - definition.upfrontCost,
+        enabledCompanyPerkIds: <String>[...state.enabledCompanyPerkIds, perkId],
+      ),
+      '${definition.name}: включено. ${definition.monthlyCost.round()} ₽/мес.',
+    );
+  }
+
+  _DailyResult _advanceEmployeeRetention(
+    GameState state,
+    int day,
+    int counter,
+  ) {
+    if (state.employees.isEmpty) {
+      return _DailyResult(state, counter);
+    }
+    var nextCounter = counter;
+    final expired = state.pendingEmployeeDepartures
+        .where((item) => state.simulationMinutes >= item.deadlineMinutes)
+        .toList(growable: false);
+    var next = state;
+    for (final departure in expired) {
+      final employee = next.employeeById(departure.employeeId);
+      if (employee == null) {
+        continue;
+      }
+      next = _removeDepartedEmployee(next, employee);
+    }
+    final expiredIds = expired.map((item) => item.employeeId).toSet();
+    next = next.copyWith(
+      pendingEmployeeDepartures: next.pendingEmployeeDepartures
+          .where((item) => !expiredIds.contains(item.employeeId))
+          .toList(growable: false),
+    );
+
+    final adjusted = <Employee>[];
+    final pendingIds = next.pendingEmployeeDepartures
+        .map((e) => e.employeeId)
+        .toSet();
+    final newDepartures = <PendingEmployeeDeparture>[];
+    for (final employee in next.employees) {
+      var loyaltyDelta = 0;
+      var moraleDelta = 0;
+      if (employee.workload >= 90) {
+        loyaltyDelta -= 2;
+        moraleDelta -= 2;
+      } else if (employee.workload >= 82) {
+        loyaltyDelta -= 1;
+        moraleDelta -= 1;
+      } else if (employee.workload <= 12) {
+        loyaltyDelta -= 1;
+      } else if (employee.workload >= 35 &&
+          employee.workload <= 72 &&
+          day % 4 == 0) {
+        loyaltyDelta += 1;
+      }
+      if (!employee.remote) {
+        final officeFactor = next.officeProductivityMultiplier(employee);
+        if (officeFactor <= 1.045 && day % 3 == 0) {
+          loyaltyDelta -= 1;
+          moraleDelta -= 1;
+        } else if (officeFactor >= 1.12 && day % 5 == 0) {
+          loyaltyDelta += 1;
+        }
+      }
+      if (employee.morale < 45) {
+        loyaltyDelta -= 1;
+      }
+      if (next.companyPerkLoyaltyBonus >= 12 && day % 3 == 0) {
+        loyaltyDelta += 1;
+      }
+      if (next.companyPerkMoraleBonus >= 10 && day % 3 == 0) {
+        moraleDelta += 1;
+      }
+      final updated = employee.managedCopyWith(
+        loyalty: (employee.loyalty + loyaltyDelta).clamp(0, 100).toInt(),
+        morale: (employee.morale + moraleDelta).clamp(0, 100).toInt(),
+      );
+      adjusted.add(updated);
+      if (pendingIds.contains(employee.id) || updated.loyalty >= 36) {
+        continue;
+      }
+      final lowLoyalty = (36 - updated.loyalty).clamp(0, 36);
+      final overload = math.max(0, updated.workload - 78);
+      final chance = (0.006 + lowLoyalty * 0.0025 + overload * 0.0015)
+          .clamp(0.006, 0.16)
+          .toDouble();
+      if (_random01(next.rngSeed, nextCounter++) < chance) {
+        final raise =
+            12 + (_random01(next.rngSeed, nextCounter++) * 18).round();
+        newDepartures.add(
+          PendingEmployeeDeparture(
+            employeeId: employee.id,
+            createdAtMinutes: next.simulationMinutes,
+            deadlineMinutes: next.simulationMinutes + 3 * 1440,
+            requiredRaisePercent: raise.toDouble(),
+          ),
+        );
+      }
+    }
+    next = next.copyWith(
+      employees: adjusted,
+      pendingEmployeeDepartures: <PendingEmployeeDeparture>[
+        ...next.pendingEmployeeDepartures,
+        ...newDepartures,
+      ],
+      rngCounter: nextCounter,
+    );
+    for (final departure in newDepartures) {
+      final employee = next.employeeById(departure.employeeId)!;
+      next = _withCompanyNotification(
+        next,
+        CompanyNotification(
+          id: 'departure_${employee.id}_${next.simulationMinutes}',
+          kind: CompanyNotificationKind.employee,
+          title: '${employee.name} хочет уйти',
+          body:
+              'Лояльность ${employee.loyalty}%. Есть 3 дня на counter-offer +${departure.requiredRaisePercent.round()}% к зарплате.',
+          simulationMinutes: next.simulationMinutes,
+          read: false,
+        ),
+      );
+    }
+    return _DailyResult(next, nextCounter);
+  }
+
+  GameState _removeDepartedEmployee(GameState state, Employee employee) {
+    return _withCompanyNotification(
+      _withFeed(
+        state.copyWith(
+          employees: state.employees
+              .where((item) => item.id != employee.id)
+              .toList(growable: false),
+          employeeAssignments: state.employeeAssignments
+              .where((item) => item.employeeId != employee.id)
+              .toList(growable: false),
+          contractEmployeeAssignments: state.contractEmployeeAssignments
+              .where((item) => item.employeeId != employee.id)
+              .toList(growable: false),
+          employeeRelocations: state.employeeRelocations
+              .where((item) => item.employeeId != employee.id)
+              .toList(growable: false),
+          hiredLegendBonuses: state.hiredLegendBonuses
+              .where((item) => item.employeeId != employee.id)
+              .toList(growable: false),
+          brandReputation: math.max(0, state.brandReputation - 0.4).toDouble(),
+        ),
+        '${employee.name} сам ушёл из компании из-за низкой лояльности.',
+      ),
+      CompanyNotification(
+        id: 'employee_left_${employee.id}_${state.simulationMinutes}',
+        kind: CompanyNotificationKind.employee,
+        title: 'Сотрудник ушёл',
+        body:
+            '${employee.name} покинул компанию. Проверьте нагрузку, зарплату и условия.',
+        simulationMinutes: state.simulationMinutes,
+        read: false,
+      ),
+    );
+  }
+
+  GameState _counterOfferEmployee(GameState state, String employeeId) {
+    final employee = state.employeeById(employeeId);
+    final departure = state.pendingDepartureFor(employeeId);
+    if (employee == null || departure == null) {
+      return state;
+    }
+    final newSalary =
+        employee.salary * (1 + departure.requiredRaisePercent / 100);
+    final next = state.copyWith(
+      employees: state.employees
+          .map(
+            (item) => item.id == employeeId
+                ? item.managedCopyWith(
+                    salary: newSalary,
+                    loyalty: math.min(100, item.loyalty + 34).toInt(),
+                    morale: math.min(100, item.morale + 18).toInt(),
+                  )
+                : item,
+          )
+          .toList(growable: false),
+      pendingEmployeeDepartures: state.pendingEmployeeDepartures
+          .where((item) => item.employeeId != employeeId)
+          .toList(growable: false),
+    );
+    return _withCompanyNotification(
+      _withFeed(
+        next,
+        '${employee.name} принял counter-offer: ${newSalary.round()} ₽/мес.',
+      ),
+      CompanyNotification(
+        id: 'counter_offer_${employee.id}_${state.simulationMinutes}',
+        kind: CompanyNotificationKind.employee,
+        title: 'Сотрудник остаётся',
+        body: '${employee.name} принял повышение зарплаты.',
+        simulationMinutes: state.simulationMinutes,
+        read: false,
+      ),
+    );
+  }
+
+  _DailyResult _advanceLegendMarket(GameState state, int day, int counter) {
+    var nextCounter = counter;
+    var offers = state.legendMarketOffers
+        .where((item) => item.availableUntilMinutes > state.simulationMinutes)
+        .toList(growable: false);
+    var next = state.copyWith(legendMarketOffers: offers);
+    if (offers.isNotEmpty ||
+        state.products.where((p) => p.stage == ProductStage.live).isEmpty) {
+      return _DailyResult(next, nextCounter);
+    }
+    final hiredIds = state.hiredLegendBonuses
+        .map((item) => item.legendId)
+        .toSet();
+    final eligible = V17EndgameCatalog.legends
+        .where(
+          (item) =>
+              !hiredIds.contains(item.id) &&
+              state.hasLegendRequirement(item.id),
+        )
+        .toList(growable: false);
+    if (eligible.isEmpty || _random01(state.rngSeed, nextCounter++) >= 0.025) {
+      return _DailyResult(next.copyWith(rngCounter: nextCounter), nextCounter);
+    }
+    final legend =
+        eligible[((_random01(state.rngSeed, nextCounter++) * eligible.length)
+                .floor())
+            .clamp(0, eligible.length - 1)
+            .toInt()];
+    final products = state.products
+        .where((item) => item.stage == ProductStage.live)
+        .toList(growable: false);
+    final product =
+        products[((_random01(state.rngSeed, nextCounter++) * products.length)
+                .floor())
+            .clamp(0, products.length - 1)
+            .toInt()];
+    final bonus =
+        legend.bonusKinds[((_random01(state.rngSeed, nextCounter++) *
+                    legend.bonusKinds.length)
+                .floor())
+            .clamp(0, legend.bonusKinds.length - 1)
+            .toInt()];
+    final offer = LegendMarketOffer(
+      legendId: legend.id,
+      productId: product.id,
+      bonusKind: bonus,
+      availableUntilMinutes: state.simulationMinutes + 21 * 1440,
+    );
+    next = next.copyWith(
+      legendMarketOffers: <LegendMarketOffer>[offer],
+      rngCounter: nextCounter,
+    );
+    next = _withCompanyNotification(
+      next,
+      CompanyNotification(
+        id: 'legend_${legend.id}_${state.simulationMinutes}',
+        kind: CompanyNotificationKind.legend,
+        title: 'Легенда появилась на рынке',
+        body:
+            '${legend.name} рассматривает предложения. Бонус привязан к ${product.name}. Окно 21 день.',
+        simulationMinutes: state.simulationMinutes,
+        read: false,
+      ),
+    );
+    return _DailyResult(next, nextCounter);
+  }
+
+  GameState _hireMarketLegend(GameState state, HireMarketLegend action) {
+    final offer = state.legendOfferFor(action.legendId);
+    if (offer == null ||
+        offer.productId != action.productId ||
+        offer.availableUntilMinutes <= state.simulationMinutes ||
+        !state.hasLegendRequirement(action.legendId)) {
+      return state;
+    }
+    final legend = V17EndgameCatalog.legendById(action.legendId);
+    if (state.cash < legend.signingCost) {
+      return state;
+    }
+    final employeeId = 'market_${legend.id}';
+    final employee = Employee(
+      id: employeeId,
+      name: legend.name,
+      role: legend.role,
+      skill: 100,
+      speed: 100,
+      quality: 100,
+      autonomy: 100,
+      communication: 100,
+      reliability: 100,
+      salary: legend.salary,
+      loyalty: 88,
+      morale: 92,
+      workload: 35,
+      remote: true,
+      languageIds: const <String>[],
+      hiredAtMinutes: state.simulationMinutes,
+      grade: EmployeeGrade.senior,
+      locationCityId: state.headquartersCityId,
+    );
+    final next = state.copyWith(
+      cash: state.cash - legend.signingCost,
+      employees: <Employee>[...state.employees, employee],
+      legendMarketOffers: state.legendMarketOffers
+          .where((item) => item.legendId != legend.id)
+          .toList(growable: false),
+      hiredLegendBonuses: <HiredLegendBonus>[
+        ...state.hiredLegendBonuses,
+        HiredLegendBonus(
+          legendId: legend.id,
+          employeeId: employeeId,
+          productId: action.productId,
+          bonusKind: offer.bonusKind,
+        ),
+      ],
+      brandReputation: math.min(100, state.brandReputation + 2.5).toDouble(),
+    );
+    return _withCompanyNotification(
+      next,
+      CompanyNotification(
+        id: 'legend_hired_${legend.id}_${state.simulationMinutes}',
+        kind: CompanyNotificationKind.legend,
+        title: '${legend.name} присоединился к компании',
+        body:
+            'Skill 100. Уникальный бонус ${offer.bonusKind.name} закреплён за продуктом ${state.productById(action.productId)?.name ?? action.productId}.',
+        simulationMinutes: state.simulationMinutes,
+        read: false,
+      ),
+    );
+  }
+
+  _DailyResult _advanceIndustryEventMarket(
+    GameState state,
+    int day,
+    int counter,
+  ) {
+    var nextCounter = counter;
+    var opportunities = state.industryEventOpportunities
+        .where((item) => item.availableUntilMinutes > state.simulationMinutes)
+        .toList(growable: false);
+    var next = state.copyWith(industryEventOpportunities: opportunities);
+    if (day <= 0 ||
+        day % 30 != 0 ||
+        opportunities.isNotEmpty ||
+        state.products
+            .where((item) => item.stage == ProductStage.live)
+            .isEmpty) {
+      return _DailyResult(next, nextCounter);
+    }
+    if (_random01(state.rngSeed, nextCounter++) >= 0.35) {
+      return _DailyResult(next.copyWith(rngCounter: nextCounter), nextCounter);
+    }
+    final index =
+        ((_random01(state.rngSeed, nextCounter++) *
+                    V17EndgameCatalog.industryEvents.length)
+                .floor())
+            .clamp(0, V17EndgameCatalog.industryEvents.length - 1)
+            .toInt();
+    final definition = V17EndgameCatalog.industryEvents[index];
+    final opportunity = IndustryEventOpportunity(
+      id: 'event_${definition.id}_$day',
+      templateId: definition.id,
+      availableUntilMinutes: state.simulationMinutes + 10 * 1440,
+      eventAtMinutes: state.simulationMinutes + 14 * 1440,
+    );
+    next = next.copyWith(
+      industryEventOpportunities: <IndustryEventOpportunity>[opportunity],
+      rngCounter: nextCounter,
+    );
+    next = _withCompanyNotification(
+      next,
+      CompanyNotification(
+        id: 'event_offer_${opportunity.id}',
+        kind: CompanyNotificationKind.event,
+        title: 'Открылась регистрация: ${definition.name}',
+        body:
+            'Можно показать до 3 продуктов. Каждое место оплачивается отдельно.',
+        simulationMinutes: state.simulationMinutes,
+        read: false,
+      ),
+    );
+    return _DailyResult(next, nextCounter);
+  }
+
+  GameState _joinIndustryEvent(GameState state, JoinIndustryEvent action) {
+    final matches = state.industryEventOpportunities.where(
+      (item) => item.id == action.opportunityId,
+    );
+    if (matches.isEmpty) {
+      return state;
+    }
+    final opportunity = matches.first;
+    final productIds = action.productIds
+        .toSet()
+        .where((id) => state.productById(id)?.stage == ProductStage.live)
+        .take(3)
+        .toList(growable: false);
+    if (productIds.isEmpty) {
+      return state;
+    }
+    final definition = V17EndgameCatalog.eventById(opportunity.templateId);
+    final cost =
+        definition.entryCost + definition.productSlotCost * productIds.length;
+    if (state.cash < cost) {
+      return state;
+    }
+    return _withCompanyNotification(
+      state.copyWith(
+        cash: state.cash - cost,
+        industryEventOpportunities: state.industryEventOpportunities
+            .where((item) => item.id != opportunity.id)
+            .toList(growable: false),
+        bookedIndustryEvents: <BookedIndustryEvent>[
+          ...state.bookedIndustryEvents,
+          BookedIndustryEvent(
+            opportunityId: opportunity.id,
+            templateId: opportunity.templateId,
+            productIds: productIds,
+            eventAtMinutes: opportunity.eventAtMinutes,
+            totalCost: cost,
+          ),
+        ],
+      ),
+      CompanyNotification(
+        id: 'event_booked_${opportunity.id}',
+        kind: CompanyNotificationKind.event,
+        title: '${definition.name}: участие оплачено',
+        body: '${productIds.length} продукта • ${cost.round()} ₽',
+        simulationMinutes: state.simulationMinutes,
+        read: false,
+      ),
+    );
+  }
+
+  GameState _advanceBookedIndustryEvents(GameState state) {
+    final due = state.bookedIndustryEvents
+        .where((item) => state.simulationMinutes >= item.eventAtMinutes)
+        .toList(growable: false);
+    if (due.isEmpty) {
+      return state;
+    }
+    var next = state;
+    for (final booking in due) {
+      final definition = V17EndgameCatalog.eventById(booking.templateId);
+      final selected = booking.productIds.toSet();
+      var totalUsers = 0;
+      final products = next.products
+          .map((product) {
+            if (!selected.contains(product.id)) {
+              return product;
+            }
+            final quality = (0.55 + product.qualityScore / 180).clamp(
+              0.55,
+              1.10,
+            );
+            final gain =
+                (definition.baseUsersPerProduct *
+                        quality *
+                        next.brandDemandMultiplier)
+                    .round();
+            totalUsers += gain;
+            return product.copyWith(
+              users: product.users + gain,
+              mau: product.mau + (gain * 0.68).round(),
+              dau: product.dau + (gain * 0.18).round(),
+              brandAwareness: (product.brandAwareness + 0.08)
+                  .clamp(0, 1)
+                  .toDouble(),
+            );
+          })
+          .toList(growable: false);
+      next = next.copyWith(
+        products: products,
+        companyFans:
+            next.companyFans +
+            definition.baseFanGain +
+            (totalUsers * 0.12).round(),
+        brandReputation: math
+            .min(100, next.brandReputation + definition.reputationGain)
+            .toDouble(),
+      );
+      next = _withCompanyNotification(
+        next,
+        CompanyNotification(
+          id: 'event_done_${booking.opportunityId}',
+          kind: CompanyNotificationKind.event,
+          title: '${definition.name} завершён',
+          body:
+              '+$totalUsers пользователей, +${definition.baseFanGain} базовых фанатов.',
+          simulationMinutes: next.simulationMinutes,
+          read: false,
+        ),
+      );
+    }
+    final ids = due.map((item) => item.opportunityId).toSet();
+    return next.copyWith(
+      bookedIndustryEvents: next.bookedIndustryEvents
+          .where((item) => !ids.contains(item.opportunityId))
+          .toList(growable: false),
+    );
+  }
+
+  GameState _advanceCompanyFansAndReputation(GameState state) {
+    final live = state.products
+        .where((item) => item.stage == ProductStage.live)
+        .toList(growable: false);
+    if (live.isEmpty) {
+      return state;
+    }
+    final productFanGain = live.fold<int>(0, (sum, product) {
+      final trust = product.brandTrust.clamp(0.05, 1.0);
+      return sum +
+          math.max(
+            0,
+            (math.sqrt(product.mau.toDouble()) * trust * 0.42).round(),
+          );
+    });
+    final doctrineFanMultiplier = switch (state.ecosystemDoctrine) {
+      EcosystemDoctrine.balanced => 1.0,
+      EcosystemDoctrine.open => 1.18,
+      EcosystemDoctrine.dominant => 0.90,
+    };
+    final freeAiFans = state.worldProjectCompleted('free_ai') ? 2400 : 0;
+    final fanGain =
+        (productFanGain * doctrineFanMultiplier).round() + freeAiFans;
+    final avgTrust =
+        live.fold<double>(0, (sum, product) => sum + product.brandTrust) /
+        live.length;
+    final avgRating =
+        live.fold<double>(0, (sum, product) => sum + product.rating) /
+        live.length;
+    final staffLoyalty = state.employees.isEmpty
+        ? 70.0
+        : state.employees.fold<double>(
+                0,
+                (sum, employee) => sum + employee.loyalty,
+              ) /
+              state.employees.length;
+    final doctrineReputation = switch (state.ecosystemDoctrine) {
+      EcosystemDoctrine.balanced => 0.0,
+      EcosystemDoctrine.open => 0.004,
+      EcosystemDoctrine.dominant => -0.006,
+    };
+    final reputationDelta =
+        ((avgTrust - 0.5) * 0.08 +
+        (avgRating - 3.8) * 0.025 +
+        (staffLoyalty - 60) / 5000 +
+        doctrineReputation);
+    return state.copyWith(
+      companyFans: state.companyFans + fanGain,
+      brandReputation: (state.brandReputation + reputationDelta)
+          .clamp(0, 100)
+          .toDouble(),
+    );
+  }
+
+  GameState _advanceImportantNotificationReminders(GameState state, int day) {
+    var next = state;
+    for (final offer in state.investorOffers) {
+      final id = 'investor_offer_${offer.id}';
+      if (!next.companyNotifications.any((item) => item.id == id)) {
+        next = _withCompanyNotification(
+          next,
+          CompanyNotification(
+            id: id,
+            kind: CompanyNotificationKind.investor,
+            title: 'Инвестор прислал предложение',
+            body:
+                'Проверьте условия инвестиционного предложения до принятия решения.',
+            simulationMinutes: state.simulationMinutes,
+            read: false,
+          ),
+        );
+      }
+    }
+    final dayOfTaxYear = day % 365;
+    final daysLeft = 365 - dayOfTaxYear;
+    final taxYear = day ~/ 365;
+    if (daysLeft <= 30 && daysLeft > 0) {
+      final id = 'tax_warning_$taxYear';
+      if (!next.companyNotifications.any((item) => item.id == id)) {
+        next = _withCompanyNotification(
+          next,
+          CompanyNotification(
+            id: id,
+            kind: CompanyNotificationKind.tax,
+            title: 'Скоро годовые налоги',
+            body:
+                'До налогового списания $daysLeft дн. Проверьте резерв в финансах.',
+            simulationMinutes: state.simulationMinutes,
+            read: false,
+          ),
+        );
+      }
+    }
+    return next;
+  }
+
+  GameState _fundWorldProjectPhase(GameState state, String projectId) {
+    final definition = V17EndgameCatalog.worldProjectById(projectId);
+    final current =
+        state.worldProjectProgressFor(projectId) ??
+        WorldProjectProgress(
+          projectId: projectId,
+          completedPhases: 0,
+          activePhaseCompletesAtMinutes: -1,
+          completedUpgradeIds: const <String>[],
+          activeUpgradeId: '',
+          activeUpgradeCompletesAtMinutes: -1,
+        );
+    if (current.activePhaseCompletesAtMinutes > state.simulationMinutes ||
+        current.completedPhases >= definition.phaseCosts.length ||
+        state.valuation < definition.minimumValuation ||
+        state.companyFans < definition.minimumFans ||
+        state.completedResearchKeys.length <
+            definition.requiredCompletedResearch) {
+      return state;
+    }
+    final cost = definition.phaseCosts[current.completedPhases];
+    if (state.cash < cost) {
+      return state;
+    }
+    final days = definition.phaseDays[current.completedPhases];
+    final updated = current.copyWith(
+      activePhaseCompletesAtMinutes: state.simulationMinutes + days * 1440,
+    );
+    return _withCompanyNotification(
+      state.copyWith(
+        cash: state.cash - cost,
+        worldProjects: <WorldProjectProgress>[
+          ...state.worldProjects.where((item) => item.projectId != projectId),
+          updated,
+        ],
+      ),
+      CompanyNotification(
+        id: 'world_phase_${projectId}_${current.completedPhases}_${state.simulationMinutes}',
+        kind: CompanyNotificationKind.legacy,
+        title:
+            '${definition.name}: этап ${current.completedPhases + 1} профинансирован',
+        body: '$days дн. • ${cost.round()} ₽',
+        simulationMinutes: state.simulationMinutes,
+        read: false,
+      ),
+    );
+  }
+
+  GameState _startWorldProjectUpgrade(
+    GameState state,
+    StartWorldProjectUpgrade action,
+  ) {
+    final definition = V17EndgameCatalog.upgradeById(action.upgradeId);
+    if (definition.projectId != action.projectId ||
+        !state.worldProjectBaseCompleted(action.projectId)) {
+      return state;
+    }
+    final current = state.worldProjectProgressFor(action.projectId);
+    if (current == null ||
+        current.activeUpgradeId.isNotEmpty ||
+        current.completedUpgradeIds.contains(action.upgradeId) ||
+        state.cash < definition.cost) {
+      return state;
+    }
+    final updated = current.copyWith(
+      activeUpgradeId: action.upgradeId,
+      activeUpgradeCompletesAtMinutes:
+          state.simulationMinutes + definition.days * 1440,
+    );
+    return state.copyWith(
+      cash: state.cash - definition.cost,
+      worldProjects: <WorldProjectProgress>[
+        ...state.worldProjects.where(
+          (item) => item.projectId != action.projectId,
+        ),
+        updated,
+      ],
+    );
+  }
+
+  GameState _advanceWorldProjects(GameState state) {
+    if (state.worldProjects.isEmpty) {
+      return state;
+    }
+    var changed = false;
+    final updated = <WorldProjectProgress>[];
+    var next = state;
+    for (final progress in state.worldProjects) {
+      var current = progress;
+      final definition = V17EndgameCatalog.worldProjectById(progress.projectId);
+      if (current.activePhaseCompletesAtMinutes >= 0 &&
+          state.simulationMinutes >= current.activePhaseCompletesAtMinutes) {
+        changed = true;
+        final newPhases = math
+            .min(definition.phaseCosts.length, current.completedPhases + 1)
+            .toInt();
+        current = current.copyWith(
+          completedPhases: newPhases,
+          activePhaseCompletesAtMinutes: -1,
+        );
+        next = _withCompanyNotification(
+          next,
+          CompanyNotification(
+            id: 'world_phase_done_${progress.projectId}_$newPhases',
+            kind: CompanyNotificationKind.legacy,
+            title: '${definition.name}: этап $newPhases завершён',
+            body: newPhases == definition.phaseCosts.length
+                ? 'Базовая система готова. Теперь развивайте уникальные возможности.'
+                : 'Можно финансировать следующий этап.',
+            simulationMinutes: state.simulationMinutes,
+            read: false,
+          ),
+        );
+      }
+      if (current.activeUpgradeId.isNotEmpty &&
+          state.simulationMinutes >= current.activeUpgradeCompletesAtMinutes) {
+        changed = true;
+        final upgrade = V17EndgameCatalog.upgradeById(current.activeUpgradeId);
+        current = current.copyWith(
+          completedUpgradeIds: <String>[
+            ...current.completedUpgradeIds,
+            current.activeUpgradeId,
+          ],
+          activeUpgradeId: '',
+          activeUpgradeCompletesAtMinutes: -1,
+        );
+        next = _withCompanyNotification(
+          next,
+          CompanyNotification(
+            id: 'world_upgrade_done_${upgrade.id}',
+            kind: CompanyNotificationKind.legacy,
+            title: '${definition.name}: ${upgrade.name} готово',
+            body: upgrade.description,
+            simulationMinutes: state.simulationMinutes,
+            read: false,
+          ),
+        );
+      }
+      updated.add(current);
+    }
+    if (!changed) {
+      return state;
+    }
+    final result = next.copyWith(
+      worldProjects: updated,
+      companyFans: next.companyFans + 180000,
+      brandReputation: math.min(100, next.brandReputation + 1.2).toDouble(),
+    );
+    if (result.founderLegacyCompleted && !state.founderLegacyCompleted) {
+      return _withCompanyNotification(
+        result,
+        CompanyNotification(
+          id: 'campaign_complete_${state.simulationMinutes}',
+          kind: CompanyNotificationKind.legacy,
+          title: 'Кампания пройдена',
+          body:
+              'Все три мировых проекта завершены. Компания переходит в свободный legacy-режим.',
+          simulationMinutes: result.simulationMinutes,
+          read: false,
+        ),
+      );
+    }
+    return result;
+  }
+
+  GameState _setEcosystemDoctrine(GameState state, EcosystemDoctrine doctrine) {
+    if (state.valuation < 3000000000) {
+      return state;
+    }
+    return state.copyWith(ecosystemDoctrine: doctrine);
+  }
+
+  GameState _fundPhilanthropy(GameState state, double amount) {
+    if (amount < 10000000 || amount > state.cash) {
+      return state;
+    }
+    final fanGain = math.sqrt(amount).round() * 22;
+    final reputation = (math.log(amount / 10000000 + 1) * 2.8)
+        .clamp(0, 12)
+        .toDouble();
+    return _withCompanyNotification(
+      state.copyWith(
+        cash: state.cash - amount,
+        philanthropySpent: state.philanthropySpent + amount,
+        companyFans: state.companyFans + fanGain,
+        brandReputation: math
+            .min(100, state.brandReputation + reputation)
+            .toDouble(),
+      ),
+      CompanyNotification(
+        id: 'philanthropy_${state.simulationMinutes}',
+        kind: CompanyNotificationKind.legacy,
+        title: 'Общественная инициатива профинансирована',
+        body:
+            '${amount.round()} ₽ направлено на образование, open source и технологическую доступность.',
+        simulationMinutes: state.simulationMinutes,
+        read: false,
+      ),
+    );
+  }
+
+  GameState _choosePostGamePath(GameState state, PostGamePath path) {
+    if (!state.founderLegacyCompleted) {
+      return state;
+    }
+    return state.copyWith(postGamePath: path);
+  }
+
+  GameState _withCompanyNotification(
+    GameState state,
+    CompanyNotification notification,
+  ) {
+    if (state.companyNotifications.any((item) => item.id == notification.id)) {
+      return state;
+    }
+    return state.copyWith(
+      companyNotifications: <CompanyNotification>[
+        notification,
+        ...state.companyNotifications,
+      ].take(120).toList(growable: false),
+    );
+  }
+
   GameState _refreshCandidateMarket(GameState state, int day) {
     final week = day ~/ 7;
     final existingIds = state.candidates.map((item) => item.id).toSet();
@@ -1535,7 +3034,9 @@ class GameEngine {
                   !usedNames.contains(candidate.name),
             )
             .toList(growable: false);
-    if (additions.isEmpty) return state;
+    if (additions.isEmpty) {
+      return state;
+    }
     final market = <Candidate>[...state.candidates, ...additions];
     final capped =
         market.length <= CandidateMarketCatalog.maximumVisibleCandidates
@@ -1554,7 +3055,18 @@ class GameEngine {
     var nextCounter = counter;
     if (day > 0 && day % 7 == 0) {
       next = _refreshCandidateMarket(next, day);
+      final legends = _advanceLegendMarket(next, day, nextCounter);
+      next = legends.state;
+      nextCounter = legends.counter;
     }
+    final people = _advanceEmployeeRetention(next, day, nextCounter);
+    next = people.state;
+    nextCounter = people.counter;
+    final events = _advanceIndustryEventMarket(next, day, nextCounter);
+    next = events.state;
+    nextCounter = events.counter;
+    next = _advanceCompanyFansAndReputation(next);
+    next = _advanceImportantNotificationReminders(next, day);
 
     final liveProducts = next.products
         .where((product) => product.stage == ProductStage.live)
@@ -1637,7 +3149,9 @@ class GameEngine {
           (category) => GameCatalog.competitorsFor(category, state.rngSeed),
         )
         .toList(growable: false);
-    if (rivals.isEmpty) return _DailyResult(state, counter);
+    if (rivals.isEmpty) {
+      return _DailyResult(state, counter);
+    }
     final roll = _random01(state.rngSeed, counter++);
     final index = (roll * rivals.length)
         .floor()
@@ -1680,9 +3194,13 @@ class GameEngine {
     final messages = <String>[];
     for (final source in liveProducts) {
       final index = products.indexWhere((item) => item.id == source.id);
-      if (index < 0) continue;
+      if (index < 0) {
+        continue;
+      }
       final product = products[index];
-      if (product.openBugs.length >= 8) continue;
+      if (product.openBugs.length >= 8) {
+        continue;
+      }
       final ageDays = state.productAgeDays(product);
       final assigned = state.employeesForProduct(product.id);
       final qaQuality = _roleAverage(assigned, const <EmployeeRole>[
@@ -1695,7 +3213,9 @@ class GameEngine {
           .clamp(0.004, 0.07)
           .toDouble();
       final roll = _random01(state.rngSeed, counter++);
-      if (roll >= chance) continue;
+      if (roll >= chance) {
+        continue;
+      }
       final severityRoll = _random01(state.rngSeed, counter++);
       final severity = severityRoll < 0.08
           ? ProductBugSeverity.critical
@@ -1753,7 +3273,9 @@ class GameEngine {
     final rivals = GameCatalog.marketCompanies
         .where((company) => !state.acquiredCompanyIds.contains(company.id))
         .toList(growable: false);
-    if (rivals.isEmpty) return _DailyResult(state, counter);
+    if (rivals.isEmpty) {
+      return _DailyResult(state, counter);
+    }
 
     final companyRoll = _random01(state.rngSeed, counter++);
     final companyIndex = (companyRoll * rivals.length)
@@ -1994,7 +3516,11 @@ class GameEngine {
                 (1 - product.featureCoverage) * 0.25)
             .clamp(0, 1)
             .toDouble();
-    if (readiness + state.successfulProducts * 0.04 <
+    final investorAccessBonus =
+        ((state.headquartersCity.investorScore - 62) / 500)
+            .clamp(-0.04, 0.08)
+            .toDouble();
+    if (readiness + state.successfulProducts * 0.04 + investorAccessBonus <
             investor.minimumReadiness ||
         productRisk > investor.riskTolerance + 0.18) {
       return _DailyResult(state, counter);
@@ -2345,7 +3871,9 @@ class GameEngine {
             if (item.id == productId) {
               return item.copyWith(allocatedCapacityPercent: reserve);
             }
-            if (donorTotal <= 0) return item;
+            if (donorTotal <= 0) {
+              return item;
+            }
             final reduction =
                 reserve * item.allocatedCapacityPercent / donorTotal;
             return item.copyWith(
@@ -2411,7 +3939,9 @@ class GameEngine {
     double freeTierPercent,
   ) {
     final product = state.productById(productId);
-    if (product == null || product.stage != ProductStage.live) return state;
+    if (product == null || product.stage != ProductStage.live) {
+      return state;
+    }
     final normalizedIntensity = intensity.clamp(0.1, 1.0).toDouble();
     final normalizedFreeTier = freeTierPercent.clamp(0, 0.9).toDouble();
     return _withFeed(
@@ -2473,7 +4003,9 @@ class GameEngine {
         'Название продукта должно содержать 2–32 символа и быть уникальным.',
       );
     }
-    if (product.name == name) return state;
+    if (product.name == name) {
+      return state;
+    }
     return _withFeed(
       state.copyWith(
         products: state.products
@@ -2501,6 +4033,12 @@ class GameEngine {
       return _withFeed(
         state,
         '${product.name}: сначала завершите текущее обновление.',
+      );
+    }
+    if (!state.researchCompleted(ResearchTargetKind.feature, featureId)) {
+      return _withFeed(
+        state,
+        'Сначала исследуйте функцию в R&D: ${GameCatalog.featureById(featureId).name}.',
       );
     }
 
@@ -2546,6 +4084,12 @@ class GameEngine {
       return _withFeed(
         state,
         '${product.name}: сначала завершите текущую техническую работу.',
+      );
+    }
+    if (!state.researchCompleted(ResearchTargetKind.technology, technologyId)) {
+      return _withFeed(
+        state,
+        'Сначала исследуйте технологию в R&D: ${GameCatalog.technologyById(technologyId).name}.',
       );
     }
     final technology = GameCatalog.technologyById(technologyId);
@@ -2623,6 +4167,46 @@ class GameEngine {
         ],
       ),
       '${product.name}: исправление «${bug.title}» займёт ${requiredHours.round()} рабочих часов.',
+    );
+  }
+
+  GameState _fixAllProductBugs(GameState state, String productId) {
+    final product = state.productById(productId);
+    if (product == null ||
+        product.stage != ProductStage.live ||
+        product.openBugs.isEmpty) {
+      return state;
+    }
+    if (state.activeFeatureDevelopmentFor(productId) != null) {
+      return _withFeed(
+        state,
+        '${product.name}: сначала завершите текущую техническую работу.',
+      );
+    }
+    final totalHours = product.openBugs.fold<double>(
+      0,
+      (sum, bug) =>
+          sum +
+          switch (bug.severity) {
+            ProductBugSeverity.minor => 16,
+            ProductBugSeverity.major => 42,
+            ProductBugSeverity.critical => 90,
+          },
+    );
+    return _withFeed(
+      state.copyWith(
+        productFeatureDevelopments: <ProductFeatureDevelopment>[
+          ...state.productFeatureDevelopments,
+          ProductFeatureDevelopment(
+            productId: product.id,
+            featureId: '__bug_all__',
+            startedAtMinutes: state.simulationMinutes,
+            requiredHours: totalHours * 0.88,
+            progress: 0,
+          ),
+        ],
+      ),
+      '${product.name}: пакетное исправление ${product.openBugs.length} багов займёт ${(totalHours * 0.88).round()} рабочих часов.',
     );
   }
 
@@ -2911,7 +4495,7 @@ class GameEngine {
     final otherTotal = state.products
         .where((item) => item.id != productId)
         .fold<double>(0, (sum, item) => sum + item.allocatedCapacityPercent);
-    if (otherTotal + percent > 100.0001) {
+    if (!state.usingOwnedInfrastructure && otherTotal + percent > 100.0001) {
       return _withFeed(
         state,
         'Нельзя выделить ${percent.round()}%: свободно ${(100 - otherTotal).round()}%.',
@@ -2938,15 +4522,31 @@ class GameEngine {
     double bonusMultiplier = 1,
   }) {
     final candidate = state.candidateById(candidateId);
-    if (candidate == null) return state;
-    if (!candidate.remote &&
-        state.onSiteEmployeeCount >= state.office.capacity) {
+    if (candidate == null) {
+      return state;
+    }
+    final recruitmentCityId = state.recruitmentCityIdFor(candidate);
+    final city = WorldEconomyCatalog.cityById(recruitmentCityId);
+    final legacyCapacity = recruitmentCityId == state.headquartersCityId
+        ? state.office.capacity
+        : 0;
+    final cityCapacity =
+        legacyCapacity + state.ownedOfficeCapacityIn(recruitmentCityId);
+    final cityOccupied = state.onSiteEmployeesIn(recruitmentCityId);
+    if (!candidate.remote && cityOccupied >= cityCapacity) {
       return _withFeed(
         state,
-        'Найм заблокирован: все ${state.office.capacity} офисных мест заняты. Remote-кандидаты доступны.',
+        'Найм заблокирован в ${city.cityRu}: нет свободного on-site места. Постройте/арендуйте офис или наймите remote.',
       );
     }
-    final employerBrandDiscount = state.office.hiringBoostPercent
+    final ownedComfort = state.bestOwnedOfficeComfortIn(recruitmentCityId);
+    final employerBrandDiscount = math
+        .max(
+          recruitmentCityId == state.headquartersCityId
+              ? state.office.hiringBoostPercent
+              : 0,
+          ownedComfort / 1000,
+        )
         .clamp(0, 0.45)
         .toDouble();
     final founderSalaryMultiplier = state.founderSalaryMultiplier;
@@ -2959,9 +4559,25 @@ class GameEngine {
     if (state.cash < signingBonus) {
       return _withFeed(state, 'Недостаточно денег на бонус при найме.');
     }
-    final employee = candidate.toEmployee(
+    final baseEmployee = candidate.toEmployee(
       hiredAtMinutes: state.simulationMinutes,
-      salaryMultiplier: salaryMultiplier * founderSalaryMultiplier,
+      salaryMultiplier:
+          salaryMultiplier * founderSalaryMultiplier * city.salaryMultiplier,
+      locationCityId: recruitmentCityId,
+    );
+    final talentDelta = ((city.talentScore - 87) / 5)
+        .round()
+        .clamp(-5, 4)
+        .toInt();
+    final adjustedSkill = (baseEmployee.skill + talentDelta)
+        .clamp(1, 100)
+        .toInt();
+    final employee = baseEmployee.managedCopyWith(
+      skill: adjustedSkill,
+      quality: (baseEmployee.quality + talentDelta).clamp(1, 100).toInt(),
+      grade: talentDelta == 0
+          ? baseEmployee.grade
+          : employeeGradeForSkill(adjustedSkill),
     );
     return _withFeed(
       state.copyWith(
@@ -2981,7 +4597,7 @@ class GameEngine {
           ...state.financeTransactions,
         ].take(120).toList(growable: false),
       ),
-      '${candidate.name} принят. Зарплата ${employee.salary.round()} ₽/мес., бонус при найме ${signingBonus.round()} ₽.',
+      '${candidate.name} принят в ${city.cityRu}. Зарплата ${employee.salary.round()} ₽/мес., бонус при найме ${signingBonus.round()} ₽.',
     );
   }
 
@@ -2990,7 +4606,9 @@ class GameEngine {
     String candidateId,
     String productId,
   ) {
-    if (state.productById(productId) == null) return state;
+    if (state.productById(productId) == null) {
+      return state;
+    }
     final candidate = state.candidateById(candidateId);
     if (candidate?.isHr ?? false) {
       return _withFeed(
@@ -2999,22 +4617,30 @@ class GameEngine {
       );
     }
     final hired = _hireCandidateInternal(state, candidateId);
-    if (hired.employeeById(candidateId) == null) return hired;
+    if (hired.employeeById(candidateId) == null) {
+      return hired;
+    }
     return _assignEmployee(hired, candidateId, productId);
   }
 
   GameState _autoHireProjectTeam(GameState state, String productId) {
     final product = state.productById(productId);
-    if (product == null) return state;
+    if (product == null) {
+      return state;
+    }
     final hrEmployees =
         state.employees
             .where((employee) => employee.isHr)
             .toList(growable: false)
           ..sort((left, right) {
             final grade = right.grade.index.compareTo(left.grade.index);
-            if (grade != 0) return grade;
+            if (grade != 0) {
+              return grade;
+            }
             final skill = right.skill.compareTo(left.skill);
-            if (skill != 0) return skill;
+            if (skill != 0) {
+              return skill;
+            }
             return left.id.compareTo(right.id);
           });
     if (hrEmployees.isEmpty) {
@@ -3056,11 +4682,15 @@ class GameEngine {
                 final activeWork = next
                     .activeAssignmentCountForEmployee(left.id)
                     .compareTo(next.activeAssignmentCountForEmployee(right.id));
-                if (activeWork != 0) return activeWork;
+                if (activeWork != 0) {
+                  return activeWork;
+                }
                 final productivity = next
                     .employeeProductivityPercent(right)
                     .compareTo(next.employeeProductivityPercent(left));
-                if (productivity != 0) return productivity;
+                if (productivity != 0) {
+                  return productivity;
+                }
                 return left.id.compareTo(right.id);
               });
         if (availableEmployees.isNotEmpty) {
@@ -3077,15 +4707,24 @@ class GameEngine {
                 .where(
                   (candidate) => candidate.grade.index <= leadHr.grade.index,
                 )
-                .where(
-                  (candidate) =>
-                      candidate.remote ||
-                      next.onSiteEmployeeCount < next.office.capacity,
-                )
+                .where((candidate) {
+                  if (candidate.remote) {
+                    return true;
+                  }
+                  final cityId = next.recruitmentCityIdFor(candidate);
+                  final legacyCapacity = cityId == next.headquartersCityId
+                      ? next.office.capacity
+                      : 0;
+                  final capacity =
+                      legacyCapacity + next.ownedOfficeCapacityIn(cityId);
+                  return next.onSiteEmployeesIn(cityId) < capacity;
+                })
                 .toList(growable: false)
               ..sort((left, right) {
                 final grade = right.grade.index.compareTo(left.grade.index);
-                if (grade != 0) return grade;
+                if (grade != 0) {
+                  return grade;
+                }
                 final leftLanguage =
                     left.languageIds.any(product.languageIds.contains) ? 1 : 0;
                 final rightLanguage =
@@ -3097,9 +4736,13 @@ class GameEngine {
                     (right.skill + right.quality + right.reliability).compareTo(
                       left.skill + left.quality + left.reliability,
                     );
-                if (qualityScore != 0) return qualityScore;
+                if (qualityScore != 0) {
+                  return qualityScore;
+                }
                 final salary = left.salary.compareTo(right.salary);
-                if (salary != 0) return salary;
+                if (salary != 0) {
+                  return salary;
+                }
                 return left.id.compareTo(right.id);
               });
 
@@ -3118,7 +4761,9 @@ class GameEngine {
             },
             requireRemote: next.availableOfficeSeats <= 0,
           );
-          if (sourced == null) break;
+          if (sourced == null) {
+            break;
+          }
           next = next.copyWith(
             candidates: <Candidate>[...next.candidates, sourced],
           );
@@ -3132,7 +4777,9 @@ class GameEngine {
           salaryMultiplier: 1.25,
           bonusMultiplier: 1.25,
         );
-        if (next.employees.length == beforeEmployees) break;
+        if (next.employees.length == beforeEmployees) {
+          break;
+        }
         next = _assignEmployee(next, candidate.id, productId);
         hiredCount += 1;
         missing -= 1;
@@ -3258,7 +4905,9 @@ class GameEngine {
     final remainingRoles = <EmployeeRole>[...template.requiredRoles];
     for (final employee in chosen) {
       final index = remainingRoles.indexOf(employee.role);
-      if (index >= 0) remainingRoles.removeAt(index);
+      if (index >= 0) {
+        remainingRoles.removeAt(index);
+      }
     }
     var reused = 0;
     var hired = 0;
@@ -3278,9 +4927,13 @@ class GameEngine {
               final load = next
                   .activeAssignmentCountForEmployee(left.id)
                   .compareTo(next.activeAssignmentCountForEmployee(right.id));
-              if (load != 0) return load;
+              if (load != 0) {
+                return load;
+              }
               final skill = right.skill.compareTo(left.skill);
-              if (skill != 0) return skill;
+              if (skill != 0) {
+                return skill;
+              }
               return left.id.compareTo(right.id);
             });
       if (available.isNotEmpty) {
@@ -3298,9 +4951,13 @@ class GameEngine {
             .toList(growable: false)
           ..sort((left, right) {
             final grade = right.grade.index.compareTo(left.grade.index);
-            if (grade != 0) return grade;
+            if (grade != 0) {
+              return grade;
+            }
             final skill = right.skill.compareTo(left.skill);
-            if (skill != 0) return skill;
+            if (skill != 0) {
+              return skill;
+            }
             return left.id.compareTo(right.id);
           });
     final leadHr = hrEmployees.isEmpty ? null : hrEmployees.first;
@@ -3322,7 +4979,9 @@ class GameEngine {
               .toList(growable: false)
             ..sort((left, right) {
               final grade = right.grade.index.compareTo(left.grade.index);
-              if (grade != 0) return grade;
+              if (grade != 0) {
+                return grade;
+              }
               final l =
                   left.skill * 2 + left.speed + left.quality + left.reliability;
               final r =
@@ -3331,7 +4990,9 @@ class GameEngine {
                   right.quality +
                   right.reliability;
               final score = r.compareTo(l);
-              if (score != 0) return score;
+              if (score != 0) {
+                return score;
+              }
               return left.salary.compareTo(right.salary);
             });
       if (candidates.isEmpty) {
@@ -3349,7 +5010,9 @@ class GameEngine {
           },
           requireRemote: next.availableOfficeSeats <= 0,
         );
-        if (sourced == null) continue;
+        if (sourced == null) {
+          continue;
+        }
         next = next.copyWith(
           candidates: <Candidate>[...next.candidates, sourced],
         );
@@ -3357,7 +5020,9 @@ class GameEngine {
       }
       final candidate = candidates.first;
       final bonus = candidate.salary * 0.10 * next.founderSalaryMultiplier;
-      if (next.cash < bonus) continue;
+      if (next.cash < bonus) {
+        continue;
+      }
       final employee = candidate.toEmployee(
         hiredAtMinutes: next.simulationMinutes,
         salaryMultiplier: next.founderSalaryMultiplier,
@@ -3391,7 +5056,9 @@ class GameEngine {
     final exactRoles = <EmployeeRole>[...template.requiredRoles];
     for (final employee in chosen) {
       final index = exactRoles.indexOf(employee.role);
-      if (index < 0) continue;
+      if (index < 0) {
+        continue;
+      }
       normalized.add(employee);
       exactRoles.removeAt(index);
     }
@@ -3436,15 +5103,23 @@ class GameEngine {
         .map((item) => item.id)
         .toSet();
     for (final id in employeeIds) {
-      if (!seen.add(id)) continue;
+      if (!seen.add(id)) {
+        continue;
+      }
       final employee = state.employeeById(id);
-      if (employee == null || employee.isHr) continue;
+      if (employee == null || employee.isHr) {
+        continue;
+      }
       final atLimit =
           !currentlyAssigned.contains(id) &&
           !state.canAssignEmployeeToMoreWork(id);
-      if (atLimit) continue;
+      if (atLimit) {
+        continue;
+      }
       final roleIndex = remainingRoles.indexOf(employee.role);
-      if (roleIndex < 0) continue;
+      if (roleIndex < 0) {
+        continue;
+      }
       remainingRoles.removeAt(roleIndex);
       selected.add(id);
     }
@@ -3517,7 +5192,9 @@ class GameEngine {
 
   GameState _sendEmployeeOnVacation(GameState state, String employeeId) {
     final employee = state.employeeById(employeeId);
-    if (employee == null) return state;
+    if (employee == null) {
+      return state;
+    }
     return _withFeed(
       state.copyWith(
         employeeAssignments: state.employeeAssignments
@@ -3540,7 +5217,9 @@ class GameEngine {
 
   GameState _giveWellbeingBonus(GameState state, String employeeId) {
     final employee = state.employeeById(employeeId);
-    if (employee == null) return state;
+    if (employee == null) {
+      return state;
+    }
     final cost = employee.salary * 0.12;
     if (state.cash < cost) {
       return _withFeed(state, 'Недостаточно денег на корпоративный бонус.');
@@ -3597,6 +5276,9 @@ class GameEngine {
         contractEmployeeAssignments: state.contractEmployeeAssignments
             .where((item) => item.employeeId != employeeId)
             .toList(growable: false),
+        employeeRelocations: state.employeeRelocations
+            .where((item) => item.employeeId != employeeId)
+            .toList(growable: false),
       ),
       '${employee.name} покинул компанию. Выплачено ${severance.round()} ₽.',
     );
@@ -3638,44 +5320,151 @@ class GameEngine {
   ) {
     final employee = state.employeeById(employeeId);
     final program = OperationsCatalog.trainingProgramById(programId);
-    if (employee == null || state.cash < program.cost) {
+    if (employee == null ||
+        state.cash < program.cost ||
+        employee.grade == EmployeeGrade.senior ||
+        state.trainingForEmployee(employeeId) != null ||
+        state.gradeUpgradeForEmployee(employeeId) != null ||
+        state.relocationForEmployee(employeeId) != null) {
+      if (employee?.grade == EmployeeGrade.senior) {
+        return _withFeed(
+          state,
+          '${employee!.name}: для Senior обычные курсы недоступны — используйте повышение грейда и рабочий опыт.',
+        );
+      }
       return state;
     }
-    final nextSkill = math
-        .min(100, employee.skill + program.skillDelta)
-        .toInt();
-    final promotedGrade = switch (employee.grade) {
-      EmployeeGrade.intern when nextSkill >= 45 => EmployeeGrade.junior,
-      EmployeeGrade.junior when nextSkill >= 63 => EmployeeGrade.middle,
-      EmployeeGrade.middle when nextSkill >= 79 => EmployeeGrade.senior,
-      _ => employee.grade,
-    };
-    final updated = employee.managedCopyWith(
-      skill: nextSkill,
-      speed: math.min(100, employee.speed + program.speedDelta).toInt(),
-      quality: math.min(100, employee.quality + program.qualityDelta).toInt(),
-      autonomy: math
-          .min(100, employee.autonomy + program.autonomyDelta)
-          .toInt(),
-      communication: math
-          .min(100, employee.communication + program.communicationDelta)
-          .toInt(),
-      reliability: math
-          .min(100, employee.reliability + program.reliabilityDelta)
-          .toInt(),
-      morale: math.min(100, employee.morale + 3).toInt(),
-      grade: promotedGrade,
+    final assignment = EmployeeTrainingAssignment(
+      id: 'training_${employee.id}_${program.id}_${state.simulationMinutes}',
+      employeeId: employee.id,
+      programId: program.id,
+      startedAtMinutes: state.simulationMinutes,
+      completesAtMinutes: state.simulationMinutes + program.durationDays * 1440,
     );
     return _withFeed(
       state.copyWith(
         cash: state.cash - program.cost,
-        employees: state.employees
-            .map((item) => item.id == employeeId ? updated : item)
-            .toList(growable: false),
+        employeeTrainings: <EmployeeTrainingAssignment>[
+          ...state.employeeTrainings,
+          assignment,
+        ],
       ),
-      promotedGrade == employee.grade
-          ? '${employee.name} завершил программу «${program.name}» за ${program.cost.round()} ₽.'
-          : '${employee.name} завершил программу «${program.name}» и повышен до ${promotedGrade.name}.',
+      '${employee.name}: курс «${program.name}» начат на ${program.durationDays} дн. Результат применится после завершения.',
+    );
+  }
+
+  GameState _trainEmployees(
+    GameState state,
+    List<String> employeeIds,
+    String programId,
+  ) {
+    var next = state;
+    for (final id in employeeIds.toSet()) {
+      next = _trainEmployee(next, id, programId);
+    }
+    return next;
+  }
+
+  GameState _upgradeEmployeesToGrade(
+    GameState state,
+    List<String> employeeIds,
+    EmployeeGrade targetGrade,
+  ) {
+    var next = state;
+    for (final id in employeeIds.toSet()) {
+      final employee = next.employeeById(id);
+      if (employee == null ||
+          employee.grade.index >= targetGrade.index ||
+          next.trainingForEmployee(id) != null ||
+          next.gradeUpgradeForEmployee(id) != null ||
+          next.relocationForEmployee(id) != null) {
+        continue;
+      }
+      final steps = targetGrade.index - employee.grade.index;
+      final seniorPremium = targetGrade == EmployeeGrade.senior ? 0.85 : 0.0;
+      final cost = employee.salary * (1.10 + steps * 0.72 + seniorPremium);
+      if (next.cash < cost) {
+        continue;
+      }
+      final durationDays =
+          4 + steps * 2 + (targetGrade == EmployeeGrade.senior ? 3 : 0);
+      final upgrade = EmployeeGradeUpgrade(
+        id: 'grade_${employee.id}_${targetGrade.name}_${next.simulationMinutes}',
+        employeeId: employee.id,
+        targetGrade: targetGrade,
+        startedAtMinutes: next.simulationMinutes,
+        completesAtMinutes: next.simulationMinutes + durationDays * 1440,
+        cost: cost,
+      );
+      next = next.copyWith(
+        cash: next.cash - cost,
+        employeeGradeUpgrades: <EmployeeGradeUpgrade>[
+          ...next.employeeGradeUpgrades,
+          upgrade,
+        ],
+      );
+      next = _withFeed(
+        next,
+        '${employee.name}: повышение до ${targetGrade.name} займёт $durationDays дн. Стоимость ${cost.round()} ₽. После завершения вырастут навыки и зарплата.',
+      );
+    }
+    return next;
+  }
+
+  GameState _relocateEmployeeToOffice(
+    GameState state,
+    String employeeId,
+    String officeSiteId,
+  ) {
+    final employee = state.employeeById(employeeId);
+    final officeMatches = state.ownedOffices.where(
+      (item) => item.id == officeSiteId,
+    );
+    if (employee == null || officeMatches.isEmpty || !employee.remote) {
+      return state;
+    }
+    if (state.trainingForEmployee(employeeId) != null ||
+        state.gradeUpgradeForEmployee(employeeId) != null ||
+        state.relocationForEmployee(employeeId) != null) {
+      return _withFeed(
+        state,
+        '${employee.name}: сначала завершите текущее развитие или релокацию.',
+      );
+    }
+    final office = officeMatches.first;
+    if (state.availableOwnedOfficeSeatsIn(office.cityId) <= 0) {
+      return _withFeed(
+        state,
+        '${employee.name}: в выбранном офисе нет свободных мест.',
+      );
+    }
+    final destination = WorldEconomyCatalog.cityById(office.cityId);
+    final cost = state.employeeRelocationCost(employee, office);
+    if (state.cash < cost) {
+      return _withFeed(
+        state,
+        'Релокация ${employee.name} стоит ${cost.round()} ₽.',
+      );
+    }
+    final durationDays = state.employeeRelocationDurationDays(employee, office);
+    final relocation = EmployeeRelocationAssignment(
+      id: 'relocation_${employee.id}_${office.id}_${state.simulationMinutes}',
+      employeeId: employee.id,
+      officeSiteId: office.id,
+      destinationCityId: office.cityId,
+      startedAtMinutes: state.simulationMinutes,
+      completesAtMinutes: state.simulationMinutes + durationDays * 1440,
+      cost: cost,
+    );
+    return _withFeed(
+      state.copyWith(
+        cash: state.cash - cost,
+        employeeRelocations: <EmployeeRelocationAssignment>[
+          ...state.employeeRelocations,
+          relocation,
+        ],
+      ),
+      '${employee.name}: релокация в ${destination.cityRu} начата на $durationDays дн. Стоимость ${cost.round()} ₽.',
     );
   }
 
@@ -3748,12 +5537,89 @@ class GameEngine {
     );
   }
 
+  GameState _buildOwnedOffice(GameState state, BuildOwnedOffice action) {
+    if (!WorldEconomyCatalog.containsCity(action.cityId)) {
+      return state;
+    }
+    final city = WorldEconomyCatalog.cityById(action.cityId);
+    final cost = WorldEconomyCatalog.officeBuildCost(
+      cityId: action.cityId,
+      size: action.size,
+      fitout: action.fitoutQuality,
+      equipment: action.equipmentQuality,
+    );
+    if (state.cash < cost) {
+      return _withFeed(
+        state,
+        'Офис в ${city.cityRu}: не хватает ${(cost - state.cash).round()} ₽ на строительство.',
+      );
+    }
+    final site = OwnedOfficeSite(
+      id: 'office_${action.cityId}_${state.simulationMinutes}_${state.ownedOffices.length}',
+      cityId: action.cityId,
+      size: action.size,
+      fitoutQuality: action.fitoutQuality,
+      equipmentQuality: action.equipmentQuality,
+      builtAtMinutes: state.simulationMinutes,
+    );
+    return _withFeed(
+      state.copyWith(
+        cash: state.cash - cost,
+        ownedOffices: <OwnedOfficeSite>[...state.ownedOffices, site],
+      ),
+      'Собственный офис в ${city.cityRu} построен: ${WorldEconomyCatalog.officeCapacity(site.size)} мест, обслуживание ${WorldEconomyCatalog.officeMonthlyCost(site).round()} ₽/мес.',
+    );
+  }
+
+  GameState _buildOwnedDataCenter(
+    GameState state,
+    BuildOwnedDataCenter action,
+  ) {
+    if (!WorldEconomyCatalog.containsCity(action.cityId)) {
+      return state;
+    }
+    final city = WorldEconomyCatalog.cityById(action.cityId);
+    final cost = WorldEconomyCatalog.dataCenterBuildCost(
+      cityId: action.cityId,
+      size: action.size,
+      facility: action.facilityQuality,
+      equipment: action.equipmentQuality,
+    );
+    if (state.cash < cost) {
+      return _withFeed(
+        state,
+        'ЦОД в ${city.cityRu}: не хватает ${(cost - state.cash).round()} ₽ на строительство.',
+      );
+    }
+    final site = OwnedDataCenterSite(
+      id: 'dc_${action.cityId}_${state.simulationMinutes}_${state.ownedDataCenters.length}',
+      cityId: action.cityId,
+      size: action.size,
+      facilityQuality: action.facilityQuality,
+      equipmentQuality: action.equipmentQuality,
+      builtAtMinutes: state.simulationMinutes,
+    );
+    return _withFeed(
+      state.copyWith(
+        cash: state.cash - cost,
+        ownedDataCenters: <OwnedDataCenterSite>[
+          ...state.ownedDataCenters,
+          site,
+        ],
+      ),
+      'Собственный ЦОД в ${city.cityRu} построен: ${WorldEconomyCatalog.dataCenterRackUnits(site.size)} U, обслуживание ${WorldEconomyCatalog.dataCenterMonthlyCost(site).round()} ₽/мес.',
+    );
+  }
+
   GameState _rentOffice(GameState state, String officeId) {
     if (state.selectedOfficeId == officeId) {
       return state;
     }
     final office = GameCatalog.officeById(officeId);
-    if (office.capacity < state.onSiteEmployeeCount ||
+    final headquartersCapacity =
+        office.capacity + state.ownedOfficeCapacityIn(state.headquartersCityId);
+    if (headquartersCapacity <
+            state.onSiteEmployeesIn(state.headquartersCityId) ||
         state.cash < office.deposit) {
       return state;
     }
@@ -3771,9 +5637,9 @@ class GameEngine {
       return state;
     }
     final room = GameCatalog.serverRoomById(roomId);
-    if (state.usedRackUnits > room.rackUnits ||
-        state.usedCoolingKw > room.coolingKw ||
-        state.usedPowerKw > room.powerKw ||
+    if (state.usedRackUnitsAtDataCenter('') > room.rackUnits ||
+        state.usedCoolingKwAtDataCenter('') > room.coolingKw ||
+        state.usedPowerKwAtDataCenter('') > room.powerKw ||
         state.cash < room.deposit) {
       return state;
     }
@@ -3791,7 +5657,9 @@ class GameEngine {
     if (plan.kind == HostingKind.owned) {
       return _migrateToOwnedInfrastructure(state);
     }
-    if (plan.id == state.selectedHostingPlanId) return state;
+    if (plan.id == state.selectedHostingPlanId) {
+      return state;
+    }
     final employeeRoles = state.employees.map((item) => item.role.name).toSet();
     final missingRoles =
         plan.requiredRoles
@@ -3831,16 +5699,18 @@ class GameEngine {
 
   GameState _migrateToOwnedInfrastructure(GameState state) {
     final plan = V9ContentCatalog.hostingById('owned');
-    if (state.usingOwnedInfrastructure) return state;
+    if (state.usingOwnedInfrastructure) {
+      return state;
+    }
     final roles = state.employees.map((item) => item.role).toSet();
     final reasons = <String>[
       if (!roles.contains(EmployeeRole.devOps)) 'нет DevOps-инженера',
       if (!roles.contains(EmployeeRole.security)) 'нет Security Engineer',
       if (state.installedServers.isEmpty) 'не куплен ни один сервер',
-      if (state.usedRackUnits > state.serverRoom.rackUnits)
+      if (state.usedRackUnits > state.effectiveRackUnits)
         'не хватает rack units',
-      if (state.usedPowerKw > state.serverRoom.powerKw) 'не хватает питания',
-      if (state.usedCoolingKw > state.serverRoom.coolingKw)
+      if (state.usedPowerKw > state.effectivePowerKw) 'не хватает питания',
+      if (state.usedCoolingKw > state.effectiveCoolingKw)
         'не хватает охлаждения',
       if (state.cash < plan.setupCost)
         'не хватает ${(plan.setupCost - state.cash).round()} ₽',
@@ -3872,26 +5742,70 @@ class GameEngine {
     );
   }
 
-  GameState _installServer(GameState state, String hardwareId) {
+  GameState _installServer(
+    GameState state,
+    String hardwareId, {
+    String? dataCenterSiteId,
+    InfrastructureService service = InfrastructureService.sharedLegacy,
+  }) {
     final hardware = GameCatalog.serverHardwareById(hardwareId);
     if (state.cash < hardware.purchaseCost) {
       return state;
     }
-    final nextRack = state.usedRackUnits + hardware.rackUnits;
-    final nextCooling = state.usedCoolingKw + hardware.heatKw;
-    final nextPower = state.usedPowerKw + hardware.powerKw;
-    if (nextRack > state.serverRoom.rackUnits ||
-        nextCooling > state.serverRoom.coolingKw ||
-        nextPower > state.serverRoom.powerKw) {
+    if (dataCenterSiteId != null &&
+        !state.ownedDataCenters.any((item) => item.id == dataCenterSiteId)) {
       return _withFeed(
         state,
-        'Нельзя установить ${hardware.name}: серверная не выдержит rack/power/cooling.',
+        'Нельзя установить ${hardware.name}: выбранный ЦОД не существует.',
       );
     }
-    final current = state.installedCount(hardwareId);
+    final site = dataCenterSiteId == null
+        ? null
+        : state.ownedDataCenters.firstWhere(
+            (item) => item.id == dataCenterSiteId,
+          );
+    final rackLimit = site == null
+        ? state.serverRoom.rackUnits.toDouble()
+        : WorldEconomyCatalog.dataCenterRackUnits(site.size).toDouble();
+    final powerLimit = site == null
+        ? state.serverRoom.powerKw
+        : WorldEconomyCatalog.dataCenterPowerKw(site);
+    final coolingLimit = site == null
+        ? state.serverRoom.coolingKw
+        : WorldEconomyCatalog.dataCenterCoolingKw(site);
+    final usedRack = state.usedRackUnitsAtDataCenter(site?.id ?? '');
+    final usedPower = state.usedPowerKwAtDataCenter(site?.id ?? '');
+    final usedCooling = state.usedCoolingKwAtDataCenter(site?.id ?? '');
+    if (usedRack + hardware.rackUnits > rackLimit ||
+        usedCooling + hardware.heatKw > coolingLimit ||
+        usedPower + hardware.powerKw > powerLimit) {
+      return _withFeed(
+        state,
+        'Нельзя установить ${hardware.name}: выбранный ЦОД не выдержит rack/power/cooling.',
+      );
+    }
+    final keySite = dataCenterSiteId ?? '';
+    final matchingEntries = state.installedServers.where(
+      (item) =>
+          item.hardwareId == hardwareId &&
+          item.dataCenterSiteId == keySite &&
+          item.service == service,
+    );
+    final currentEntry = matchingEntries.isEmpty ? null : matchingEntries.first;
+    final current = currentEntry?.count ?? 0;
     final installed = <InstalledServer>[
-      ...state.installedServers.where((item) => item.hardwareId != hardwareId),
-      InstalledServer(hardwareId: hardwareId, count: current + 1),
+      ...state.installedServers.where(
+        (item) =>
+            !(item.hardwareId == hardwareId &&
+                item.dataCenterSiteId == keySite &&
+                item.service == service),
+      ),
+      InstalledServer(
+        hardwareId: hardwareId,
+        count: current + 1,
+        dataCenterSiteId: keySite,
+        service: service,
+      ),
     ];
     return _withFeed(
       state.copyWith(
@@ -3899,31 +5813,42 @@ class GameEngine {
         cash: state.cash - hardware.purchaseCost,
         financeTransactions: <FinanceTransaction>[
           FinanceTransaction(
-            id: 'server_${hardware.id}_${state.simulationMinutes}_${current + 1}',
+            id: 'server_${hardware.id}_${service.name}_${state.simulationMinutes}_${current + 1}',
             simulationMinutes: state.simulationMinutes,
             amount: -hardware.purchaseCost,
             category: FinanceTransactionCategory.infrastructure,
-            description: 'Покупка сервера • ${hardware.name}',
+            description:
+                'Покупка сервера • ${hardware.name} • ${_serviceName(service)}',
           ),
           ...state.financeTransactions,
         ].take(120).toList(growable: false),
       ),
-      '${hardware.name} установлен: +${hardware.computeUnits.round()} CU.',
+      '${hardware.name} установлен для ${_serviceName(service)}: +${hardware.computeUnits.round()} CU.',
     );
   }
 
-  GameState _removeServer(GameState state, String hardwareId) {
-    final current = state.installedCount(hardwareId);
-    if (current <= 0) {
+  GameState _removeServer(
+    GameState state,
+    String hardwareId, {
+    String? dataCenterSiteId,
+    InfrastructureService? service,
+  }) {
+    final siteId = dataCenterSiteId ?? '';
+    final matchingIndex = state.installedServers.indexWhere(
+      (item) =>
+          item.hardwareId == hardwareId &&
+          (dataCenterSiteId == null || item.dataCenterSiteId == siteId) &&
+          (service == null || item.service == service),
+    );
+    if (matchingIndex < 0) {
       return state;
     }
-    final installed = <InstalledServer>[];
-    for (final item in state.installedServers) {
-      if (item.hardwareId != hardwareId) {
-        installed.add(item);
-      } else if (item.count > 1) {
-        installed.add(item.copyWith(count: item.count - 1));
-      }
+    final installed = List<InstalledServer>.of(state.installedServers);
+    final current = installed[matchingIndex];
+    if (current.count <= 1) {
+      installed.removeAt(matchingIndex);
+    } else {
+      installed[matchingIndex] = current.copyWith(count: current.count - 1);
     }
     return state.copyWith(installedServers: installed);
   }
@@ -4109,6 +6034,51 @@ class GameEngine {
     );
   }
 
+  GameState _assignProductInfrastructureService(
+    GameState state,
+    AssignProductInfrastructureService action,
+  ) {
+    final product = state.productById(action.productId);
+    if (product == null) {
+      return state;
+    }
+    if (!state.usingOwnedInfrastructure) {
+      return _withFeed(
+        state,
+        '${product.name}: раздельная маршрутизация доступна после перехода на собственные серверы.',
+      );
+    }
+    if (action.dataCenterSiteId.isNotEmpty &&
+        !state.ownedDataCenters.any(
+          (item) => item.id == action.dataCenterSiteId,
+        )) {
+      return state;
+    }
+    final routes = <ProductServiceRoute>[
+      ...state.productServiceRoutes.where(
+        (item) =>
+            item.productId != action.productId ||
+            item.service != action.service,
+      ),
+      ProductServiceRoute(
+        productId: action.productId,
+        service: action.service,
+        dataCenterSiteId: action.dataCenterSiteId,
+      ),
+    ];
+    final label = action.dataCenterSiteId.isEmpty
+        ? 'арендная серверная'
+        : state.ownedDataCenterLabel(
+            state.ownedDataCenters.firstWhere(
+              (item) => item.id == action.dataCenterSiteId,
+            ),
+          );
+    return _withFeed(
+      state.copyWith(productServiceRoutes: routes),
+      '${product.name}: ${_serviceName(action.service)} → $label.',
+    );
+  }
+
   GameState _startAdvertisingCampaign(
     GameState state,
     StartAdvertisingCampaign action,
@@ -4125,16 +6095,27 @@ class GameEngine {
     if (action.budget < agency.minimumBudget) {
       return _withFeed(
         state,
-        '${agency.name}: минимальный бюджет ${agency.minimumBudget.round()} ₽.',
+        '${agency.name}: минимальный месячный бюджет ${agency.minimumBudget.round()} ₽.',
       );
     }
-    if (state.cash < action.budget) {
-      return _withFeed(state, 'Недостаточно денег на рекламную кампанию.');
-    }
-    if (state.activeCampaignsFor(product.id).length >= 2) {
+    if (state.cash < action.budget / 6) {
       return _withFeed(
         state,
-        '${product.name}: одновременно можно вести не больше двух кампаний.',
+        'Для запуска канала нужен резерв хотя бы на 5 дней рекламы.',
+      );
+    }
+    if (state.activeCampaignsFor(product.id).length >= 3) {
+      return _withFeed(
+        state,
+        '${product.name}: одновременно можно вести не больше трёх рекламных каналов.',
+      );
+    }
+    if (state
+        .activeCampaignsFor(product.id)
+        .any((item) => item.channelId == channel.id)) {
+      return _withFeed(
+        state,
+        '${product.name}: канал ${channel.name} уже включён.',
       );
     }
     final forecast = state.advertisingForecast(
@@ -4151,7 +6132,7 @@ class GameEngine {
       channelId: channel.id,
       budget: action.budget,
       startedAtMinutes: state.simulationMinutes,
-      endsAtMinutes: state.simulationMinutes + 7 * 1440,
+      endsAtMinutes: -1,
       status: AdvertisingCampaignStatus.active,
       projectedImpressions: forecast.impressions,
       projectedClicks: forecast.clicks,
@@ -4162,26 +6143,48 @@ class GameEngine {
     );
     return _withFeed(
       state.copyWith(
-        cash: state.cash - action.budget,
         advertisingCampaigns: <AdvertisingCampaign>[
           ...state.advertisingCampaigns,
           campaign,
         ],
-        financeTransactions: <FinanceTransaction>[
-          FinanceTransaction(
-            id: 'campaign_start_${campaign.id}',
-            simulationMinutes: state.simulationMinutes,
-            amount: -action.budget,
-            category: FinanceTransactionCategory.marketing,
-            description: '${agency.name} • ${channel.name}',
-          ),
-          ...state.financeTransactions,
-        ].take(120).toList(growable: false),
         rngCounter: sequence,
       ),
-      '${product.name}: ${channel.name} через ${agency.name}. Прогноз ${forecast.usersLow}–${forecast.usersHigh} пользователей за 7 дней. ${forecast.note}',
+      '${product.name}: ${channel.name} включён через ${agency.name}. Бюджет ${action.budget.round()} ₽/мес., прогноз ${forecast.usersLow}–${forecast.usersHigh} пользователей в месяц. Списание идёт ежедневно.',
     );
   }
+
+  GameState _stopAdvertisingCampaign(GameState state, String campaignId) {
+    AdvertisingCampaign? target;
+    for (final campaign in state.advertisingCampaigns) {
+      if (campaign.id == campaignId) {
+        target = campaign;
+        break;
+      }
+    }
+    if (target == null || target.status != AdvertisingCampaignStatus.active) {
+      return state;
+    }
+    final product = state.productById(target.productId);
+    return _withFeed(
+      state.copyWith(
+        advertisingCampaigns: state.advertisingCampaigns
+            .map(
+              (item) => item.id == campaignId
+                  ? item.copyWith(status: AdvertisingCampaignStatus.stopped)
+                  : item,
+            )
+            .toList(growable: false),
+      ),
+      '${product?.name ?? 'Продукт'}: рекламный канал остановлен.',
+    );
+  }
+
+  String _serviceName(InfrastructureService service) => switch (service) {
+    InfrastructureService.sharedLegacy => 'legacy shared',
+    InfrastructureService.appApi => 'API и приложение',
+    InfrastructureService.dataStorage => 'данные и storage',
+    InfrastructureService.aiCompute => 'AI / compute',
+  };
 
   GameState _requestBusinessLoan(GameState state) {
     if (state.activeLoan != null) {
@@ -4331,7 +6334,9 @@ class GameEngine {
   GameState _requestFunding(GameState state, RequestInvestorFunding action) {
     final investor = GameCatalog.investorById(action.investorId);
     final product = state.productById(action.productId);
-    if (product == null || action.requestedAmount <= 0) return state;
+    if (product == null || action.requestedAmount <= 0) {
+      return state;
+    }
     final duplicate = state.investorOffers.any(
       (offer) =>
           offer.investorId == investor.id && offer.productId == product.id,
@@ -4615,12 +6620,6 @@ class GameEngine {
     if (state.marketCompanyFullyAcquired(company.id)) {
       return state;
     }
-    if (state.remainingRivalCount == 1 && !state.legacyProductRequirementMet) {
-      return _withFeed(
-        state,
-        'Финальная сделка пока закрыта: выпустите ${state.requiredReleasedBlueprintsForLegacy} разных продуктов из каталога. Сейчас ${state.releasedBlueprintCount}.',
-      );
-    }
     final productAlreadyOwned = state.acquiredCompanyIds.contains(company.id);
     final existingStake =
         state.holdingByCompanyId(company.id)?.ownershipPercent ?? 0;
@@ -4644,7 +6643,9 @@ class GameEngine {
               mode: AcquisitionMode.maintainSeparate,
             ),
           );
-    if (!productAlreadyOwned && identical(acquired, state)) return state;
+    if (!productAlreadyOwned && identical(acquired, state)) {
+      return state;
+    }
     final companyBalance = productAlreadyOwned
         ? remainingPrice
         : math.max(0, equityAdjustedPrice - company.productPrice).toDouble();
@@ -4888,7 +6889,8 @@ class GameEngine {
       final organic =
           segment.addressableUsers *
           (0.0007 + preference * 0.0048) *
-          brandFactor;
+          brandFactor *
+          0.33;
       monthlyNewUsers += organic * (1 - freshnessPenalty * 0.72);
       weightedPreference += preference * segment.addressableUsers;
       totalAddressable += segment.addressableUsers;
@@ -4906,6 +6908,7 @@ class GameEngine {
     final overload = math
         .min(0.53, math.max(0, state.productServerLoad(product) - 0.82))
         .toDouble();
+    final monetizationImpact = state.monetizationExperienceImpact(product);
     final activation =
         (0.12 +
                 designScore / 330 +
@@ -4914,7 +6917,8 @@ class GameEngine {
                 product.brandTrust * 0.10 +
                 qualityBonus / 500 -
                 freshnessPenalty * 0.12 -
-                overload * 0.12)
+                overload * 0.12 +
+                monetizationImpact.activationDelta)
             .clamp(0.05, 0.92)
             .toDouble();
     final retention =
@@ -4927,7 +6931,8 @@ class GameEngine {
                 retentionBonus +
                 qualityBonus / 600 -
                 freshnessPenalty * 0.16 -
-                overload * 0.10)
+                overload * 0.10 +
+                monetizationImpact.retentionDelta)
             .clamp(0.08, 0.92)
             .toDouble();
     final priceSentiment = state.currentPriceSentiment(product);
@@ -4938,8 +6943,9 @@ class GameEngine {
                 overload * 0.10 +
                 freshnessPenalty * 0.11 +
                 priceSentiment * 0.12 +
+                monetizationImpact.churnDelta +
                 (100 - securityScore) / 1000)
-            .clamp(0.015, 0.38)
+            .clamp(0.015, 0.65)
             .toDouble();
     final quality =
         (ownSpeedScore * 0.22 +
@@ -4952,8 +6958,31 @@ class GameEngine {
             .clamp(1, 100)
             .toDouble();
 
+    final livePortfolioSize = state.products
+        .where((item) => item.stage == ProductStage.live)
+        .length;
+    final portfolioDiscoveryFactor =
+        (0.78 + math.max(0, livePortfolioSize - 1) * 0.08)
+            .clamp(0.78, 1.10)
+            .toDouble();
+    final marketReadiness =
+        (0.24 +
+                featureCoverage * 0.24 +
+                designScore / 430 +
+                securityScore / 520 +
+                reliability * 0.18 -
+                overload * 0.24 -
+                freshnessPenalty * 0.18)
+            .clamp(0.22, 1.05)
+            .toDouble();
+
     return _MarketOutcome(
-      monthlyNewUsers: monthlyNewUsers * activation * (1 + ecosystemBoost),
+      monthlyNewUsers:
+          monthlyNewUsers *
+          activation *
+          (1 + ecosystemBoost) *
+          portfolioDiscoveryFactor *
+          marketReadiness,
       activationRate: activation,
       retention30d: retention,
       churnRate: churn,
@@ -4971,17 +7000,17 @@ class GameEngine {
     required double ecosystemBoost,
   }) {
     final payingShare = 1 - product.freeTierPercent;
-    final intensity = product.monetizationIntensity;
+    final intensity = product.monetizationIntensity.clamp(0.1, 1.0).toDouble();
     final base = switch (product.monetization) {
       MonetizationModel.free => 0.0,
       MonetizationModel.subscription =>
-        mau * payingShare * product.price * (0.075 + intensity * 0.035),
+        mau * payingShare * product.price * (0.070 + intensity * 0.030),
       MonetizationModel.usageBased =>
-        mau * payingShare * product.price * (0.045 + intensity * 0.032),
+        mau * payingShare * product.price * (0.043 + intensity * 0.028),
       MonetizationModel.advertising =>
-        mau * (9 + intensity * 27) * math.max(0.02, product.price),
+        mau * (7 + intensity * 19) * math.max(0.02, product.price),
       MonetizationModel.transactionFee =>
-        mau * (7 + intensity * 13) * product.price,
+        mau * (6 + intensity * 10) * product.price,
     };
     return base * reliability * (1 + ecosystemBoost * 0.55);
   }
@@ -5063,6 +7092,10 @@ class GameEngine {
         action is AdvanceTime ||
         action is SkipNight ||
         action is StartAdvertisingCampaign ||
+        action is RentHostingPlan ||
+        action is MigrateToOwnedInfrastructure ||
+        action is InstallServer ||
+        action is ConnectProducts ||
         action is AcceptClientContract ||
         action is HireCandidate ||
         action is HireCandidateForProduct ||
@@ -5089,17 +7122,31 @@ class GameEngine {
       HireCandidate() ||
       FireEmployee() ||
       GiveEmployeeRaise() ||
-      TrainEmployee() => FinanceTransactionCategory.payroll,
+      TrainEmployee() ||
+      TrainEmployees() ||
+      UpgradeEmployeesToGrade() ||
+      RelocateEmployeeToOffice() => FinanceTransactionCategory.payroll,
       RentOffice() ||
       RentServerRoom() ||
+      BuildOwnedOffice() ||
+      BuildOwnedDataCenter() ||
       InstallServer() ||
       RemoveServer() => FinanceTransactionCategory.infrastructure,
       PurchaseSecurityControl() ||
       RunSecurityAudit() => FinanceTransactionCategory.security,
-      SetProductMarketingBudget() => FinanceTransactionCategory.marketing,
+      SetProductMarketingBudget() ||
+      JoinIndustryEvent() => FinanceTransactionCategory.marketing,
+      StartCompanyResearch() => FinanceTransactionCategory.product,
+      ToggleCompanyPerk() ||
+      CounterOfferEmployee() ||
+      HireMarketLegend() => FinanceTransactionCategory.payroll,
+      FundWorldProjectPhase() ||
+      StartWorldProjectUpgrade() ||
+      FundPhilanthropy() => FinanceTransactionCategory.investment,
       CreateConfiguredProduct() ||
       AddProductFeature() ||
-      ApplyProductImprovement() => FinanceTransactionCategory.product,
+      ApplyProductImprovement() ||
+      FixAllProductBugs() => FinanceTransactionCategory.product,
       _ => FinanceTransactionCategory.other,
     };
     final description = switch (action) {
@@ -5108,11 +7155,24 @@ class GameEngine {
       RequestInvestorFunding() => 'Изменение после запроса инвестору',
       HireCandidate() => 'Signing bonus сотруднику',
       FireEmployee() => 'Компенсация при увольнении',
-      TrainEmployee() => 'Обучение сотрудника',
+      TrainEmployee() || TrainEmployees() => 'Обучение сотрудников',
+      UpgradeEmployeesToGrade() => 'План повышения грейда',
+      RelocateEmployeeToOffice() => 'Релокация сотрудника в офис',
+      StartCompanyResearch() => 'R&D исследование',
+      ToggleCompanyPerk() => 'Программа льгот для сотрудников',
+      HireMarketLegend() => 'Signing bonus легенде рынка',
+      CounterOfferEmployee() => 'Counter-offer сотруднику',
+      JoinIndustryEvent() => 'Участие в отраслевом мероприятии',
+      FundWorldProjectPhase() => 'Финансирование мирового проекта',
+      StartWorldProjectUpgrade() => 'Улучшение мирового проекта',
+      FundPhilanthropy() => 'Общественная и технологическая инициатива',
+      ResolveCriticalEvent() => 'Локализация критического инцидента',
       CreateConfiguredProduct() => 'Запуск разработки продукта',
       AddProductFeature() => 'Новая функция продукта',
       ApplyProductImprovement() => 'Техническое улучшение продукта',
       RentOffice() => 'Депозит за офис',
+      BuildOwnedOffice() => 'Строительство собственного офиса',
+      BuildOwnedDataCenter() => 'Строительство собственного ЦОД',
       RentServerRoom() => 'Депозит за серверную',
       InstallServer() => 'Покупка сервера',
       PurchaseSecurityControl() => 'Внедрение security control',

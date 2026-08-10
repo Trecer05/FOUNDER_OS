@@ -65,6 +65,50 @@ class _GameStateIndex {
   late final Map<String, List<Employee>> employeesByProduct = _resolveEmployees(
     assignmentsByProduct,
   );
+  late final Map<String, EmployeeTrainingAssignment> trainingByEmployee =
+      _firstBy<EmployeeTrainingAssignment>(
+        state.employeeTrainings,
+        (item) => item.employeeId,
+      );
+  late final Map<String, EmployeeGradeUpgrade> gradeUpgradeByEmployee =
+      _firstBy<EmployeeGradeUpgrade>(
+        state.employeeGradeUpgrades,
+        (item) => item.employeeId,
+      );
+  late final Map<String, EmployeeRelocationAssignment> relocationByEmployee =
+      _firstBy<EmployeeRelocationAssignment>(
+        state.employeeRelocations,
+        (item) => item.employeeId,
+      );
+  late final Map<String, ProductServiceRoute> serviceRouteByProductAndService =
+      _firstBy<ProductServiceRoute>(
+        state.productServiceRoutes,
+        (item) => pair(item.productId, item.service.name),
+      );
+  late final List<String> staffingCityIds = List<String>.unmodifiable(<String>{
+    state.headquartersCityId,
+    ...state.ownedOffices.map((item) => item.cityId),
+  });
+  late final Map<String, int> ownedOfficeCapacityByCity =
+      _sumValueBy<OwnedOfficeSite, int>(
+        state.ownedOffices,
+        (item) => item.cityId,
+        (item) => WorldEconomyCatalog.officeCapacity(item.size),
+        (left, right) => left + right,
+      );
+  late final Map<String, int> onSiteEmployeeCountByCity =
+      _sumValueBy<Employee, int>(
+        state.employees.where((item) => !item.remote),
+        (item) => state.employeeCityId(item),
+        (_) => 1,
+        (left, right) => left + right,
+      );
+  late final Map<String, int> bestOwnedOfficeComfortByCity =
+      _maximumIntValueBy<OwnedOfficeSite>(
+        state.ownedOffices,
+        (item) => item.cityId,
+        WorldEconomyCatalog.officeComfortScore,
+      );
   late final Map<String, List<ContractEmployeeAssignment>>
   contractAssignmentsByEmployee = _group<ContractEmployeeAssignment>(
     state.contractEmployeeAssignments,
@@ -103,10 +147,24 @@ class _GameStateIndex {
         (item) => item.productId,
       );
   late final Map<String, int> installedCountByHardwareId =
-      _firstValueBy<InstalledServer, int>(
+      _sumValueBy<InstalledServer, int>(
         state.installedServers,
         (item) => item.hardwareId,
         (item) => item.count,
+        (left, right) => left + right,
+      );
+  late final Map<String, List<InstalledServer>> serversByDataCenter =
+      _group<InstalledServer>(
+        state.installedServers,
+        (item) => item.dataCenterSiteId,
+      );
+  final Map<ProductCategory, List<CompetitorBenchmark>> _competitorsByCategory =
+      <ProductCategory, List<CompetitorBenchmark>>{};
+
+  List<CompetitorBenchmark> competitorsForCategory(ProductCategory category) =>
+      _competitorsByCategory.putIfAbsent(
+        category,
+        () => state._buildCompetitorsForCategory(category),
       );
   late final Map<String, int> improvementLevelByProductType =
       _maximumImprovementLevels(state.productImprovements);
@@ -144,14 +202,36 @@ class _GameStateIndex {
     return Map<String, T>.unmodifiable(mutable);
   }
 
-  static Map<String, V> _firstValueBy<T, V>(
+  static Map<String, int> _maximumIntValueBy<T>(
+    Iterable<T> source,
+    String Function(T item) keyOf,
+    int Function(T item) valueOf,
+  ) {
+    final mutable = <String, int>{};
+    for (final item in source) {
+      final key = keyOf(item);
+      final value = valueOf(item);
+      final current = mutable[key];
+      if (current == null || value > current) {
+        mutable[key] = value;
+      }
+    }
+    return Map<String, int>.unmodifiable(mutable);
+  }
+
+  static Map<String, V> _sumValueBy<T, V>(
     Iterable<T> source,
     String Function(T item) keyOf,
     V Function(T item) valueOf,
+    V Function(V left, V right) combine,
   ) {
     final mutable = <String, V>{};
     for (final item in source) {
-      mutable.putIfAbsent(keyOf(item), () => valueOf(item));
+      final key = keyOf(item);
+      final value = valueOf(item);
+      mutable[key] = mutable.containsKey(key)
+          ? combine(mutable[key] as V, value)
+          : value;
     }
     return Map<String, V>.unmodifiable(mutable);
   }

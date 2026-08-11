@@ -1,3 +1,4 @@
+// UAT_FIXPACK_R1
 abstract final class V12LocalizationLexicon {
   static const Map<String, String> exact = <String, String>{
     "Обзор": "Overview",
@@ -263,9 +264,99 @@ abstract final class V12LocalizationLexicon {
     "Браузер": "Browser",
     "Криптокошелёк": "Crypto wallet",
     "Цифровая система города": "Digital city system",
+    "Технологии и функции развиваются отдельно. Узел показывает цену, срок и реальную зависимость до запуска.":
+        "Technologies and features progress separately. Each node shows its price, duration, and real prerequisite before launch.",
+    "Базовые узлы доступны сразу. Более глубокие технологии и функции требуют предыдущие исследования. После завершения функция становится доступна для подходящих продуктов и roadmap.":
+        "Base nodes are available immediately. Deeper technologies and features require earlier research. Once completed, a feature becomes available to matching products and their roadmap.",
+    "Стек, инфраструктура и безопасность.":
+        "Stack, infrastructure, and security.",
+    "Функции продукта": "Product features",
+    "Исследованные функции можно добавлять в новые и выпущенные продукты.":
+        "Researched features can be added to new and released products.",
+    "Базовая": "Baseline",
+    "Зависимость": "Prerequisite",
+    "Недостаточно денег": "Not enough cash",
+    "Прокачка только через грейд": "Grade-only progression",
+    "Курсы убраны из игрового цикла. Прокачка идёт через накопленный опыт и явное повышение грейда. Повышение занимает игровое время и стоит денег.":
+        "Courses are removed from the gameplay loop. Progression comes from accumulated experience and explicit grade upgrades. An upgrade takes game time and costs money.",
+    "Выберите сотрудников и целевой грейд. Рабочий опыт продолжает влиять на навык, но отдельные курсы больше не запускаются.":
+        "Select employees and a target grade. Work experience still improves skill, but standalone courses can no longer be started.",
+    "Стоимость и срок повышения рассчитываются автоматически.":
+        "Upgrade cost and duration are calculated automatically.",
+    "Senior: навык растёт от реальной работы. Обычных курсов больше нет.":
+        "Senior: skill grows from real work. Regular courses are no longer available.",
+    "Развитие: выберите сотрудника выше и запустите повышение целевого грейда. Обычных курсов больше нет.":
+        "Progression: select the employee above and start a target-grade upgrade. Regular courses are no longer available.",
+    "Курсы сотрудников удалены. Развитие идёт через опыт и повышение грейда.":
+        "Employee courses were removed. Progression comes from experience and grade upgrades.",
+    "Активного кредита нет.": "There is no active loan.",
+    "Досрочное погашение бизнес-кредита": "Early business-loan payoff",
+    "Остаток по графику": "Scheduled balance",
+    "Досрочно сегодня": "Early payoff today",
+    "Экономия процентов": "Interest saved",
+    "Погасить кредит досрочно": "Pay off loan early",
+    "Недостаточно денег для полного досрочного погашения.":
+        "Not enough cash for a full early payoff.",
+    "Промо-лендинг": "Promo landing page",
+    "Сайт события": "Event website",
+    "Форма заявок": "Lead form",
+    "Мини-кабинет": "Mini portal",
+    "Каталог услуг": "Service catalog",
+    "Панель отчётности": "Reporting dashboard",
+    "Клиентский портал": "Client portal",
+    "Мобильный MVP": "Mobile MVP",
+    "CRM-модуль": "CRM module",
+    "Интеграционный API": "Integration API",
+    "Система аналитики": "Analytics system",
+    "Автоматизация операций": "Operations automation",
+    "B2B-платформа": "B2B platform",
+    "Платёжный модуль": "Payment module",
+    "Realtime workspace": "Realtime workspace",
+    "Data platform": "Data platform",
+    "AI-пилот": "AI pilot",
+    "Мультисервисная интеграция": "Multi-service integration",
+    "Enterprise platform": "Enterprise platform",
+    "AI operations suite": "AI operations suite",
+    "Глобальная data-система": "Global data system",
+    "Финансовый контур": "Financial platform",
+    "Высоконагруженный marketplace": "High-load marketplace",
+    "Cloud migration program": "Cloud migration program",
+    "Небольшой заказ с коротким сроком. Хорош для первых выполненных контрактов.":
+        "A small job with a short deadline. Good for the first completed contracts.",
+    "Рабочий продукт для действующего бизнеса: требуется несколько специальностей.":
+        "A production tool for an operating business that requires several specialties.",
+    "Сложный коммерческий проект с интеграциями, качеством и заметной ответственностью за срок.":
+        "A complex commercial project with integrations, quality requirements, and meaningful deadline responsibility.",
+    "Крупный enterprise-заказ: дорогой, долгий и требовательный к сильной многопрофильной команде.":
+        "A large enterprise contract: expensive, long, and demanding a strong multidisciplinary team.",
+    "Совместимость: ++ ключевая функция, + подходит продукту, − слабая связь. Неисследованные дополнительные функции сначала открываются в R&D.":
+        "Fit: ++ core feature, + fits the product, − weak fit. Unresearched optional features must first be unlocked in R&D.",
+    "Нужно R&D • открыть исследования": "Needs R&D • open research",
+    "Базовая функция этого продукта: доступна для первого релиза.":
+        "Baseline feature for this product: available for the first release.",
+    "Совместимость: ++ отлично подходит • + полезно • − слабая связь с продуктом.":
+        "Fit: ++ excellent • + useful • − weak fit for this product.",
+    "Рынок обновляется каждую неделю.": "The market refreshes every week.",
   };
 
   static const Map<String, String> phrases = <String, String>{
+    "Уровень ": "Level ",
+    "Нужно сначала: ": "Requires first: ",
+    "Занятых в выборе: ": "Busy selected: ",
+    "Прокачать до ": "Upgrade to ",
+    "Для досрочного погашения нужно ": "Early payoff requires ",
+    "Кредит погашен досрочно за ": "Loan paid off early for ",
+    "Экономия будущих процентов: ": "Future interest saved: ",
+    "Доступные заказы • неделя ": "Available jobs • week ",
+    "Обновление рынка через ": "Market refresh in ",
+    "завершено контрактов: ": "completed contracts: ",
+    "После успешных заказов появляются более дорогие и сложные.":
+        "Successful contracts unlock more expensive and difficult jobs.",
+    "ключевая": "core",
+    "подходит": "fits",
+    "слабая связь": "weak fit",
+    "дождитесь завершения текущей операции.":
+        "wait until the current operation completes.",
     "Сводка ": "Overview: ",
     " в офисе": " on-site",
     " мес.": " mo.",

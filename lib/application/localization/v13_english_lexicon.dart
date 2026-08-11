@@ -3440,6 +3440,88 @@ abstract final class V13EnglishLexicon {
     'Яна': 'Yana',
     'Ярослав': 'Yaroslav',
     'Яшин': 'Yashin',
+    'AI-пилот': 'AI pilot',
+    'API-интеграция': 'API integration',
+    'B2B-платформа': 'B2B platform',
+    'CRM-модуль': 'CRM module',
+    'Senior: навык растёт от реальной работы. Обычных курсов больше нет.':
+        'Senior: skill grows from real work. Regular courses are no longer available.',
+    'Автоматизация операций': 'Operations automation',
+    'Авторизация, таблицы, роли и отчётность для операционной команды.':
+        'Authentication, tables, roles, and reporting for the operations team.',
+    'Активного кредита нет.': 'There is no active loan.',
+    'Базовая': 'Baseline',
+    'Базовая функция этого продукта: доступна для первого релиза.':
+        'Baseline feature for this product: available for the first release.',
+    'Базовые узлы доступны сразу. Более глубокие технологии и функции требуют предыдущие исследования. После завершения функция становится доступна для подходящих продуктов и roadmap.':
+        'Base nodes are available immediately. Deeper technologies and features require earlier research. Once completed, a feature becomes available to matching products and their roadmap.',
+    'Внутренняя панель': 'Internal dashboard',
+    'Выберите сотрудников и целевой грейд. Рабочий опыт продолжает влиять на навык, но отдельные курсы больше не запускаются.':
+        'Select employees and a target grade. Work experience still improves skill, but standalone courses can no longer be started.',
+    'Высоконагруженный marketplace': 'High-load marketplace',
+    'Глобальная data-система': 'Global data system',
+    'Досрочно сегодня': 'Early payoff today',
+    'Досрочное погашение бизнес-кредита': 'Early business-loan payoff',
+    'Зависимость': 'Prerequisite',
+    'Интеграционный API': 'Integration API',
+    'Интеграционный слой, очереди и наблюдаемость для внешних сервисов.':
+        'Integration layer, queues, and observability for external services.',
+    'Исследованные функции можно добавлять в новые и выпущенные продукты.':
+        'Researched features can be added to new and released products.',
+    'Каталог услуг': 'Service catalog',
+    'Клиентский портал': 'Client portal',
+    'Крупный enterprise-заказ: дорогой, долгий и требовательный к сильной многопрофильной команде.':
+        'Large enterprise contract: expensive, long, and demanding a strong multidisciplinary team.',
+    'Курсы сотрудников удалены. Развитие идёт через опыт и повышение грейда.':
+        'Employee courses were removed. Progression comes from experience and grade upgrades.',
+    'Курсы убраны из игрового цикла. Прокачка идёт через накопленный опыт и явное повышение грейда. Повышение занимает игровое время и стоит денег.':
+        'Courses are removed from the gameplay loop. Progression comes from accumulated experience and explicit grade upgrades. An upgrade takes game time and costs money.',
+    'Лендинг запуска': 'Launch landing page',
+    'Мини-кабинет': 'Mini portal',
+    'Мобильный MVP': 'Mobile MVP',
+    'Мультисервисная интеграция': 'Multi-service integration',
+    'Небольшой заказ с коротким сроком. Хорош для первых выполненных контрактов.':
+        'A small job with a short deadline. Good for the first completed contracts.',
+    'Недостаточно денег для полного досрочного погашения.':
+        'Not enough cash for a full early payoff.',
+    'Нужно R&D • открыть исследования': 'Needs R&D • open research',
+    'Одностраничный сайт с формой заявки и базовой аналитикой.':
+        'Single-page website with a lead form and basic analytics.',
+    'Остаток по графику': 'Scheduled balance',
+    'Панель отчётности': 'Reporting dashboard',
+    'Пилотный AI-помощник для классификации обращений и черновиков ответов.':
+        'Pilot AI assistant for classifying requests and drafting replies.',
+    'Платёжный модуль': 'Payment module',
+    'Погасить кредит досрочно': 'Pay off loan early',
+    'Прокачка только через грейд': 'Grade-only progression',
+    'Промо-лендинг': 'Promo landing page',
+    'Прототип клиентского приложения с каталогом и авторизацией.':
+        'Client app prototype with catalog and authentication.',
+    'Рабочий продукт для действующего бизнеса: требуется несколько специальностей.':
+        'A production tool for an operating business: requires several specialties.',
+    'Развитие: выберите сотрудника выше и запустите повышение целевого грейда. Обычных курсов больше нет.':
+        'Progression: select the employee above and start a target-grade upgrade. Regular courses are no longer available.',
+    'Сайт события': 'Event website',
+    'Система аналитики': 'Analytics system',
+    'Сложный коммерческий проект с интеграциями, качеством и заметной ответственностью за срок.':
+        'A complex commercial project with integrations, quality requirements, and meaningful deadline responsibility.',
+    'Совместимость: ++ ключевая функция, + подходит продукту, − слабая связь. Неисследованные дополнительные функции сначала открываются в R&D.':
+        'Fit: ++ core feature, + fits the product, − weak fit. Unresearched optional features must first be unlocked in R&D.',
+    'Совместимость: ++ отлично подходит • + полезно • − слабая связь с продуктом.':
+        'Fit: ++ excellent • + useful • − weak fit for this product.',
+    'Стек, инфраструктура и безопасность.':
+        'Stack, infrastructure, and security.',
+    'Стоимость и срок повышения рассчитываются автоматически.':
+        'Upgrade cost and duration are calculated automatically.',
+    'Технологии и функции развиваются отдельно. Узел показывает цену, срок и реальную зависимость до запуска.':
+        'Technologies and features progress separately. Each node shows its price, duration, and real prerequisite before launch.',
+    'Финансовый контур': 'Financial platform',
+    'Форма заявок': 'Lead form',
+    'Функции продукта': 'Product features',
+    'Экономия процентов': 'Interest saved',
+    'ключевая': 'core',
+    'подходит': 'fits',
+    'слабая связь': 'weak fit',
   };
 
   static const List<V13EnglishTemplate> templates = <V13EnglishTemplate>[
@@ -5558,6 +5640,34 @@ abstract final class V13EnglishLexicon {
     V13EnglishTemplate(
       'Мировые проекты: ZXQPH0QXZ%',
       'World projects: ZXQPH0QXZ%',
+    ),
+    V13EnglishTemplate(
+      'День ZXQPH0QXZ • ZXQPH1QXZ\nZXQPH2QXZ',
+      'Day ZXQPH0QXZ • ZXQPH1QXZ\nZXQPH2QXZ',
+    ),
+    V13EnglishTemplate(
+      'Для досрочного погашения нужно ZXQPH0QXZ ₽. На счету ZXQPH1QXZ ₽.',
+      'Early payoff requires ZXQPH0QXZ RUB. Account balance: ZXQPH1QXZ RUB.',
+    ),
+    V13EnglishTemplate(
+      'Доступные заказы • неделя ZXQPH0QXZ',
+      'Available jobs • week ZXQPH0QXZ',
+    ),
+    V13EnglishTemplate(
+      'Занятых в выборе: ZXQPH0QXZ — дождитесь завершения текущей операции.',
+      'Busy selected: ZXQPH0QXZ — wait until the current operation completes.',
+    ),
+    V13EnglishTemplate(
+      'Кредит погашен досрочно за ZXQPH0QXZ ₽. Экономия будущих процентов: ZXQPH1QXZ ₽.',
+      'Loan paid off early for ZXQPH0QXZ RUB. Future interest saved: ZXQPH1QXZ RUB.',
+    ),
+    V13EnglishTemplate(
+      'Рынок обновляется каждую неделю. Обновление рынка через ZXQPH0QXZ дн. • завершено контрактов: ZXQPH1QXZ. После успешных заказов появляются более дорогие и сложные.',
+      'The market refreshes every week. Next refresh in ZXQPH0QXZ days • completed contracts: ZXQPH1QXZ. Successful contracts unlock more expensive and difficult jobs.',
+    ),
+    V13EnglishTemplate(
+      '≈ ZXQPH0QXZ рабочих часов • retention +ZXQPH1QXZ п.п. • compute ×ZXQPH2QXZ',
+      '≈ ZXQPH0QXZ work hours • retention +ZXQPH1QXZ pp • compute ×ZXQPH2QXZ',
     ),
   ];
 

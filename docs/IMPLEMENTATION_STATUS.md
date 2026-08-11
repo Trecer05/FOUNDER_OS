@@ -449,3 +449,24 @@ Verification: `tools/audit_v17_r15_uat_fixes.py`, focused R15 regression tests, 
 Статус: **частично — реализовано кодом, ожидает полный verifier и ручной Simulator UAT**.
 
 Реализованы сниженные per-head perks, дерево R&D, причинная продуктовая воронка, реклама как acquisition interest, монетизация через paying conversion/ARPU, кредит с пользовательской суммой и вероятностью, стоимость локализации атаки в уведомлении, runway alert ≤2 мес.
+
+## UAT Fix Pack R1 — 2026-08-11
+
+Статус: реализуется и проверяется пакетом `CURRENT_UAT_FIXPACK_R1`; ручной UAT после автоматического verifier обязателен.
+
+- R&D на узких iPhone использует вертикальную адаптивную карточку без trailing-overflow; технологии и функции открыты отдельными явно видимыми группами.
+- Любой PopupRoute блокирует глобальную панель времени; технический вызов не позволяет нажимать элементы за модальным барьером.
+- Стек и функции показывают `++`, `+`, `-` до релиза и в карточке продукта после релиза.
+- Русские женские имена получают женскую форму склоняемой фамилии.
+- Курсы сотрудников удалены из игрового цикла; новая прокачка запускается только через повышение грейда. Старые snapshot-поля обучения сохраняются для совместимости.
+- Клиентский рынок генерирует детерминированные предложения на каждую игровую неделю; сложность и награда растут по числу завершённых контрактов.
+- Бизнес-кредит можно закрыть досрочно с исключением ещё не заработанных процентов.
+- Исследованные функции реально входят в roadmap; продуктовый fit определяет влияние функции на приток, retention и quality. Неподходящая функция не создаёт спрос сама по себе.
+- Окно ручных сохранений адаптивно, скроллится и не должно переполняться на узком iPhone.
+
+## UAT Fix Pack R1 Hotfix 4 — 2026-08-11
+
+- Manual save dialog moved from intrinsic `AlertDialog` layout to bounded responsive `Dialog`; narrow iPhone save UI no longer uses `LayoutBuilder` under intrinsic measurement.
+- Narrow R&D regression now traverses the lazy research list before asserting the feature group.
+- Contract assignment regression now uses a two-role contract and verifies unrelated employees are filtered out.
+- Full release verifier remains the release gate; manual Simulator UAT is still required.

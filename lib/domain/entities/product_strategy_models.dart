@@ -1,3 +1,4 @@
+// UAT_FIXPACK_R1
 import 'models.dart';
 
 enum ProductScope { starter, standard, advanced, moonshot }
@@ -326,6 +327,39 @@ class CompanyLoan {
 
   double get repaidFraction =>
       principal <= 0 ? 1 : (1 - remaining / principal).clamp(0, 1).toDouble();
+
+  int get scheduledWeeks {
+    if (weeklyPayment <= 0) return 1;
+    return (principal / weeklyPayment).ceil().clamp(1, 520).toInt();
+  }
+
+  double earlyPayoffAmountAt(int simulationMinutes) {
+    if (remaining <= 0) return 0;
+    if (interestRate <= 0 || principal <= 0) return remaining;
+
+    final originalCashPrincipal = principal / (1 + interestRate);
+    final totalScheduledInterest = principal - originalCashPrincipal;
+    final elapsedWeeks = ((simulationMinutes - issuedAtMinutes) / (7 * 1440))
+        .clamp(0, scheduledWeeks)
+        .toDouble();
+    final timeRemainingFraction =
+        ((scheduledWeeks - elapsedWeeks) / scheduledWeeks)
+            .clamp(0.0, 1.0)
+            .toDouble();
+    final balanceRemainingFraction = (remaining / principal)
+        .clamp(0.0, 1.0)
+        .toDouble();
+    final interestFraction = timeRemainingFraction < balanceRemainingFraction
+        ? timeRemainingFraction
+        : balanceRemainingFraction;
+    final unearnedInterest = totalScheduledInterest * interestFraction;
+    return (remaining - unearnedInterest).clamp(0.0, remaining).toDouble();
+  }
+
+  double earlyPayoffSavingsAt(int simulationMinutes) =>
+      (remaining - earlyPayoffAmountAt(simulationMinutes))
+          .clamp(0.0, remaining)
+          .toDouble();
 
   CompanyLoan copyWith({double? remaining}) => CompanyLoan(
     principal: principal,

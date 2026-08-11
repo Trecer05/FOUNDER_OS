@@ -1,3 +1,4 @@
+// UAT_FIXPACK_R1
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -28,11 +29,17 @@ class FounderOsApp extends StatefulWidget {
 
 class _FounderOsAppState extends State<FounderOsApp> {
   late bool _inGame;
+  late final _ModalRouteObserver _modalObserver;
+  int _modalDepth = 0;
 
   @override
   void initState() {
     super.initState();
     _inGame = !widget.startAtMainMenu;
+    _modalObserver = _ModalRouteObserver((depth) {
+      if (!mounted || depth == _modalDepth) return;
+      setState(() => _modalDepth = depth);
+    });
     if (widget.startAtMainMenu && !widget.controller.state.paused) {
       widget.controller.dispatch(const TogglePause(), playSound: false);
     }
@@ -50,6 +57,7 @@ class _FounderOsAppState extends State<FounderOsApp> {
         ),
         supportedLocales: const <Locale>[Locale('ru'), Locale('en')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        navigatorObservers: <NavigatorObserver>[_modalObserver],
         theme: AppTheme.light(),
         builder: (context, child) {
           final media = MediaQuery.of(context);
@@ -77,7 +85,15 @@ class _FounderOsAppState extends State<FounderOsApp> {
                   right: 8,
                   child: Align(
                     alignment: Alignment.topCenter,
-                  child: GlobalTimeControlBar(controller: widget.controller),
+                    child: IgnorePointer(
+                      // PopupRoute (dialogs, modal sheets, technical challenges)
+                      // lives inside Navigator. The global time bar is outside
+                      // Navigator and otherwise stays tappable above its barrier.
+                      ignoring: _modalDepth > 0,
+                      child: GlobalTimeControlBar(
+                        controller: widget.controller,
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -96,5 +112,54 @@ class _FounderOsAppState extends State<FounderOsApp> {
               ),
       ),
     );
+  }
+}
+
+class _ModalRouteObserver extends NavigatorObserver {
+  _ModalRouteObserver(this.onDepthChanged);
+
+  final ValueChanged<int> onDepthChanged;
+  final Set<Route<dynamic>> _popupRoutes = <Route<dynamic>>{};
+
+  void _sync() => onDepthChanged(_popupRoutes.length);
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    if (route is PopupRoute<dynamic>) {
+      _popupRoutes.add(route);
+      _sync();
+    }
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (_popupRoutes.remove(route)) {
+      _sync();
+    }
+    super.didPop(route, previousRoute);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (_popupRoutes.remove(route)) {
+      _sync();
+    }
+    super.didRemove(route, previousRoute);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    var changed = false;
+    if (oldRoute != null) {
+      changed = _popupRoutes.remove(oldRoute) || changed;
+    }
+    if (newRoute is PopupRoute<dynamic>) {
+      changed = _popupRoutes.add(newRoute) || changed;
+    }
+    if (changed) {
+      _sync();
+    }
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
   }
 }

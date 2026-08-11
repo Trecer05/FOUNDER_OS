@@ -1,3 +1,4 @@
+// UAT_FIXPACK_R1
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -206,7 +207,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                     ),
                     if (state.activeLoan != null) ...[
                       _FinanceStatusRow(
-                        label: 'Остаток кредита',
+                        label: 'Остаток по графику',
                         value: money(state.activeLoan!.remaining),
                       ),
                       _FinanceStatusRow(
@@ -216,8 +217,53 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       _FinanceStatusRow(
                         label: 'Платёж / неделю',
                         value: money(state.activeLoan!.weeklyPayment),
+                      ),
+                      _FinanceStatusRow(
+                        label: 'Досрочно сегодня',
+                        value: money(
+                          state.activeLoan!.earlyPayoffAmountAt(
+                            state.simulationMinutes,
+                          ),
+                        ),
+                      ),
+                      _FinanceStatusRow(
+                        label: 'Экономия процентов',
+                        value: money(
+                          state.activeLoan!.earlyPayoffSavingsAt(
+                            state.simulationMinutes,
+                          ),
+                        ),
                         last: true,
                       ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.tonalIcon(
+                          key: const Key('repay-business-loan-early'),
+                          onPressed:
+                              state.cash >=
+                                  state.activeLoan!.earlyPayoffAmountAt(
+                                    state.simulationMinutes,
+                                  )
+                              ? () => widget.controller.dispatch(
+                                  const RepayBusinessLoanEarly(),
+                                )
+                              : null,
+                          icon: const Icon(Icons.savings_outlined),
+                          label: const AppText('Погасить кредит досрочно'),
+                        ),
+                      ),
+                      if (state.cash <
+                          state.activeLoan!.earlyPayoffAmountAt(
+                            state.simulationMinutes,
+                          ))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: AppText(
+                            'Недостаточно денег для полного досрочного погашения.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
                     ] else
                       _FinanceStatusRow(
                         label: 'Активный кредит',

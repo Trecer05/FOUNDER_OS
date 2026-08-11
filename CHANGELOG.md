@@ -58,3 +58,19 @@
 - Added configurable monetization, advertising campaigns and pricing behavior.
 - Added liquidity, credit and company-failure rules.
 - Added snapshot migration and broader automated verification.
+
+## Unreleased — UAT fix pack 2026-08-11
+
+- Fixed narrow-phone R&D and manual save overflows.
+- Blocked global time controls while modal technical challenges are active.
+- Added product/stack fit marks before and after release.
+- Fixed feminine Russian surnames in procedural candidates.
+- Removed new employee course training in favor of grade progression.
+- Added weekly rotating progressive client contracts.
+- Added early business-loan payoff with interest savings.
+- Connected researched feature fit to acquisition, retention and quality.
+
+### UAT R1 Hotfix 4
+
+- Fixed manual save dialog intrinsic-layout crash on narrow phones.
+- Corrected lazy R&D viewport regression and contract-role assignment fixture.

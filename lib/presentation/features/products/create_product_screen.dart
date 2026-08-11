@@ -1,3 +1,4 @@
+// UAT_FIXPACK_R1
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
 import '../../../domain/catalog/game_catalog.dart';
+import '../../../domain/catalog/feature_impact_catalog.dart';
 import '../../../domain/catalog/product_strategy_catalog.dart';
 import '../../../domain/catalog/product_evolution_catalog.dart';
 import '../../../domain/commands/game_action.dart';
@@ -76,14 +78,34 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
       .toList(growable: false);
 
   List<FeatureOption> get _features {
-    final all = GameCatalog.features
-        .where((item) => item.supportedCategories.contains(_blueprint.category))
-        .toList(growable: false);
-    if (_blueprintId == 'company_website') {
-      return all
-          .where((item) => _blueprint.expectedFeatureIds.contains(item.id))
-          .toList(growable: false);
-    }
+    final expected = _blueprint.expectedFeatureIds.toSet();
+    final all =
+        GameCatalog.features
+            .where((item) {
+              final baseline = expected.contains(item.id);
+              if (_blueprintId == 'company_website') return baseline;
+              final categoryFit = item.supportedCategories.contains(
+                _blueprint.category,
+              );
+              final researched = widget.controller.state.researchCompleted(
+                ResearchTargetKind.feature,
+                item.id,
+              );
+              return baseline || categoryFit || researched;
+            })
+            .toList(growable: true)
+          ..sort((left, right) {
+            final leftFit = FeatureImpactCatalog.featureFitScore(
+              _blueprint,
+              left,
+            );
+            final rightFit = FeatureImpactCatalog.featureFitScore(
+              _blueprint,
+              right,
+            );
+            final byFit = rightFit.compareTo(leftFit);
+            return byFit != 0 ? byFit : left.name.compareTo(right.name);
+          });
     return all;
   }
 
@@ -654,11 +676,14 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
       languageIds: _languageIds,
       featureIds: _featureIds,
       selectedTechnologyIds: _technologyIds,
-      onOpenResearch: () => Navigator.of(context).push<void>(
-        MaterialPageRoute(
-          builder: (_) => ResearchScreen(controller: widget.controller),
-        ),
-      ),
+      onOpenResearch: () async {
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            builder: (_) => ResearchScreen(controller: widget.controller),
+          ),
+        );
+        if (mounted) setState(() {});
+      },
       onChanged: (technologyId, selected) {
         setState(() {
           if (selected) {
@@ -678,40 +703,103 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         const SectionHeader(
           title: 'Что войдёт в первый релиз',
           subtitle:
-              'Функции не покупаются. Они добавляют рабочие часы, которые оплачиваются через зарплаты команды.',
+              'Совместимость: ++ ключевая функция, + подходит продукту, − слабая связь. Неисследованные дополнительные функции сначала открываются в R&D.',
         ),
         const SizedBox(height: 10),
         ..._features.map((feature) {
           final selected = _featureIds.contains(feature.id);
           final hours = math.max(20, feature.developmentCost / 520).round();
-          final expected = _blueprint.expectedFeatureIds.contains(feature.id);
+          final baseline = _blueprint.expectedFeatureIds.contains(feature.id);
+          final researched =
+              baseline ||
+              widget.controller.state.researchCompleted(
+                ResearchTargetKind.feature,
+                feature.id,
+              );
+          final mark = FeatureImpactCatalog.featureMark(_blueprint, feature);
+          final fitLabel = FeatureImpactCatalog.featureFitLabel(
+            _blueprint,
+            feature,
+          );
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Material(
               color: AppColors.surface,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
-                side: const BorderSide(color: AppColors.border),
+                side: BorderSide(
+                  color: selected ? AppColors.primary : AppColors.border,
+                ),
               ),
               clipBehavior: Clip.antiAlias,
-              child: CheckboxListTile(
-                value: selected,
-                title: AppText(feature.name),
-                secondary: expected
-                    ? const Icon(Icons.star_outline, color: AppColors.primary)
-                    : null,
-                subtitle: AppText(
-                  '${feature.description}\n≈ $hours рабочих часов • retention +${(feature.retentionDelta * 100).toStringAsFixed(1)} п.п. • compute ×${feature.computeMultiplier.toStringAsFixed(2)}',
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Checkbox(
+                          value: selected,
+                          onChanged: !researched
+                              ? null
+                              : (value) {
+                                  setState(() {
+                                    if (value ?? false) {
+                                      _featureIds.add(feature.id);
+                                    } else if (_featureIds.length > 1) {
+                                      _featureIds.remove(feature.id);
+                                    }
+                                  });
+                                },
+                        ),
+                        Expanded(
+                          child: AppText(
+                            feature.name,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Chip(label: AppText('$mark $fitLabel')),
+                      ],
+                    ),
+                    AppText(feature.description),
+                    const SizedBox(height: 7),
+                    AppText(
+                      '≈ $hours рабочих часов • retention +${(feature.retentionDelta * 100).toStringAsFixed(1)} п.п. • compute ×${feature.computeMultiplier.toStringAsFixed(2)}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    if (!researched) ...[
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.tonalIcon(
+                          onPressed: () async {
+                            await Navigator.of(context).push<void>(
+                              MaterialPageRoute(
+                                builder: (_) => ResearchScreen(
+                                  controller: widget.controller,
+                                ),
+                              ),
+                            );
+                            if (mounted) setState(() {});
+                          },
+                          icon: const Icon(Icons.science_outlined),
+                          label: const AppText(
+                            'Нужно R&D • открыть исследования',
+                          ),
+                        ),
+                      ),
+                    ] else if (baseline) ...[
+                      const SizedBox(height: 6),
+                      AppText(
+                        'Базовая функция этого продукта: доступна для первого релиза.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
                 ),
-                onChanged: (value) {
-                  setState(() {
-                    if (value ?? false) {
-                      _featureIds.add(feature.id);
-                    } else if (_featureIds.length > 1) {
-                      _featureIds.remove(feature.id);
-                    }
-                  });
-                },
               ),
             ),
           );

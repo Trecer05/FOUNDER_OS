@@ -1,3 +1,4 @@
+// UAT_FIXPACK_R1
 import '../entities/game_state.dart';
 import '../entities/models.dart';
 import '../entities/product_evolution_models.dart';
@@ -444,6 +445,10 @@ class StartAdvertisingCampaign extends GameAction {
 class StopAdvertisingCampaign extends GameAction {
   const StopAdvertisingCampaign(this.campaignId);
   final String campaignId;
+}
+
+class RepayBusinessLoanEarly extends GameAction {
+  const RepayBusinessLoanEarly();
 }
 
 class RequestBusinessLoan extends GameAction {

@@ -1,3 +1,4 @@
+// UAT_FIXPACK_R1
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
@@ -25,6 +26,16 @@ class ContractsScreen extends StatelessWidget {
       listenable: controller,
       builder: (context, _) {
         final state = controller.state;
+        final contractWeek = state.simulationMinutes ~/ (7 * 1440);
+        final weeklyOffers = ContractCatalog.weeklyOffers(
+          seed: state.rngSeed,
+          week: contractWeek,
+          completedCount: state.completedContracts.length,
+        );
+        final refreshInDays =
+            ((((contractWeek + 1) * 7 * 1440) - state.simulationMinutes) / 1440)
+                .ceil()
+                .clamp(1, 7);
         return Scaffold(
           appBar: AppBar(title: const AppText('Клиентские контракты')),
           body: ListView(
@@ -127,13 +138,13 @@ class ContractsScreen extends StatelessWidget {
               ],
               if (state.contractsUnlocked) ...[
                 const SizedBox(height: 18),
-                const SectionHeader(
-                  title: 'Доступные заказы',
+                SectionHeader(
+                  title: 'Доступные заказы • неделя ${contractWeek + 1}',
                   subtitle:
-                      'После принятия заказ появится в общей сводке проектов.',
+                      'Рынок обновляется каждую неделю. Обновление рынка через $refreshInDays дн. • завершено контрактов: ${state.completedContracts.length}. После успешных заказов появляются более дорогие и сложные.',
                 ),
                 const SizedBox(height: 10),
-                ...ContractCatalog.templates.map(
+                ...weeklyOffers.map(
                   (template) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: _ContractOfferCard(

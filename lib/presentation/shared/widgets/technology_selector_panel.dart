@@ -1,7 +1,9 @@
+// UAT_FIXPACK_R1
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../../../domain/catalog/game_catalog.dart';
+import '../../../domain/catalog/feature_impact_catalog.dart';
 import '../../../domain/entities/game_state.dart';
 import '../../../domain/entities/v9_models.dart';
 import '../../../domain/entities/v17_models.dart';
@@ -44,6 +46,7 @@ class TechnologySelectorPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final limit = explanation;
+    final blueprint = GameCatalog.blueprintById(blueprintId);
     return ListView(
       key: const Key('technology-multi-select'),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
@@ -55,6 +58,10 @@ class TechnologySelectorPanel extends StatelessWidget {
           hintTitle: 'Почему лимит динамический',
           hintBody:
               'Лимит зависит от масштаба продукта, фреймворка, плана развития, сложности сопровождения и возможностей инженерной команды.',
+        ),
+        const SizedBox(height: 4),
+        const AppText(
+          'Совместимость: ++ отлично подходит • + полезно • − слабая связь с продуктом.',
         ),
         const SizedBox(height: 8),
         if (onOpenResearch != null) ...[
@@ -147,6 +154,16 @@ class TechnologySelectorPanel extends StatelessWidget {
                             const Chip(label: AppText('Обязательна')),
                           if (!researched)
                             const Chip(label: AppText('Нужно R&D')),
+                          const SizedBox(width: 6),
+                          Chip(
+                            label: AppText(
+                              FeatureImpactCatalog.technologyMark(
+                                blueprint,
+                                technology,
+                              ),
+                              translate: false,
+                            ),
+                          ),
                         ],
                       ),
                       AppText(technology.description),

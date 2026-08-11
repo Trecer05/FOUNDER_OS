@@ -1,3 +1,4 @@
+// UAT_FIXPACK_R1
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -59,14 +60,15 @@ class ResearchScreen extends StatelessWidget {
               const SectionHeader(
                 title: 'Дерево корпоративных исследований',
                 subtitle:
-                    'Идите от базовых возможностей к сложным. Каждый следующий уровень дороже и дольше, а зависимые узлы открываются только после предыдущих исследований.',
+                    'Технологии и функции развиваются отдельно. Узел показывает цену, срок и реальную зависимость до запуска.',
                 hintTitle: 'Как устроено дерево R&D',
                 hintBody:
-                    'У каждого узла есть уровень, цена, срок и зависимости. Базовые технологии доступны сразу. Сильные технологии и функции требуют предыдущие исследования.',
+                    'Базовые узлы доступны сразу. Более глубокие технологии и функции требуют предыдущие исследования. После завершения функция становится доступна для подходящих продуктов и roadmap.',
               ),
               const SizedBox(height: 12),
               _ResearchGroup(
                 title: 'Технологии',
+                subtitle: 'Стек, инфраструктура и безопасность.',
                 child: Column(
                   children: technologies
                       .map(
@@ -84,7 +86,9 @@ class ResearchScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _ResearchGroup(
-                title: 'Функции',
+                title: 'Функции продукта',
+                subtitle:
+                    'Исследованные функции можно добавлять в новые и выпущенные продукты.',
                 child: Column(
                   children: features
                       .map(
@@ -109,21 +113,27 @@ class ResearchScreen extends StatelessWidget {
 }
 
 class _ResearchGroup extends StatelessWidget {
-  const _ResearchGroup({required this.title, required this.child});
+  const _ResearchGroup({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
 
   final String title;
+  final String subtitle;
   final Widget child;
 
   @override
   Widget build(BuildContext context) => AppCard(
     child: ExpansionTile(
-      initiallyExpanded: title == 'Технологии',
+      initiallyExpanded: true,
       tilePadding: EdgeInsets.zero,
       childrenPadding: EdgeInsets.zero,
       title: AppText(
         title,
         style: const TextStyle(fontWeight: FontWeight.w900),
       ),
+      subtitle: AppText(subtitle),
       children: [child],
     ),
   );
@@ -176,78 +186,91 @@ class _ResearchRow extends StatelessWidget {
                 .ceil(),
           );
 
+    final indent = math.min(28.0, depth * 9.0);
     return Padding(
-      padding: EdgeInsets.only(left: depth * 16.0, bottom: 8),
-      child: DecoratedBox(
+      padding: EdgeInsets.only(left: indent, bottom: 10),
+      child: Container(
+        key: Key('research-screen-${kind.name}-$targetId'),
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          border: depth == 0
-              ? null
-              : Border(
-                  left: BorderSide(
-                    color: Theme.of(context).dividerColor,
-                    width: 2,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: AppText(
+                    title,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-        ),
-        child: Padding(
-          padding: EdgeInsets.only(left: depth == 0 ? 0 : 10),
-          child: ListTile(
-            key: Key('research-screen-${kind.name}-$targetId'),
-            contentPadding: EdgeInsets.zero,
-            title: Row(
-              children: [
-                Expanded(child: AppText(title)),
                 const SizedBox(width: 8),
                 Chip(label: AppText('Уровень ${depth + 1}')),
               ],
             ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 7),
+            AppText(description),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
               children: [
-                AppText(description),
-                const SizedBox(height: 4),
                 if (baselineTechnology)
-                  const AppText('Базовая технология')
+                  const Chip(label: AppText('Базовая'))
                 else if (completed)
-                  const AppText('Исследование завершено')
-                else
-                  AppText('${money(cost)} • $days дн.'),
-                if (prerequisiteNames.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  AppText(
-                    'Нужно сначала: ${prerequisiteNames.join(', ')}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                  const Chip(label: AppText('Исследовано'))
+                else ...[
+                  Chip(label: AppText(money(cost))),
+                  Chip(label: AppText('$days дн.')),
                 ],
-                if (active != null) ...[
-                  const SizedBox(height: 6),
-                  LinearProgressIndicator(value: progress),
-                  const SizedBox(height: 4),
-                  AppText(
-                    'Готово ${(progress * 100).round()}% • осталось $remainingDays дн.',
-                  ),
-                ],
+                if (!unlocked && !completed)
+                  const Chip(label: AppText('Зависимость')),
               ],
             ),
-            trailing: completed
-                ? const Chip(label: AppText('Исследовано'))
-                : active != null
-                ? Chip(label: AppText('${(progress * 100).round()}%'))
-                : FilledButton.tonal(
-                    key: Key('start-research-${kind.name}-$targetId'),
-                    onPressed: !unlocked || state.cash < cost
-                        ? null
-                        : () => controller.dispatch(
-                            StartCompanyResearch(
-                              kind: kind,
-                              targetId: targetId,
-                            ),
-                          ),
-                    child: AppText(
-                      unlocked ? 'Исследовать' : 'Сначала предыдущий уровень',
-                    ),
+            if (prerequisiteNames.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              AppText(
+                'Нужно сначала: ${prerequisiteNames.join(', ')}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            if (active != null) ...[
+              const SizedBox(height: 10),
+              LinearProgressIndicator(value: progress),
+              const SizedBox(height: 5),
+              AppText(
+                'Готово ${(progress * 100).round()}% • осталось $remainingDays дн.',
+              ),
+            ],
+            if (!completed && active == null) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.tonal(
+                  key: Key('start-research-${kind.name}-$targetId'),
+                  onPressed: !unlocked || state.cash < cost
+                      ? null
+                      : () => controller.dispatch(
+                          StartCompanyResearch(kind: kind, targetId: targetId),
+                        ),
+                  child: AppText(
+                    !unlocked
+                        ? 'Сначала предыдущий уровень'
+                        : state.cash < cost
+                        ? 'Недостаточно денег'
+                        : 'Исследовать',
                   ),
-          ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );

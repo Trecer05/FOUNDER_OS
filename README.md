@@ -1,96 +1,31 @@
 # FOUNDER.OS
 
-FOUNDER.OS is an offline-first mobile management simulator about building and operating a technology company.
+FOUNDER.OS — offline-first Flutter tycoon о создании технологической компании: продукты, команда, контракты, инфраструктура, безопасность, маркетинг, финансы, инвесторы, M&A, R&D, экосистема и глобальные world projects.
 
-The player creates a company, configures a founder profile, launches products, hires and assigns teams, manages infrastructure, accepts client contracts, controls monetization and marketing, and grows the business through a deterministic simulation.
+## Current source of truth
 
-## Current baseline
+- Full game specification: `docs/MASTER_GAME_SPEC.md`
+- Test strategy: `docs/TEST_STRATEGY.md`
+- Current snapshot schema: `16`
+- Current reference checkpoint for the spec/test reset: `b453ed8fc3c95a3044bfde3f7bfb66954647dc2d`
 
-**v13 — release candidate**
-
-The release candidate adds a procedural four-grade labour market, a deeper product roadmap, rebalanced acquisition channels and market scale, rival strategy events, Founder Legacy progression, and a production main menu with manual save slots.
-
-## Core systems
-
-- company and founder setup;
-- staged product development;
-- employee hiring, workload and multi-project assignments;
-- client contracts and automatic team matching;
-- product monetization and marketing;
-- infrastructure capacity and operating costs;
-- finance, cash flow, credit and company valuation;
-- ecosystem integrations and product evolution;
-- deterministic events and project challenges;
-- RU/EN interface;
-- versioned local saves and snapshot migration.
-
-## Architecture
-
-The simulation uses a one-way state flow:
-
-```text
-View → GameAction → GameEngine.reduce → GameState → View
-```
-
-Key principles:
-
-- simulation rules are deterministic within each saved game seed and shared across platforms in Dart;
-- `GameState` is the source of truth for simulation state;
-- `GameController` owns lifecycle, clock and persistence coordination;
-- iOS and Android native bridges are limited to platform-specific persistence and diagnostics;
-- the application is designed to work offline.
-
-## Technology
-
-- Flutter / Dart
-- iOS / Android
-- native Swift and Kotlin bridges for platform-specific operations
-- local versioned persistence
-- automated domain, widget, migration and regression tests
+Historical version documents remain useful as changelog/history, but current behavior is defined by production code + MASTER_GAME_SPEC + canonical tests.
 
 ## Verification
 
-Run the current release gate on a machine with Flutter installed:
-
 ```bash
-bash tools/verify_v13_release_candidate.sh
+bash tools/verify_current_release.sh
 ```
 
-The gate covers static release checks, analysis, focused regressions, the full Flutter suite, snapshot persistence, an iOS Simulator build and an Android release APK.
+The gate runs:
+- current structural audit;
+- formatter;
+- analyzer;
+- domain/application/presentation tests;
+- full English locale audit;
+- complete Flutter test suite;
+- `git diff --check`;
+- iOS Simulator build;
+- Android build when SDK is available.
 
-## Build
-
-Android APK:
-
-```bash
-flutter build apk --release
-```
-
-Android App Bundle:
-
-```bash
-flutter build appbundle --release
-```
-
-iOS device build:
-
-```bash
-flutter build ios --release
-```
-
-## Project structure
-
-```text
-lib/
-  application/     controllers, settings, localization
-  domain/          simulation, entities, catalogs, commands
-  presentation/    screens and shared widgets
-
-test/              domain, presentation and regression tests
-tools/             verification and repository utilities
-docs/              product and engineering documentation
-```
-
-## Status
-
-Source is prepared as a release candidate. The v13 gate and physical-device UAT must pass before external distribution.
+Manual Simulator UAT is still required for changed user flows before release.

@@ -1,6 +1,8 @@
+// UAT_FIXPACK_R1
 import 'dart:math' as math;
 
 import '../../catalog/contract_catalog.dart';
+import '../../catalog/feature_impact_catalog.dart';
 import '../../catalog/candidate_market_catalog.dart';
 import '../../catalog/game_catalog.dart';
 import '../../catalog/operations_catalog.dart';
@@ -146,16 +148,7 @@ class GameEngine {
         action.employeeId,
         action.percent,
       ),
-      TrainEmployee() => _trainEmployee(
-        state,
-        action.employeeId,
-        action.programId,
-      ),
-      TrainEmployees() => _trainEmployees(
-        state,
-        action.employeeIds,
-        action.programId,
-      ),
+      TrainEmployee() || TrainEmployees() => _coursesRemoved(state),
       UpgradeEmployeesToGrade() => _upgradeEmployeesToGrade(
         state,
         action.employeeIds,
@@ -232,6 +225,7 @@ class GameEngine {
       FundPhilanthropy() => _fundPhilanthropy(state, action.amount),
       ChoosePostGamePath() => _choosePostGamePath(state, action.path),
       RequestBusinessLoan() => _requestBusinessLoan(state, action.amount),
+      RepayBusinessLoanEarly() => _repayBusinessLoanEarly(state),
       AcceptEmergencyLoan() => _acceptEmergencyLoan(state),
       RedeemDebugPromo() => _redeemDebugPromo(state, action.code),
       RequestInvestorFunding() => _requestFunding(state, action),
@@ -499,6 +493,11 @@ class GameEngine {
           );
           final freshnessPenalty = state.productStalenessPenalty(product);
           final bugPenalty = state.productBugPenalty(product);
+          final featureImpact = FeatureImpactCatalog.portfolioImpact(
+            product: product,
+            blueprint: GameCatalog.blueprintById(product.blueprintId),
+            features: GameCatalog.features,
+          );
           final aiQualityBonus = state.productAiQualityBoost(product.id);
 
           final legendPerformance = state.legendProductMetricBonus(
@@ -578,6 +577,7 @@ class GameEngine {
             securityScore: securityScore,
             reliability: reliability,
             qualityBonus:
+                featureImpact.qualityBonus +
                 aiQualityBonus +
                 algorithmOption.qualityDelta * algorithmLevel +
                 designOption.qualityDelta * designLevel +
@@ -587,6 +587,7 @@ class GameEngine {
                 legendAiQuality * 10 +
                 legendActivation * 7,
             retentionBonus:
+                featureImpact.retentionBonus +
                 algorithmOption.retentionDelta * algorithmLevel +
                 designOption.retentionDelta * designLevel +
                 securityOption.retentionDelta * securityLevel +
@@ -604,7 +605,10 @@ class GameEngine {
             LegendProductBonusKind.growth,
           );
           final potentialNewUsers =
-              (publicAi ? outcome.monthlyNewUsers : 0) *
+              (publicAi
+                  ? outcome.monthlyNewUsers *
+                        featureImpact.acquisitionMultiplier
+                  : 0) *
               state.brandDemandMultiplier *
               (1 + legendGrowth * 0.24) *
               (1 - freshnessPenalty * 0.90) *
@@ -661,7 +665,10 @@ class GameEngine {
             monthlyRevenue: revenue,
             monthlyCost: projection.monthlyTechCost + product.marketingBudget,
             monthlyGrowth:
-                (publicAi ? outcome.monthlyNewUsers : 0) -
+                (publicAi
+                    ? outcome.monthlyNewUsers *
+                          featureImpact.acquisitionMultiplier
+                    : 0) -
                 product.users * outcome.churnRate,
             brandAwareness:
                 (product.brandAwareness +
@@ -5421,57 +5428,10 @@ class GameEngine {
     );
   }
 
-  GameState _trainEmployee(
-    GameState state,
-    String employeeId,
-    String programId,
-  ) {
-    final employee = state.employeeById(employeeId);
-    final program = OperationsCatalog.trainingProgramById(programId);
-    if (employee == null ||
-        state.cash < program.cost ||
-        employee.grade == EmployeeGrade.senior ||
-        state.trainingForEmployee(employeeId) != null ||
-        state.gradeUpgradeForEmployee(employeeId) != null ||
-        state.relocationForEmployee(employeeId) != null) {
-      if (employee?.grade == EmployeeGrade.senior) {
-        return _withFeed(
-          state,
-          '${employee!.name}: для Senior обычные курсы недоступны — используйте повышение грейда и рабочий опыт.',
-        );
-      }
-      return state;
-    }
-    final assignment = EmployeeTrainingAssignment(
-      id: 'training_${employee.id}_${program.id}_${state.simulationMinutes}',
-      employeeId: employee.id,
-      programId: program.id,
-      startedAtMinutes: state.simulationMinutes,
-      completesAtMinutes: state.simulationMinutes + program.durationDays * 1440,
-    );
-    return _withFeed(
-      state.copyWith(
-        cash: state.cash - program.cost,
-        employeeTrainings: <EmployeeTrainingAssignment>[
-          ...state.employeeTrainings,
-          assignment,
-        ],
-      ),
-      '${employee.name}: курс «${program.name}» начат на ${program.durationDays} дн. Результат применится после завершения.',
-    );
-  }
-
-  GameState _trainEmployees(
-    GameState state,
-    List<String> employeeIds,
-    String programId,
-  ) {
-    var next = state;
-    for (final id in employeeIds.toSet()) {
-      next = _trainEmployee(next, id, programId);
-    }
-    return next;
-  }
+  GameState _coursesRemoved(GameState state) => _withFeed(
+    state,
+    'Курсы сотрудников удалены. Развитие идёт через опыт и повышение грейда.',
+  );
 
   GameState _upgradeEmployeesToGrade(
     GameState state,
@@ -6293,6 +6253,38 @@ class GameEngine {
     InfrastructureService.dataStorage => 'данные и storage',
     InfrastructureService.aiCompute => 'AI / compute',
   };
+
+  GameState _repayBusinessLoanEarly(GameState state) {
+    final loan = state.activeLoan;
+    if (loan == null) {
+      return _withFeed(state, 'Активного кредита нет.');
+    }
+    final payoff = loan.earlyPayoffAmountAt(state.simulationMinutes);
+    final savings = loan.earlyPayoffSavingsAt(state.simulationMinutes);
+    if (state.cash + 0.001 < payoff) {
+      return _withFeed(
+        state,
+        'Для досрочного погашения нужно ${payoff.round()} ₽. На счету ${state.cash.round()} ₽.',
+      );
+    }
+    return _withFeed(
+      state.copyWith(
+        cash: state.cash - payoff,
+        clearActiveLoan: true,
+        financeTransactions: <FinanceTransaction>[
+          ...state.financeTransactions,
+          FinanceTransaction(
+            id: 'loan_early_payoff_${state.simulationMinutes}',
+            simulationMinutes: state.simulationMinutes,
+            amount: -payoff,
+            category: FinanceTransactionCategory.financing,
+            description: 'Досрочное погашение бизнес-кредита',
+          ),
+        ],
+      ),
+      'Кредит погашен досрочно за ${payoff.round()} ₽. Экономия будущих процентов: ${savings.round()} ₽.',
+    );
+  }
 
   GameState _requestBusinessLoan(GameState state, double requestedAmount) {
     if (state.activeLoan != null) {

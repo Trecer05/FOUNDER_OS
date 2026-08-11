@@ -1,3 +1,4 @@
+// UAT_FIXPACK_R1
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -43,7 +44,6 @@ class _TeamScreenState extends State<TeamScreen> {
   bool _remoteOnly = false;
   bool _hrOnly = false;
   final Set<String> _selectedEmployeeIds = <String>{};
-  String _bulkTrainingProgramId = OperationsCatalog.trainingPrograms.first.id;
   EmployeeGrade _targetGrade = EmployeeGrade.middle;
 
   @override
@@ -518,41 +518,26 @@ class _TeamScreenState extends State<TeamScreen> {
     final selectedEmployees = visibleEmployees
         .where((employee) => _selectedEmployeeIds.contains(employee.id))
         .toList(growable: false);
-    final program = OperationsCatalog.trainingProgramById(
-      _bulkTrainingProgramId,
-    );
     final eligibleEmployees = selectedEmployees
         .where(
           (employee) =>
-              employee.grade != EmployeeGrade.senior &&
-              state.trainingForEmployee(employee.id) == null &&
               state.gradeUpgradeForEmployee(employee.id) == null &&
-              state.relocationForEmployee(employee.id) == null,
+              state.relocationForEmployee(employee.id) == null &&
+              state.trainingForEmployee(employee.id) == null,
         )
         .toList(growable: false);
-    final totalCourseCost = eligibleEmployees.fold<double>(
-      0,
-      (sum, _) => sum + program.cost,
-    );
     final allVisibleSelected =
         visibleEmployees.isNotEmpty &&
         visibleEmployees.every(
           (employee) => _selectedEmployeeIds.contains(employee.id),
         );
-    final busyCount = selectedEmployees
-        .where(
-          (employee) =>
-              state.trainingForEmployee(employee.id) != null ||
-              state.gradeUpgradeForEmployee(employee.id) != null ||
-              state.relocationForEmployee(employee.id) != null,
-        )
-        .length;
+    final busyCount = selectedEmployees.length - eligibleEmployees.length;
 
     return AppCard(
       key: const Key('team-development-controls'),
       hintTitle: 'Развитие сотрудников',
       hintBody:
-          'Курсы занимают реальное игровое время. Во время обучения сотрудник не участвует в разработке. Skill также растёт от активной работы над продуктами, а грейд автоматически подтягивается к накопленному навыку.',
+          'Курсы убраны из игрового цикла. Прокачка идёт через накопленный опыт и явное повышение грейда. Повышение занимает игровое время и стоит денег.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -560,7 +545,7 @@ class _TeamScreenState extends State<TeamScreen> {
             children: [
               Expanded(
                 child: AppText(
-                  'Развитие команды',
+                  'Прокачка только через грейд',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
@@ -569,12 +554,12 @@ class _TeamScreenState extends State<TeamScreen> {
           ),
           const SizedBox(height: 6),
           AppText(
-            'Можно выбрать отдельных сотрудников или всех из текущего фильтра. Senior не ходят на обычные курсы: для них используйте повышение грейда и рабочий опыт.',
+            'Выберите сотрудников и целевой грейд. Рабочий опыт продолжает влиять на навык, но отдельные курсы больше не запускаются.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           if (busyCount > 0)
             AppText(
-              'Занятых в выборе: $busyCount — они не входят в стоимость и не будут запущены повторно.',
+              'Занятых в выборе: $busyCount — дождитесь завершения текущей операции.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           const SizedBox(height: 10),
@@ -615,50 +600,6 @@ class _TeamScreenState extends State<TeamScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          DropdownButtonFormField<String>(
-            key: const Key('team-bulk-course-selector'),
-            initialValue: _bulkTrainingProgramId,
-            isExpanded: true,
-            decoration: InputDecoration(labelText: trContext(context, 'Курс')),
-            items: OperationsCatalog.trainingPrograms
-                .map(
-                  (item) => DropdownMenuItem<String>(
-                    value: item.id,
-                    child: AppText(
-                      '${item.name} • ${item.durationDays} дн. • ${money(item.cost)}',
-                    ),
-                  ),
-                )
-                .toList(growable: false),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() => _bulkTrainingProgramId = value);
-              }
-            },
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              key: const Key('team-start-bulk-course'),
-              onPressed:
-                  eligibleEmployees.isEmpty || state.cash < totalCourseCost
-                  ? null
-                  : () => widget.controller.dispatch(
-                      TrainEmployees(
-                        employeeIds: eligibleEmployees
-                            .map((employee) => employee.id)
-                            .toList(growable: false),
-                        programId: _bulkTrainingProgramId,
-                      ),
-                    ),
-              icon: const Icon(Icons.school_outlined),
-              label: AppText(
-                'Отправить на курс • ${program.durationDays} дн. • ${money(totalCourseCost)}',
-              ),
-            ),
-          ),
-          const Divider(height: 28),
           DropdownButtonFormField<EmployeeGrade>(
             key: const Key('team-target-grade-selector'),
             initialValue: _targetGrade,
@@ -666,7 +607,7 @@ class _TeamScreenState extends State<TeamScreen> {
               labelText: trContext(context, 'Целевой грейд'),
               helperText: trContext(
                 context,
-                'Выберите только итоговый грейд — стоимость и срок считаются автоматически.',
+                'Стоимость и срок повышения рассчитываются автоматически.',
               ),
             ),
             items: EmployeeGrade.values
@@ -686,13 +627,13 @@ class _TeamScreenState extends State<TeamScreen> {
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton.icon(
+            child: FilledButton.icon(
               key: const Key('team-upgrade-to-grade'),
-              onPressed: selectedEmployees.isEmpty
+              onPressed: eligibleEmployees.isEmpty
                   ? null
                   : () => widget.controller.dispatch(
                       UpgradeEmployeesToGrade(
-                        employeeIds: selectedEmployees
+                        employeeIds: eligibleEmployees
                             .map((employee) => employee.id)
                             .toList(growable: false),
                         targetGrade: _targetGrade,
@@ -1198,60 +1139,22 @@ class _EmployeeCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          if (employee.grade == EmployeeGrade.senior)
-            Container(
-              key: Key('senior-development-${employee.id}'),
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(10),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const AppText(
-                'Senior: обычные курсы недоступны. Навыки растут от реальной разработки; для следующего скачка используйте программу повышения грейда.',
-              ),
-            )
-          else
-            PopupMenuButton<String>(
-              key: Key('train-${employee.id}'),
-              enabled: !busy,
-              onSelected: (programId) => controller.dispatch(
-                TrainEmployee(employeeId: employee.id, programId: programId),
-              ),
-              itemBuilder: (_) => OperationsCatalog.trainingPrograms
-                  .map(
-                    (program) => PopupMenuItem<String>(
-                      value: program.id,
-                      enabled: state.cash >= program.cost,
-                      child: AppText(
-                        '${program.name} • ${program.durationDays} дн. • ${money(program.cost)}',
-                      ),
-                    ),
-                  )
-                  .toList(growable: false),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 13,
-                ),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.school_outlined),
-                    SizedBox(width: 8),
-                    AppText('Отправить на курс'),
-                    SizedBox(width: 6),
-                    Icon(Icons.arrow_drop_down),
-                  ],
-                ),
-              ),
+          Container(
+            key: Key('grade-development-${employee.id}'),
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withAlpha(10),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border),
             ),
+            child: AppText(
+              employee.grade == EmployeeGrade.senior
+                  ? 'Senior: навык растёт от реальной работы. Обычных курсов больше нет.'
+                  : 'Развитие: выберите сотрудника выше и запустите повышение целевого грейда. Обычных курсов больше нет.',
+            ),
+          ),
+
           if (employee.remote && state.ownedOffices.isNotEmpty) ...[
             const SizedBox(height: 8),
             PopupMenuButton<String>(

@@ -1,6 +1,8 @@
+// UAT_FIXPACK_R1
 import 'dart:math' as math;
 
 import '../catalog/game_catalog.dart';
+import '../catalog/feature_impact_catalog.dart';
 import '../catalog/product_strategy_catalog.dart';
 
 class ProductProjection {
@@ -115,7 +117,13 @@ abstract final class ProductEstimator {
           0,
           (sum, item) => sum + item.performanceDelta,
         ) +
-        features.fold<double>(0, (sum, item) => sum + item.performanceDelta);
+        features.fold<double>(
+          0,
+          (sum, item) =>
+              sum +
+              item.performanceDelta *
+                  FeatureImpactCatalog.fitWeight(blueprint, item),
+        );
     final speedMs =
         (blueprint.baseLatencyMs *
                 (1 - performancePoints / 220) /
@@ -126,7 +134,13 @@ abstract final class ProductEstimator {
     final designScore =
         (blueprint.baseDesignScore +
                 framework.designDelta +
-                features.fold<double>(0, (sum, item) => sum + item.designDelta))
+                features.fold<double>(
+                  0,
+                  (sum, item) =>
+                      sum +
+                      item.designDelta *
+                          FeatureImpactCatalog.fitWeight(blueprint, item),
+                ))
             .clamp(10, 96)
             .toDouble();
 
@@ -139,7 +153,10 @@ abstract final class ProductEstimator {
                 ) +
                 features.fold<double>(
                   0,
-                  (sum, item) => sum + item.securityDelta,
+                  (sum, item) =>
+                      sum +
+                      item.securityDelta *
+                          FeatureImpactCatalog.fitWeight(blueprint, item),
                 ) -
                 missingFrameworkLanguages * 4 -
                 excessTechnologies * 2.5)

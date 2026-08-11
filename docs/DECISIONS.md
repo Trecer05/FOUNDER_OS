@@ -206,3 +206,10 @@ Verification: `tools/audit_v17_r15_uat_fixes.py`, focused R15 regression tests, 
 ## R16 — Product economy is causal, not coefficient-driven
 
 Snapshot-поле `activationRate` сохраняется ради обратной совместимости сейвов, но в UI означает понятную метрику «начали пользоваться». Реклама отвечает за верх воронки; satisfaction строится из опыта продукта; retention/churn и revenue являются следствиями. R&D использует prerequisite tree. Loan approval использует детерминированный RNG и request-to-valuation risk.
+
+## 2026-08-11 — UAT: employee progression, contracts, feature fit
+
+- Сотрудничьи курсы больше не запускаются из UI/engine; развитие игрок запускает через повышение грейда. Поля старого обучения остаются читаемыми ради совместимости сохранений.
+- Клиентские заказы — недельный детерминированный рынок из seed + week; активный контракт восстанавливает свой template по ID даже после смены недели.
+- Feature fit отделён от общего quality: core-фичи дают заметный acquisition/retention, совместимые — меньший, cross-category — только малый quality без самостоятельного user acquisition.
+- Досрочное полное погашение бизнес-кредита убирает будущую незаработанную часть процентов.

@@ -1,3 +1,4 @@
+// UAT_FIXPACK_R1
 import '../entities/models.dart';
 
 /// Deterministic procedural labour market.
@@ -92,6 +93,45 @@ abstract final class CandidateMarketCatalog {
     'Камилла',
     'Милана',
   ];
+
+  static const Set<String> _femaleFirstNames = <String>{
+    'Алина',
+    'Алёна',
+    'Анастасия',
+    'Анна',
+    'Арина',
+    'Валерия',
+    'Варвара',
+    'Вера',
+    'Вероника',
+    'Виктория',
+    'Галина',
+    'Дарья',
+    'Диана',
+    'Евгения',
+    'Екатерина',
+    'Елена',
+    'Ирина',
+    'Ксения',
+    'Лилия',
+    'Маргарита',
+    'Марина',
+    'Мария',
+    'Надежда',
+    'Наталья',
+    'Ольга',
+    'Полина',
+    'Светлана',
+    'София',
+    'Тамара',
+    'Татьяна',
+    'Юлия',
+    'Яна',
+    'Майя',
+    'Элина',
+    'Камилла',
+    'Милана',
+  };
 
   static const List<String> lastNames = <String>[
     'Абрамов',
@@ -196,6 +236,26 @@ abstract final class CandidateMarketCatalog {
     'Яшин',
   ];
 
+  static String surnameForFirstName(String firstName, String surname) {
+    if (!_femaleFirstNames.contains(firstName)) return surname;
+    if (surname.endsWith('\u0441\u043a\u0438\u0439')) {
+      return '${surname.substring(0, surname.length - 4)}\u0441\u043a\u0430\u044f';
+    }
+    if (surname.endsWith('\u0446\u043a\u0438\u0439')) {
+      return '${surname.substring(0, surname.length - 4)}\u0446\u043a\u0430\u044f';
+    }
+    if (surname.endsWith('\u0451\u0432')) {
+      return '$surname\u0430';
+    }
+    if (surname.endsWith('\u043e\u0432') ||
+        surname.endsWith('\u0435\u0432') ||
+        surname.endsWith('\u0438\u043d') ||
+        surname.endsWith('\u044b\u043d')) {
+      return '$surname\u0430';
+    }
+    return surname;
+  }
+
   static List<Candidate> initialMarket({required int seed}) =>
       _generate(seed: seed, startOrdinal: 0, count: initialMarketSize);
 
@@ -287,10 +347,11 @@ abstract final class CandidateMarketCatalog {
     final firstName = firstNames[nameIndex % firstNames.length];
     final lastName =
         lastNames[(nameIndex ~/ firstNames.length) % lastNames.length];
+    final displayLastName = surnameForFirstName(firstName, lastName);
 
     return Candidate(
       id: 'candidate_${seed & 0xffff}_$ordinal',
-      name: '$firstName $lastName',
+      name: '$firstName $displayLastName',
       role: role,
       grade: grade,
       skill: skill,

@@ -1,3 +1,4 @@
+// UAT_FIXPACK_R1
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
 import '../../../domain/catalog/game_catalog.dart';
+import '../../../domain/catalog/feature_impact_catalog.dart';
 import '../../../domain/catalog/product_evolution_catalog.dart';
 import '../../../domain/catalog/product_strategy_catalog.dart';
 import '../../../domain/commands/game_action.dart';
@@ -79,6 +81,7 @@ class ProductDetailScreen extends StatelessWidget {
           );
         }
         final competitor = state.competitorsForCategory(product.category).first;
+        final blueprint = GameCatalog.blueprintById(product.blueprintId);
         final framework = GameCatalog.frameworkById(product.frameworkId);
         final load = state.productServerLoad(product);
         final strategy = ProductStrategyCatalog.strategyFor(
@@ -106,12 +109,16 @@ class ProductDetailScreen extends StatelessWidget {
         final availableFeatures = GameCatalog.features
             .where(
               (feature) =>
-                  feature.supportedCategories.contains(product.category) &&
                   !product.featureIds.contains(feature.id) &&
-                  (product.blueprintId != 'company_website' ||
-                      GameCatalog.blueprintById(
-                        product.blueprintId,
-                      ).expectedFeatureIds.contains(feature.id)),
+                  (product.blueprintId != 'company_website'
+                      ? feature.supportedCategories.contains(
+                              product.category,
+                            ) ||
+                            state.researchCompleted(
+                              ResearchTargetKind.feature,
+                              feature.id,
+                            )
+                      : blueprint.expectedFeatureIds.contains(feature.id)),
             )
             .toList(growable: false);
         final activeFeatureWork = state.activeFeatureDevelopmentFor(product.id);
@@ -415,15 +422,21 @@ class ProductDetailScreen extends StatelessWidget {
                       product.technologyIds.isEmpty
                           ? 'Нет'
                           : product.technologyIds
-                                .map(
-                                  (id) => GameCatalog.technologyById(id).name,
-                                )
+                                .map((id) {
+                                  final technology = GameCatalog.technologyById(
+                                    id,
+                                  );
+                                  return '${technology.name} ${FeatureImpactCatalog.technologyMark(blueprint, technology)}';
+                                })
                                 .join(', '),
                     ),
                     _LabelValue(
                       'Функции',
                       product.featureIds
-                          .map((id) => GameCatalog.featureById(id).name)
+                          .map((id) {
+                            final feature = GameCatalog.featureById(id);
+                            return '${feature.name} ${FeatureImpactCatalog.featureMark(blueprint, feature)}';
+                          })
                           .join(', '),
                       last: true,
                     ),

@@ -301,8 +301,15 @@ void main() {
 
   test('monetization tuning is persisted and affects the revenue forecast', () {
     var state = _liveSaas(engine);
-    final product = state.products.single;
+    final product = state.products.single.copyWith(
+      users: 25000,
+      dau: 6000,
+      mau: 18000,
+      price: 500,
+    );
+    state = state.copyWith(products: <Product>[product]);
     final before = state.revenueForecastFor(product).high;
+    expect(before, greaterThan(0));
     state = engine.reduce(
       state,
       SetProductMonetizationSettings(

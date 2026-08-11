@@ -1783,6 +1783,243 @@ class GameState {
     return latest;
   }
 
+  double productUserSatisfaction(Product product) {
+    final competitor = GameCatalog.competitorsFor(
+      product.category,
+      rngSeed,
+    ).first;
+    final speedScore = (competitor.speedMs / math.max(1, product.speedMs))
+        .clamp(0.12, 1.0)
+        .toDouble();
+    final qualityScore = (product.qualityScore / 100).clamp(0, 1).toDouble();
+    final reliabilityScore = product.reliability.clamp(0, 1).toDouble();
+    final featureScore = product.featureCoverage.clamp(0, 1).toDouble();
+    final securityScore = (product.securityScore / 100).clamp(0, 1).toDouble();
+    final blueprint = GameCatalog.blueprintById(product.blueprintId);
+    final basePrice = math.max(1.0, blueprint.basePrice).toDouble();
+    final pricePressure =
+        product.monetization == MonetizationModel.free ||
+            product.monetization == MonetizationModel.advertising
+        ? 0.0
+        : product.monetization == MonetizationModel.transactionFee
+        ? math.max(0, product.price - 1.5) / 8
+        : math.max(
+            currentPriceSentiment(product),
+            math.max(0, product.price / basePrice - 1) * 0.55,
+          );
+    final priceFairness = (1 - pricePressure).clamp(0.05, 1).toDouble();
+    final intensity = product.monetizationIntensity.clamp(0.1, 1.0).toDouble();
+    final monetizationComfort = switch (product.monetization) {
+      MonetizationModel.free => 1.0,
+      MonetizationModel.subscription =>
+        (1 - intensity * 0.18 - pricePressure * 0.45).clamp(0.05, 1),
+      MonetizationModel.usageBased =>
+        (1 - intensity * 0.14 - pricePressure * 0.30).clamp(0.05, 1),
+      MonetizationModel.advertising => (1 - intensity * 0.62).clamp(0.05, 1),
+      MonetizationModel.transactionFee =>
+        (1 - intensity * 0.24 - pricePressure * 0.30).clamp(0.05, 1),
+    }.toDouble();
+    final stalenessPenalty = productStalenessPenalty(product);
+    final bugPenalty = productBugPenalty(product);
+    return ((qualityScore * 0.28 +
+                reliabilityScore * 0.18 +
+                speedScore * 0.12 +
+                featureScore * 0.12 +
+                securityScore * 0.10 +
+                priceFairness * 0.10 +
+                monetizationComfort * 0.10 -
+                stalenessPenalty * 0.12 -
+                bugPenalty * 0.10) *
+            100)
+        .clamp(0, 100)
+        .toDouble();
+  }
+
+  double productPaidConversionRate(Product product) {
+    final satisfaction = productUserSatisfaction(product) / 100;
+    final trust = product.brandTrust.clamp(0, 1).toDouble();
+    final intensity = product.monetizationIntensity.clamp(0.1, 1.0).toDouble();
+    final blueprint = GameCatalog.blueprintById(product.blueprintId);
+    final basePrice = math.max(1.0, blueprint.basePrice).toDouble();
+    final pricePressure =
+        product.monetization == MonetizationModel.transactionFee
+        ? (math.max(0, product.price - 1.5) / 8).clamp(0, 1).toDouble()
+        : math
+              .max(
+                currentPriceSentiment(product),
+                math.max(0, product.price / basePrice - 1) * 0.60,
+              )
+              .clamp(0, 1)
+              .toDouble();
+    final freeTier = product.freeTierPercent.clamp(0, 0.9).toDouble();
+    return switch (product.monetization) {
+      MonetizationModel.free => 0.0,
+      MonetizationModel.subscription =>
+        (0.018 +
+                satisfaction * 0.065 +
+                trust * 0.035 +
+                intensity * 0.055 -
+                freeTier * 0.045 -
+                pricePressure * 0.085)
+            .clamp(0.003, 0.24)
+            .toDouble(),
+      MonetizationModel.usageBased =>
+        (0.030 +
+                satisfaction * 0.080 +
+                trust * 0.030 +
+                intensity * 0.050 -
+                freeTier * 0.035 -
+                pricePressure * 0.060)
+            .clamp(0.006, 0.30)
+            .toDouble(),
+      MonetizationModel.advertising => 0.0,
+      MonetizationModel.transactionFee =>
+        (0.14 +
+                satisfaction * 0.20 +
+                trust * 0.16 +
+                intensity * 0.040 -
+                pricePressure * 0.15)
+            .clamp(0.03, 0.62)
+            .toDouble(),
+    };
+  }
+
+  int productPayingUsers(Product product) =>
+      (product.mau * productPaidConversionRate(product)).round();
+
+  double productMonetizationRevenueEstimate(
+    Product product, {
+    int? mauOverride,
+  }) {
+    final mau = math.max(0, mauOverride ?? product.mau).toInt();
+    if (mau <= 0) {
+      return 0;
+    }
+    final satisfaction = productUserSatisfaction(product) / 100;
+    final intensity = product.monetizationIntensity.clamp(0.1, 1.0).toDouble();
+    final payingUsers = (mau * productPaidConversionRate(product)).round();
+    final base = switch (product.monetization) {
+      MonetizationModel.free => 0.0,
+      MonetizationModel.subscription => payingUsers * product.price,
+      MonetizationModel.usageBased =>
+        payingUsers * product.price * (0.75 + intensity * 1.45),
+      MonetizationModel.advertising =>
+        mau *
+            (7 + satisfaction * 12) *
+            (0.4 + intensity * 3.6) *
+            (55 + product.price * 35) /
+            1000,
+      MonetizationModel.transactionFee =>
+        payingUsers * (3.0 + satisfaction * 5.0) * math.max(0.1, product.price),
+    };
+    return base *
+        product.reliability.clamp(0.5, 1).toDouble() *
+        (1 + ecosystemBoostFor(product.id) * 0.55);
+  }
+
+  double productArpu(Product product) =>
+      product.mau <= 0 ? 0 : product.monthlyRevenue / product.mau;
+
+  double productPaidAcquisitionInterest(Product product) {
+    return activeCampaignsFor(product.id).fold<double>(0, (sum, campaign) {
+      final forecast = advertisingForecast(
+        product: product,
+        agencyId: campaign.agencyId,
+        channelId: campaign.channelId,
+        budget: campaign.budget,
+      );
+      return sum + forecast.usersExpected;
+    });
+  }
+
+  double productEstimatedMonthlyStartedUsers(Product product) => math
+      .max(0, product.monthlyGrowth + product.users * product.churnRate)
+      .toDouble();
+
+  double productEstimatedMonthlyInterest(Product product) {
+    final started = productEstimatedMonthlyStartedUsers(product);
+    return started / math.max(0.05, product.activationRate);
+  }
+
+  double productOrganicAcquisitionShare(Product product) {
+    final total = productEstimatedMonthlyInterest(product);
+    if (total <= 0) {
+      return 1;
+    }
+    return (1 - productPaidAcquisitionInterest(product) / total)
+        .clamp(0, 1)
+        .toDouble();
+  }
+
+  double productCac(Product product) {
+    final monthlySpend = activeCampaignsFor(
+      product.id,
+    ).fold<double>(0, (sum, campaign) => sum + campaign.budget);
+    if (monthlySpend <= 0) {
+      return 0;
+    }
+    final totalInterest = productEstimatedMonthlyInterest(product);
+    final paidInterest = productPaidAcquisitionInterest(product);
+    if (totalInterest <= 0 || paidInterest <= 0) {
+      return 0;
+    }
+    final paidStarted =
+        productEstimatedMonthlyStartedUsers(product) *
+        (paidInterest / totalInterest).clamp(0, 1);
+    return paidStarted <= 0 ? 0 : monthlySpend / paidStarted;
+  }
+
+  double businessLoanRequestRatio(double requestedAmount) =>
+      requestedAmount / math.max(500000.0, valuation);
+
+  double businessLoanApprovalChance(double requestedAmount) {
+    if (requestedAmount < 50000 || activeLoan != null) {
+      return 0;
+    }
+    final hasProof =
+        products.isNotEmpty ||
+        activeContracts.isNotEmpty ||
+        completedContracts.isNotEmpty;
+    if (!hasProof) {
+      return 0;
+    }
+    final ratio = businessLoanRequestRatio(requestedAmount);
+    final recurringRevenue =
+        monthlyProductRevenue + monthlyWorldProjectRevenue + portfolioIncome;
+    final burnRatio =
+        monthlyCosts / math.max(250000.0, recurringRevenue + 250000);
+    final riskyProducts = products
+        .where((product) => productSecurityRisk(product) > 0.72)
+        .length;
+    final economicBonus = math
+        .min(0.08, recurringRevenue / math.max(500000.0, valuation) * 1.5)
+        .toDouble();
+    return (0.94 +
+            economicBonus -
+            ratio * 1.35 -
+            math.max(0, burnRatio - 1) * 0.08 -
+            riskyProducts * 0.07)
+        .clamp(0.02, 0.97)
+        .toDouble();
+  }
+
+  double businessLoanInterestRate(double requestedAmount) {
+    final ratio = businessLoanRequestRatio(requestedAmount);
+    final riskyProducts = products
+        .where((product) => productSecurityRisk(product) > 0.72)
+        .length;
+    final recurringRevenue =
+        monthlyProductRevenue + monthlyWorldProjectRevenue + portfolioIncome;
+    final burnRatio =
+        monthlyCosts / math.max(250000.0, recurringRevenue + 250000);
+    return (0.08 +
+            ratio * 0.14 +
+            riskyProducts * 0.015 +
+            math.max(0, burnRatio - 1) * 0.012)
+        .clamp(0.08, 0.28)
+        .toDouble();
+  }
+
   MonetizationExperienceImpact monetizationExperienceImpact(Product product) {
     final intensity = product.monetizationIntensity.clamp(0.1, 1.0).toDouble();
     final blueprint = GameCatalog.blueprintById(product.blueprintId);
@@ -1912,7 +2149,7 @@ class GameState {
     final qualityFactor =
         (0.45 +
                 product.qualityScore / 100 * 0.32 +
-                product.retention30d * 0.10 +
+                productUserSatisfaction(product) / 100 * 0.10 +
                 product.reliability * 0.13)
             .clamp(0.48, 1.0)
             .toDouble();
@@ -1942,9 +2179,8 @@ class GameState {
         categoryFit *
         founderGrowthMultiplier *
         marketAccessMultiplier;
-    // Paid acquisition must be a viable growth lever, not a cosmetic channel.
-    // The multiplier represents retargeting, view-through attribution and
-    // referral lift that are not visible in the raw click count.
+    // Forecast is qualified top-of-funnel interest. The market simulation
+    // decides how many people actually start using the product and remain.
     final expected = (clicks * conversion * 2.4).round();
     final spread = (1 - agency.forecastAccuracy) * 0.75 + 0.18;
     return AdvertisingForecast(
@@ -1954,9 +2190,8 @@ class GameState {
       usersExpected: math.max(0, expected),
       usersHigh: math.max(0, (expected * (1 + spread)).round()),
       effectiveBudget: effectiveBudget,
-      note: product.brandAwareness < 0.08
-          ? 'Новый бренд конвертирует слабее зрелого, но закупленный трафик всё равно даёт измеримый объём. Дальше результат решают activation и retention.'
-          : 'Диапазон зависит от доверия, качества продукта, соответствия канала и точности агентства.',
+      note:
+          'Прогноз показывает заинтересованных людей, а не готовых пользователей. Финальный результат зависит от того, сколько из них реально начнут пользоваться продуктом и останутся.',
     );
   }
 
@@ -2066,9 +2301,15 @@ class GameState {
     return raw * (worldProjectCompleted('planet_compute') ? 0.78 : 1.0);
   }
 
+  double companyPerkActivationCost(String perkId) =>
+      V17EndgameCatalog.perkById(perkId).upfrontCost * employees.length;
+
+  double companyPerkMonthlyCost(String perkId) =>
+      V17EndgameCatalog.perkById(perkId).monthlyCost * employees.length;
+
   double get monthlyCompanyPerkCost => enabledCompanyPerkIds.fold<double>(
     0,
-    (sum, id) => sum + V17EndgameCatalog.perkById(id).monthlyCost,
+    (sum, id) => sum + companyPerkMonthlyCost(id),
   );
 
   int get companyPerkLoyaltyBonus => enabledCompanyPerkIds.fold<int>(
@@ -2088,6 +2329,16 @@ class GameState {
               V17EndgameCatalog.worldProjectById(
                 progress.projectId,
               ).monthlyOperatingCost
+        : sum,
+  );
+
+  double get monthlyWorldProjectRevenue => worldProjects.fold<double>(
+    0,
+    (sum, progress) => worldProjectBaseCompleted(progress.projectId)
+        ? sum +
+              V17EndgameCatalog.worldProjectById(
+                progress.projectId,
+              ).monthlyRevenue
         : sum,
   );
 
@@ -2130,7 +2381,10 @@ class GameState {
       monthlyLoanPayment;
 
   double get monthlyProfit =>
-      monthlyProductRevenue + portfolioIncome - monthlyCosts;
+      monthlyProductRevenue +
+      monthlyWorldProjectRevenue +
+      portfolioIncome -
+      monthlyCosts;
 
   double get runwayMonths {
     if (monthlyProfit >= 0) {
@@ -2140,7 +2394,7 @@ class GameState {
   }
 
   double get valuation {
-    final recurring = monthlyProductRevenue * 24;
+    final recurring = (monthlyProductRevenue + monthlyWorldProjectRevenue) * 24;
     final usersValue = products.fold<double>(
       0,
       (sum, item) => sum + item.mau * 38,
@@ -2210,6 +2464,14 @@ class GameState {
     return null;
   }
 
+  String worldProjectDisplayName(String projectId) {
+    final customName =
+        worldProjectProgressFor(projectId)?.customName.trim() ?? '';
+    return customName.isEmpty
+        ? V17EndgameCatalog.worldProjectById(projectId).name
+        : customName;
+  }
+
   bool worldProjectBaseCompleted(String projectId) {
     final progress = worldProjectProgressFor(projectId);
     final definition = V17EndgameCatalog.worldProjectById(projectId);
@@ -2268,28 +2530,175 @@ class GameState {
   String researchKey(ResearchTargetKind kind, String targetId) =>
       '${kind.name}:$targetId';
 
-  bool researchCompleted(ResearchTargetKind kind, String targetId) =>
-      completedResearchKeys.contains(researchKey(kind, targetId));
+  bool researchCompleted(ResearchTargetKind kind, String targetId) {
+    if (kind == ResearchTargetKind.technology &&
+        const <String>{
+          'postgresql',
+          'observability_stack',
+        }.contains(targetId)) {
+      return true;
+    }
+    return completedResearchKeys.contains(researchKey(kind, targetId));
+  }
+
+  int featureResearchTier(String targetId) {
+    final cost = GameCatalog.featureById(targetId).developmentCost;
+    if (cost <= 50000) {
+      return 0;
+    }
+    if (cost <= 90000) {
+      return 1;
+    }
+    if (cost <= 140000) {
+      return 2;
+    }
+    if (cost <= 220000) {
+      return 3;
+    }
+    return 4;
+  }
+
+  List<String> researchPrerequisiteKeys(
+    ResearchTargetKind kind,
+    String targetId,
+  ) {
+    if (kind == ResearchTargetKind.technology) {
+      final parent = switch (targetId) {
+        'redis' => 'postgresql',
+        'cdn' || 'vector_db' => 'redis',
+        'kubernetes' => 'observability_stack',
+        'e2ee' => 'observability_stack',
+        'hsm' => 'e2ee',
+        _ => '',
+      };
+      return parent.isEmpty
+          ? const <String>[]
+          : <String>[researchKey(ResearchTargetKind.technology, parent)];
+    }
+    final target = GameCatalog.featureById(targetId);
+    final tier = featureResearchTier(targetId);
+    if (tier <= 0) {
+      return const <String>[];
+    }
+    final categories = target.supportedCategories.toSet();
+    final candidates =
+        GameCatalog.features
+            .where(
+              (item) =>
+                  item.id != targetId &&
+                  item.supportedCategories.any(categories.contains) &&
+                  featureResearchTier(item.id) == tier - 1,
+            )
+            .toList(growable: true)
+          ..sort((a, b) {
+            final byCost = a.developmentCost.compareTo(b.developmentCost);
+            return byCost != 0 ? byCost : a.id.compareTo(b.id);
+          });
+    if (candidates.isNotEmpty) {
+      return <String>[
+        researchKey(ResearchTargetKind.feature, candidates.last.id),
+      ];
+    }
+    final fallback =
+        GameCatalog.features
+            .where(
+              (item) =>
+                  item.id != targetId &&
+                  item.supportedCategories.any(categories.contains) &&
+                  featureResearchTier(item.id) < tier,
+            )
+            .toList(growable: true)
+          ..sort((a, b) {
+            final byTier = featureResearchTier(
+              a.id,
+            ).compareTo(featureResearchTier(b.id));
+            if (byTier != 0) {
+              return byTier;
+            }
+            final byCost = a.developmentCost.compareTo(b.developmentCost);
+            return byCost != 0 ? byCost : a.id.compareTo(b.id);
+          });
+    return fallback.isEmpty
+        ? const <String>[]
+        : <String>[researchKey(ResearchTargetKind.feature, fallback.last.id)];
+  }
+
+  int researchDepth(ResearchTargetKind kind, String targetId) {
+    if (kind == ResearchTargetKind.feature) {
+      return featureResearchTier(targetId);
+    }
+    return switch (targetId) {
+      'postgresql' || 'observability_stack' => 0,
+      'redis' || 'kubernetes' || 'e2ee' => 1,
+      'cdn' || 'vector_db' || 'hsm' => 2,
+      _ => 1,
+    };
+  }
+
+  bool researchPrerequisitesMet(ResearchTargetKind kind, String targetId) =>
+      researchPrerequisiteKeys(kind, targetId).every(
+        (key) =>
+            completedResearchKeys.contains(key) ||
+            key == 'technology:postgresql' ||
+            key == 'technology:observability_stack',
+      );
+
+  List<String> researchPrerequisiteNames(
+    ResearchTargetKind kind,
+    String targetId,
+  ) {
+    return researchPrerequisiteKeys(kind, targetId)
+        .map((key) {
+          final separator = key.indexOf(':');
+          final id = separator < 0 ? key : key.substring(separator + 1);
+          return key.startsWith('technology:')
+              ? GameCatalog.technologyById(id).name
+              : GameCatalog.featureById(id).name;
+        })
+        .toList(growable: false);
+  }
 
   double researchCost(ResearchTargetKind kind, String targetId) {
-    return switch (kind) {
-      ResearchTargetKind.feature => math.max(
-        120000,
-        GameCatalog.featureById(targetId).developmentCost * 0.65,
-      ),
-      ResearchTargetKind.technology => math.max(
-        220000,
-        GameCatalog.technologyById(targetId).developmentCost * 0.80,
-      ),
-    }.toDouble();
+    if (researchCompleted(kind, targetId)) {
+      return 0;
+    }
+    final depth = researchDepth(kind, targetId);
+    if (kind == ResearchTargetKind.technology) {
+      final developmentCost = GameCatalog.technologyById(
+        targetId,
+      ).developmentCost;
+      final base = switch (depth) {
+        0 => 180000.0,
+        1 => 450000.0,
+        2 => 1200000.0,
+        _ => 2800000.0,
+      };
+      final multiplier = 3.5 + depth * 2.0;
+      return (base + developmentCost * multiplier).toDouble();
+    }
+    final developmentCost = GameCatalog.featureById(targetId).developmentCost;
+    final base = switch (depth) {
+      0 => 80000.0,
+      1 => 220000.0,
+      2 => 500000.0,
+      3 => 1100000.0,
+      _ => 2500000.0,
+    };
+    final multiplier = 3.5 + depth * 1.5;
+    return (base + developmentCost * multiplier).toDouble();
   }
 
   int researchDays(ResearchTargetKind kind, String targetId) {
+    if (researchCompleted(kind, targetId)) {
+      return 0;
+    }
+    final depth = researchDepth(kind, targetId);
     final cost = researchCost(kind, targetId);
-    final scale = (math.log(cost / 100000 + 1) / math.ln2).round();
-    return (kind == ResearchTargetKind.feature ? 3 + scale : 5 + scale)
-        .clamp(3, 24)
-        .toInt();
+    final costScale = (math.log(cost / 150000 + 1) / math.ln2).round();
+    final base = kind == ResearchTargetKind.feature
+        ? 4 + depth * 5
+        : 6 + depth * 7;
+    return (base + costScale).clamp(4, 45).toInt();
   }
 
   PendingEmployeeDeparture? pendingDepartureFor(String employeeId) {
@@ -2401,28 +2810,20 @@ class GameState {
     final assumedMau = product.stage == ProductStage.live
         ? math.max(1, product.mau)
         : 2500;
-    final payingShare = 1 - product.freeTierPercent;
-    final intensity = product.monetizationIntensity;
-    final base = switch (selectedModel) {
-      MonetizationModel.free => 0.0,
-      MonetizationModel.subscription =>
-        assumedMau * payingShare * product.price * (0.075 + intensity * 0.035),
-      MonetizationModel.usageBased =>
-        assumedMau * payingShare * product.price * (0.045 + intensity * 0.032),
-      MonetizationModel.advertising =>
-        assumedMau * (9 + intensity * 27) * math.max(0.02, product.price),
-      MonetizationModel.transactionFee =>
-        assumedMau * (7 + intensity * 13) * product.price,
-    };
-    final expected =
-        base * product.reliability * (1 + ecosystemBoostFor(product.id) * 0.55);
+    final preview = selectedModel == product.monetization
+        ? product
+        : product.copyWith(monetization: selectedModel);
+    final expected = productMonetizationRevenueEstimate(
+      preview,
+      mauOverride: assumedMau,
+    );
     return RevenueForecast(
-      low: expected * 0.68,
+      low: expected * 0.82,
       expected: expected,
-      high: expected * 1.32,
+      high: expected * 1.18,
       assumedMau: assumedMau,
       note:
-          'Диапазон использует текущие MAU, цену, reliability и экосистему. Реальный доход меняется из-за churn, рынка, свежести и рекламы.',
+          'Прогноз использует ту же модель, что и симуляция: MAU, удовлетворённость, доверие, цену, интенсивность монетизации, reliability и экосистему.',
     );
   }
 

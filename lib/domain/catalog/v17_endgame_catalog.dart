@@ -82,6 +82,7 @@ class WorldProjectDefinition {
     required this.phaseCosts,
     required this.phaseDays,
     required this.monthlyOperatingCost,
+    this.monthlyRevenue = 0,
     required this.minimumValuation,
     required this.minimumFans,
     required this.requiredCompletedResearch,
@@ -94,6 +95,7 @@ class WorldProjectDefinition {
   final List<double> phaseCosts;
   final List<int> phaseDays;
   final double monthlyOperatingCost;
+  final double monthlyRevenue;
   final double minimumValuation;
   final int minimumFans;
   final int requiredCompletedResearch;
@@ -124,8 +126,8 @@ abstract final class V17EndgameCatalog {
       id: 'premium_workstations',
       name: 'Премиальное железо',
       description: 'Топовые рабочие станции, мониторы и периферия.',
-      upfrontCost: 2800000,
-      monthlyCost: 180000,
+      upfrontCost: 120000,
+      monthlyCost: 8000,
       loyaltyBonus: 6,
       moraleBonus: 4,
       productivityBonus: 0.035,
@@ -134,8 +136,8 @@ abstract final class V17EndgameCatalog {
       id: 'health_insurance',
       name: 'ДМС+',
       description: 'Расширенная медицина и стоматология для команды.',
-      upfrontCost: 350000,
-      monthlyCost: 420000,
+      upfrontCost: 15000,
+      monthlyCost: 18000,
       loyaltyBonus: 8,
       moraleBonus: 5,
       productivityBonus: 0.01,
@@ -145,8 +147,8 @@ abstract final class V17EndgameCatalog {
       name: 'Такси до офиса',
       description:
           'Компания оплачивает поездки сотрудников, которые работают on-site.',
-      upfrontCost: 180000,
-      monthlyCost: 650000,
+      upfrontCost: 5000,
+      monthlyCost: 12000,
       loyaltyBonus: 6,
       moraleBonus: 6,
       productivityBonus: 0.012,
@@ -155,8 +157,8 @@ abstract final class V17EndgameCatalog {
       id: 'meals_and_coffee',
       name: 'Питание и кофе',
       description: 'Полноценное питание в офисах и круглосуточные кухни.',
-      upfrontCost: 500000,
-      monthlyCost: 780000,
+      upfrontCost: 20000,
+      monthlyCost: 22000,
       loyaltyBonus: 5,
       moraleBonus: 7,
       productivityBonus: 0.015,
@@ -165,8 +167,8 @@ abstract final class V17EndgameCatalog {
       id: 'education_budget',
       name: 'Личный бюджет развития',
       description: 'Конференции, книги и обучение без отдельного согласования.',
-      upfrontCost: 900000,
-      monthlyCost: 1100000,
+      upfrontCost: 25000,
+      monthlyCost: 28000,
       loyaltyBonus: 9,
       moraleBonus: 4,
       productivityBonus: 0.022,
@@ -176,8 +178,8 @@ abstract final class V17EndgameCatalog {
       name: 'Family support',
       description:
           'Страхование семьи, помощь с детским садом и экстренными расходами.',
-      upfrontCost: 1200000,
-      monthlyCost: 1600000,
+      upfrontCost: 20000,
+      monthlyCost: 35000,
       loyaltyBonus: 12,
       moraleBonus: 8,
       productivityBonus: 0.01,
@@ -319,6 +321,7 @@ abstract final class V17EndgameCatalog {
       phaseCosts: <double>[12000000000, 22000000000, 38000000000, 55000000000],
       phaseDays: <int>[45, 70, 95, 120],
       monthlyOperatingCost: 1800000000,
+      monthlyRevenue: 3600000000,
       minimumValuation: 25000000000,
       minimumFans: 1500000,
       requiredCompletedResearch: 12,
@@ -344,6 +347,7 @@ abstract final class V17EndgameCatalog {
       phaseCosts: <double>[25000000000, 45000000000, 80000000000, 125000000000],
       phaseDays: <int>[75, 110, 150, 180],
       monthlyOperatingCost: 3800000000,
+      monthlyRevenue: 6200000000,
       minimumValuation: 80000000000,
       minimumFans: 5000000,
       requiredCompletedResearch: 24,

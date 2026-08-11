@@ -4,6 +4,7 @@ import '../../../app/theme/app_theme.dart';
 import '../../../domain/catalog/game_catalog.dart';
 import '../../../domain/entities/game_state.dart';
 import '../../../domain/entities/v9_models.dart';
+import '../../../domain/entities/v17_models.dart';
 import '../../../domain/explainability/product_configuration_resolver.dart';
 import 'formatters.dart';
 import 'section_header.dart';
@@ -18,6 +19,7 @@ class TechnologySelectorPanel extends StatelessWidget {
     required this.featureIds,
     required this.selectedTechnologyIds,
     required this.onChanged,
+    this.onOpenResearch,
     super.key,
   });
 
@@ -28,6 +30,7 @@ class TechnologySelectorPanel extends StatelessWidget {
   final Set<String> featureIds;
   final Set<String> selectedTechnologyIds;
   final void Function(String technologyId, bool selected) onChanged;
+  final VoidCallback? onOpenResearch;
 
   TechnologyLimitExplanation get explanation =>
       ProductConfigurationResolver.technologyLimit(
@@ -54,6 +57,15 @@ class TechnologySelectorPanel extends StatelessWidget {
               'Лимит зависит от масштаба продукта, фреймворка, плана развития, сложности сопровождения и возможностей инженерной команды.',
         ),
         const SizedBox(height: 8),
+        if (onOpenResearch != null) ...[
+          FilledButton.tonalIcon(
+            key: const Key('technology-open-research'),
+            onPressed: onOpenResearch,
+            icon: const Icon(Icons.science_outlined),
+            label: const AppText('Открыть исследования R&D'),
+          ),
+          const SizedBox(height: 8),
+        ],
         OutlinedButton.icon(
           key: const Key('technology-limit-explanation'),
           onPressed: () => _showLimit(context, limit),
@@ -70,6 +82,10 @@ class TechnologySelectorPanel extends StatelessWidget {
             technology: technology,
           );
           final impact = ProductConfigurationResolver.impact(technology);
+          final researched = state.researchCompleted(
+            ResearchTargetKind.technology,
+            technology.id,
+          );
           final atLimit = !selected && limit.reached;
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
@@ -83,7 +99,9 @@ class TechnologySelectorPanel extends StatelessWidget {
               ),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
-                onTap: availability.mandatory
+                onTap: !researched
+                    ? onOpenResearch
+                    : availability.mandatory
                     ? null
                     : () {
                         if (atLimit) {
@@ -103,7 +121,7 @@ class TechnologySelectorPanel extends StatelessWidget {
                         children: [
                           Checkbox(
                             value: selected,
-                            onChanged: availability.mandatory
+                            onChanged: availability.mandatory || !researched
                                 ? null
                                 : (_) {
                                     if (atLimit) {
@@ -127,9 +145,16 @@ class TechnologySelectorPanel extends StatelessWidget {
                           ),
                           if (availability.mandatory)
                             const Chip(label: AppText('Обязательна')),
+                          if (!researched)
+                            const Chip(label: AppText('Нужно R&D')),
                         ],
                       ),
                       AppText(technology.description),
+                      const SizedBox(height: 4),
+                      AppText(
+                        'R&D ${money(state.researchCost(ResearchTargetKind.technology, technology.id))} • ${state.researchDays(ResearchTargetKind.technology, technology.id)} дн.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 7,

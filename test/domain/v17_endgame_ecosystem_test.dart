@@ -98,7 +98,11 @@ void main() {
   });
 
   test('company perks create recurring spend and retention value', () {
-    var state = GameState.initial().copyWith(cash: 100000000);
+    final employee = GameState.initial().candidates.first.toEmployee();
+    var state = GameState.initial().copyWith(
+      cash: 100000000,
+      employees: <Employee>[employee],
+    );
     final definition = V17EndgameCatalog.perkById('health_insurance');
     state = engine.reduce(state, const ToggleCompanyPerk('health_insurance'));
 

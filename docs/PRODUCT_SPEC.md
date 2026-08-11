@@ -293,3 +293,26 @@ The player must see why a language/technology limit exists, what stack coherence
 ## Responsiveness and localization
 
 Gameplay behavior and balance are unchanged. Active simulation remains responsive with large product/team lists, saves are crash-safe, and RU/EN presentation must not mix accidental alphabets outside approved terminology.
+
+## V17 R15 — UAT: perks, R&D, world projects and product UX
+
+- Employee perks are company-wide toggles with activation and monthly cost multiplied by current employee count; recurring cost changes automatically after hires/departures.
+- Fans and brand reputation are compact icon metrics in the app header; the company name owns only remaining width and truncates with ellipsis.
+- Completed world OS and global compute projects generate monthly revenue; custom world-project names persist in snapshots. Free AI remains intentionally non-commercial.
+- Advertising monetization uses Russian metric labels and `%` display; controls are named `Количество рекламы` and `Навязчивость рекламы`.
+- Company R&D is a dedicated screen with cost/duration visible before start. New products can select only researched technologies; GameEngine enforces the same rule.
+- Product rename dialog no longer owns a manually disposed controller, preventing back-navigation crashes.
+- Product workspace exposes `Удовлетворённость пользователей` 0–100 with an explainable composite of rating, retention, trust, activation and churn.
+
+Verification: `tools/audit_v17_r15_uat_fixes.py`, focused R15 regression tests, V17 audits, localization audit, full Flutter tests/analyze and platform builds via the supplied verifier.
+
+## R16 — причинная продуктовая экономика
+
+- Цепочка: интерес → начали пользоваться → активные → платящие → удержание/отток → рекомендации.
+- Реклама создаёт верх воронки и brand lift, но не добавляет users/MAU/DAU напрямую.
+- Satisfaction зависит от качества, latency, reliability, функций, security, цены, давления монетизации, багов и устаревания.
+- Монетизация рассчитывает paying conversion, paying users, ARPU и выручку.
+- R&D — дерево зависимостей с растущими cost/days.
+- Бизнес-кредит: конкретная сумма, approval chance/rate от loan-to-valuation, burn и рисков.
+- Security notification показывает стоимость локализации до списания.
+- При runway ≤2 месяцев создаётся finance notification без ежедневного спама.

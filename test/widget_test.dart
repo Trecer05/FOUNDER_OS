@@ -151,6 +151,7 @@ void main() {
     var state = GameState.initial().copyWith(
       cash: 10000000,
       selectedOfficeId: 'garage',
+      completedResearchKeys: const <String>['technology:vector_db'],
     );
     state = engine.reduce(
       state,
@@ -163,7 +164,10 @@ void main() {
         featureIds: <String>['chat_history', 'file_analysis'],
       ),
     );
-    final candidateIds = state.candidates.take(2).map((item) => item.id).toList();
+    final candidateIds = state.candidates
+        .take(2)
+        .map((item) => item.id)
+        .toList();
     state = engine.reduce(state, HireCandidate(candidateIds[0]));
     state = engine.reduce(state, HireCandidate(candidateIds[1]));
 
@@ -183,11 +187,15 @@ void main() {
     await tester.tap(find.byKey(Key('manage-team-$productId')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(Key('assign-${candidateIds[0]}-to-$productId')));
+    await tester.tap(
+      find.byKey(Key('assign-${candidateIds[0]}-to-$productId')),
+    );
     await tester.pumpAndSettle();
     expect(find.byKey(Key('save-team-$productId')), findsOneWidget);
 
-    await tester.tap(find.byKey(Key('assign-${candidateIds[1]}-to-$productId')));
+    await tester.tap(
+      find.byKey(Key('assign-${candidateIds[1]}-to-$productId')),
+    );
     await tester.pumpAndSettle();
 
     expect(controller.state.employeesForProduct(productId), isEmpty);
@@ -286,9 +294,11 @@ void main() {
     final detailsList = find.byType(ListView).first;
     expect(detailsList, findsOneWidget);
 
-    for (var attempt = 0;
-        attempt < 20 && priceSlider.evaluate().isEmpty;
-        attempt += 1) {
+    for (
+      var attempt = 0;
+      attempt < 20 && priceSlider.evaluate().isEmpty;
+      attempt += 1
+    ) {
       await tester.drag(detailsList, const Offset(0, -400));
       await tester.pumpAndSettle();
     }

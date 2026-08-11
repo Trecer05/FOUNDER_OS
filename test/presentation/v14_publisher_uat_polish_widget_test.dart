@@ -36,6 +36,13 @@ void main() {
     await tester.tap(loanButton);
     await tester.pumpAndSettle();
 
+    expect(find.text('Запрос бизнес-кредита'), findsOneWidget);
+    expect(find.text('Шанс одобрения'), findsOneWidget);
+    expect(find.text('Сумма кредита'), findsOneWidget);
+
+    await tester.tap(find.text('Отправить заявку'));
+    await tester.pumpAndSettle();
+
     expect(find.byKey(const Key('credit-result-message')), findsOneWidget);
     expect(find.textContaining('Банк отказал'), findsOneWidget);
   });

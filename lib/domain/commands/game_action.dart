@@ -447,7 +447,8 @@ class StopAdvertisingCampaign extends GameAction {
 }
 
 class RequestBusinessLoan extends GameAction {
-  const RequestBusinessLoan();
+  const RequestBusinessLoan({this.amount = 50000});
+  final double amount;
 }
 
 class AcceptEmergencyLoan extends GameAction {
@@ -569,6 +570,12 @@ class MarkAllCompanyNotificationsRead extends GameAction {
 class FundWorldProjectPhase extends GameAction {
   const FundWorldProjectPhase(this.projectId);
   final String projectId;
+}
+
+class RenameWorldProject extends GameAction {
+  const RenameWorldProject({required this.projectId, required this.name});
+  final String projectId;
+  final String name;
 }
 
 class StartWorldProjectUpgrade extends GameAction {

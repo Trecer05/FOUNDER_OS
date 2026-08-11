@@ -18,6 +18,7 @@ import '../help/glossary_screen.dart';
 import '../investors/investors_screen.dart';
 import '../market/market_screen.dart';
 import '../news/news_screen.dart';
+import '../research/research_screen.dart';
 import '../../../application/localization/app_text.dart';
 import '../../shared/widgets/scoped_listenable_builder.dart';
 import '../../shared/widgets/founder_profile_panel.dart';
@@ -54,6 +55,13 @@ class MoreScreen extends StatelessWidget {
           title: 'Метрики и терминология',
           subtitle: 'MRR, runway, CAC, LTV, hosting, equity и другие термины',
           onTap: () => _open(context, const GlossaryScreen()),
+        ),
+        const SizedBox(height: 10),
+        _MenuCard(
+          icon: Icons.science_outlined,
+          title: 'Исследования R&D',
+          subtitle: 'Функции и технологии со стоимостью до запуска',
+          onTap: () => _open(context, ResearchScreen(controller: controller)),
         ),
         const SizedBox(height: 10),
         _MenuCard(

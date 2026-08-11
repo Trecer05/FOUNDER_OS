@@ -23,6 +23,7 @@ import '../../shared/widgets/specialist_deficit_card.dart';
 import '../security/security_center_screen.dart';
 import '../contracts/contracts_screen.dart';
 import 'product_development_experience.dart';
+import '../research/research_screen.dart';
 import '../../../domain/simulation/product_projection_cache.dart';
 import '../../../application/localization/app_text.dart';
 import '../../shared/widgets/scoped_listenable_builder.dart';
@@ -288,7 +289,7 @@ class ProductDetailScreen extends StatelessWidget {
                         '${compactNumber(product.dau)} / ${compactNumber(product.mau)}',
                   ),
                   MetricCard(
-                    label: 'Активация',
+                    label: 'Начали пользоваться',
                     value: percent(product.activationRate, fractionDigits: 1),
                   ),
                   MetricCard(
@@ -304,6 +305,12 @@ class ProductDetailScreen extends StatelessWidget {
                     label: 'Рейтинг',
                     value: product.rating.toStringAsFixed(2),
                     positive: product.rating >= 4,
+                  ),
+                  MetricCard(
+                    label: 'Удовлетворённость',
+                    value:
+                        '${state.productUserSatisfaction(product).round()}/100',
+                    positive: state.productUserSatisfaction(product) >= 70,
                   ),
                   MetricCard(
                     label: 'MRR',
@@ -556,12 +563,14 @@ class ProductDetailScreen extends StatelessWidget {
                                 ResearchTargetKind.feature,
                                 feature.id,
                               ),
-                              onResearch: () => controller.dispatch(
-                                StartCompanyResearch(
-                                  kind: ResearchTargetKind.feature,
-                                  targetId: feature.id,
-                                ),
-                              ),
+                              onResearch: () =>
+                                  Navigator.of(context).push<void>(
+                                    MaterialPageRoute(
+                                      builder: (_) => ResearchScreen(
+                                        controller: controller,
+                                      ),
+                                    ),
+                                  ),
                               onAdd: () => controller.dispatch(
                                 AddProductFeature(
                                   productId: product.id,
@@ -1656,7 +1665,7 @@ class _FeatureUpgradeCard extends StatelessWidget {
                     onPressed: researchInProgress ? null : onResearch,
                     icon: const Icon(Icons.science_outlined),
                     label: AppText(
-                      researchInProgress ? 'R&D уже идёт' : 'Исследовать',
+                      researchInProgress ? 'R&D уже идёт' : 'Открыть R&D',
                     ),
                   ),
           ),

@@ -430,7 +430,7 @@ void main() {
       products: <Product>[
         product.copyWith(
           monetization: MonetizationModel.subscription,
-          price: 99,
+          price: 1,
           monetizationIntensity: 0.2,
           freeTierPercent: 0.65,
         ),

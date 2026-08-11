@@ -431,3 +431,21 @@ R6 passed the complete new Endgame domain suite (18/18) and Endgame widget suite
 - R16 фактически прошёл 278/278 Flutter tests, `flutter analyze`, iOS Simulator Debug build и Android Debug APK; единственный blocker — trailing blank line в трёх markdown-доках на `git diff --check`.
 - R17 меняет только EOF hygiene документации и verifier/audit labels; production gameplay R16 не изменён.
 - Статус окончательной готовности: ожидает полного verifier R17 и ручного UAT.
+
+## V17 R15 — UAT: perks, R&D, world projects and product UX
+
+- Employee perks are company-wide toggles with activation and monthly cost multiplied by current employee count; recurring cost changes automatically after hires/departures.
+- Fans and brand reputation are compact icon metrics in the app header; the company name owns only remaining width and truncates with ellipsis.
+- Completed world OS and global compute projects generate monthly revenue; custom world-project names persist in snapshots. Free AI remains intentionally non-commercial.
+- Advertising monetization uses Russian metric labels and `%` display; controls are named `Количество рекламы` and `Навязчивость рекламы`.
+- Company R&D is a dedicated screen with cost/duration visible before start. New products can select only researched technologies; GameEngine enforces the same rule.
+- Product rename dialog no longer owns a manually disposed controller, preventing back-navigation crashes.
+- Product workspace exposes `Удовлетворённость пользователей` 0–100 with an explainable composite of rating, retention, trust, activation and churn.
+
+Verification: `tools/audit_v17_r15_uat_fixes.py`, focused R15 regression tests, V17 audits, localization audit, full Flutter tests/analyze and platform builds via the supplied verifier.
+
+## R16 — Business Simulation / R&D Tree
+
+Статус: **частично — реализовано кодом, ожидает полный verifier и ручной Simulator UAT**.
+
+Реализованы сниженные per-head perks, дерево R&D, причинная продуктовая воронка, реклама как acquisition interest, монетизация через paying conversion/ARPU, кредит с пользовательской суммой и вероятностью, стоимость локализации атаки в уведомлении, runway alert ≤2 мес.

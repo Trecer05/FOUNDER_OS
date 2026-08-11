@@ -712,7 +712,7 @@ class _TeamScreenState extends State<TeamScreen> {
       key: const Key('team-company-perks'),
       hintTitle: 'Условия и плюшки',
       hintBody:
-          'Плюшки стоят денег каждый месяц, но повышают loyalty и morale, немного ускоряют работу и уменьшают риск добровольного ухода. Это постоянный расход растущей компании.',
+          'Плюшка включается сразу для всей команды. Стоимость считается на каждого сотрудника, поэтому общий расход автоматически меняется после найма или ухода.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -727,17 +727,19 @@ class _TeamScreenState extends State<TeamScreen> {
           const SizedBox(height: 8),
           ...V17EndgameCatalog.companyPerks.map((perk) {
             final enabled = state.enabledCompanyPerkIds.contains(perk.id);
+            final activationCost = state.companyPerkActivationCost(perk.id);
+            final monthlyCost = state.companyPerkMonthlyCost(perk.id);
             return SwitchListTile(
               key: Key('company-perk-${perk.id}'),
               contentPadding: EdgeInsets.zero,
               value: enabled,
-              onChanged: !enabled && state.cash < perk.upfrontCost
+              onChanged: !enabled && state.cash < activationCost
                   ? null
                   : (_) =>
                         widget.controller.dispatch(ToggleCompanyPerk(perk.id)),
               title: AppText(perk.name),
               subtitle: AppText(
-                '${perk.description} • запуск ${money(perk.upfrontCost)} • ${money(perk.monthlyCost)}/мес. • loyalty +${perk.loyaltyBonus}',
+                '${perk.description} • на 1 сотрудника: запуск ${money(perk.upfrontCost)}, ${money(perk.monthlyCost)}/мес. • сейчас ${state.employees.length} чел.: запуск ${money(activationCost)}, ${money(monthlyCost)}/мес. • loyalty +${perk.loyaltyBonus}',
               ),
             );
           }),

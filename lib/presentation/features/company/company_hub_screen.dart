@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../application/controllers/game_controller.dart';
 import '../../../application/localization/app_text.dart';
+import '../../../application/localization/app_localizer.dart';
 import '../../../domain/catalog/game_catalog.dart';
 import '../../../domain/catalog/v17_endgame_catalog.dart';
 import '../../../domain/commands/game_action.dart';
@@ -36,8 +37,7 @@ class _CompanyHubScreenState extends State<CompanyHubScreen> {
       children: [
         SectionHeader(
           title: 'События компании',
-          subtitle:
-              '${state.unreadCompanyNotificationCount} непрочитанных • ${state.companyFans} фанатов • репутация ${state.brandReputation.toStringAsFixed(1)}/100',
+          subtitle: 'Непрочитанных: ${state.unreadCompanyNotificationCount}',
           hintTitle: 'Зачем нужна эта вкладка',
           hintBody:
               'Здесь собраны события, которые нельзя терять из виду: уходы сотрудников, легенды рынка, инвесторы, налоги, мероприятия, R&D и мировые проекты.',
@@ -436,6 +436,7 @@ class _CompanyHubScreenState extends State<CompanyHubScreen> {
 
   Widget _worldProjectCard(GameState state, WorldProjectDefinition definition) {
     final progress = state.worldProjectProgressFor(definition.id);
+    final displayName = state.worldProjectDisplayName(definition.id);
     final completedPhases = progress?.completedPhases ?? 0;
     final activePhaseAt = progress?.activePhaseCompletesAtMinutes ?? -1;
     final baseDone = state.worldProjectBaseCompleted(definition.id);
@@ -462,10 +463,19 @@ class _CompanyHubScreenState extends State<CompanyHubScreen> {
             children: [
               Expanded(
                 child: AppText(
-                  definition.name,
+                  displayName,
                   translate: false,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
+              ),
+              IconButton(
+                key: Key('rename-world-project-${definition.id}'),
+                tooltip: trContext(context, 'Изменить название'),
+                onPressed: () =>
+                    _showRenameWorldProject(definition.id, displayName),
+                icon: const Icon(Icons.edit_outlined),
               ),
               if (fullyDone) const Icon(Icons.verified_outlined),
             ],
@@ -485,6 +495,11 @@ class _CompanyHubScreenState extends State<CompanyHubScreen> {
           const SizedBox(height: 5),
           AppText(
             'База: $completedPhases/${definition.phaseCosts.length} • OPEX после запуска ${money(definition.monthlyOperatingCost)}/мес.',
+          ),
+          AppText(
+            definition.monthlyRevenue > 0
+                ? 'Доход после запуска: ${money(definition.monthlyRevenue)}/мес.'
+                : 'Прямой доход после запуска: нет.',
           ),
           if (!baseDone) ...[
             const SizedBox(height: 10),
@@ -542,6 +557,44 @@ class _CompanyHubScreenState extends State<CompanyHubScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showRenameWorldProject(
+    String projectId,
+    String currentName,
+  ) async {
+    var draftName = currentName;
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const AppText('Изменить название мирового проекта'),
+        content: TextFormField(
+          key: Key('rename-world-project-field-$projectId'),
+          initialValue: currentName,
+          autofocus: true,
+          maxLength: 36,
+          onChanged: (value) => draftName = value,
+          decoration: InputDecoration(
+            labelText: trContext(dialogContext, 'Название'),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const AppText('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(draftName.trim()),
+            child: const AppText('Сохранить'),
+          ),
+        ],
+      ),
+    );
+    if (name != null && name.isNotEmpty && mounted) {
+      widget.controller.dispatch(
+        RenameWorldProject(projectId: projectId, name: name),
+      );
+    }
   }
 
   IconData _notificationIcon(CompanyNotificationKind kind) => switch (kind) {

@@ -405,3 +405,25 @@ No gameplay, economy, persistence or UI behavior was changed by this verifier ho
 - R16 прошёл все static/EN/focused/legacy проверки, `flutter analyze`, полный `flutter test` 278/278, iOS Simulator Debug build и Android Debug APK.
 - Финальный verifier остановился только на `git diff --check`: три markdown-файла имели лишнюю пустую строку в EOF.
 - R17 нормализует EOF документации и добавляет static guard; production-код, gameplay и тестовые контракты R16 не меняются.
+
+## V17 R15 — UAT: perks, R&D, world projects and product UX
+
+- Employee perks are company-wide toggles with activation and monthly cost multiplied by current employee count; recurring cost changes automatically after hires/departures.
+- Fans and brand reputation are compact icon metrics in the app header; the company name owns only remaining width and truncates with ellipsis.
+- Completed world OS and global compute projects generate monthly revenue; custom world-project names persist in snapshots. Free AI remains intentionally non-commercial.
+- Advertising monetization uses Russian metric labels and `%` display; controls are named `Количество рекламы` and `Навязчивость рекламы`.
+- Company R&D is a dedicated screen with cost/duration visible before start. New products can select only researched technologies; GameEngine enforces the same rule.
+- Product rename dialog no longer owns a manually disposed controller, preventing back-navigation crashes.
+- Product workspace exposes `Удовлетворённость пользователей` 0–100 with an explainable composite of rating, retention, trust, activation and churn.
+
+Verification: `tools/audit_v17_r15_uat_fixes.py`, focused R15 regression tests, V17 audits, localization audit, full Flutter tests/analyze and platform builds via the supplied verifier.
+
+## R16 — Business simulation
+
+- rebalance: существенно снижены цены employee perks после перехода на per-head модель;
+- feat: R&D превращён в дерево зависимостей с растущими стоимостью и сроком;
+- refactor: marketing → interest → start using → satisfaction/trust → retention/churn → monetization/referrals;
+- fix: advertising campaigns больше не добавляют users/MAU/DAU напрямую;
+- feat: кредит на запрашиваемую сумму с chance/rate от valuation и рисков;
+- feat: стоимость локализации security incident показывается сразу;
+- feat: финансовое уведомление при runway ≤2 месяцев.

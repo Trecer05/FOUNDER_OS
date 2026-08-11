@@ -22,6 +22,7 @@ import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/development_stage_progress_rail.dart';
 import '../../shared/widgets/interactive_metric_chart_card.dart';
 import 'product_development_experience.dart';
+import '../research/research_screen.dart';
 import '../../../application/localization/app_text.dart';
 import '../../shared/widgets/scoped_listenable_builder.dart';
 import '../../../application/localization/app_localizer.dart';
@@ -144,6 +145,14 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
       technologyIds: product.technologyIds,
       featureIds: product.featureIds,
     );
+    final funnelSatisfaction = state.productUserSatisfaction(product);
+    final funnelInterest = state.productEstimatedMonthlyInterest(product);
+    final funnelStarted = state.productEstimatedMonthlyStartedUsers(product);
+    final funnelPaying = state.productPayingUsers(product);
+    final funnelPaidConversion = state.productPaidConversionRate(product);
+    final funnelCac = state.productCac(product);
+    final funnelArpu = state.productArpu(product);
+    final funnelOrganicShare = state.productOrganicAcquisitionShare(product);
     return _list([
       SectionHeader(
         title: blueprint.name,
@@ -186,6 +195,37 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             AppText(
               'Совместимость ${(projection.stackCoherence * 100).round()}%: ${_coherenceMeaning(projection.stackCoherence)}',
             ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+      AppCard(
+        key: const Key('product-user-satisfaction'),
+        hintTitle: 'Воронка пользователей',
+        hintBody:
+            'Не скрытый коэффициент: реклама создаёт интерес, продукт конвертирует его в начало использования, а удовлетворённость и доверие определяют удержание, отток, рекомендации и деньги.',
+        child: Column(
+          key: const Key('product-business-funnel'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const AppText(
+              'Воронка пользователей',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 10),
+            _row('Удовлетворённость', '${funnelSatisfaction.round()}/100'),
+            _row('Доверие', percent(product.brandTrust)),
+            _row('Интерес / мес.', compactNumber(funnelInterest.round())),
+            _row(
+              'Начали пользоваться / мес.',
+              compactNumber(funnelStarted.round()),
+            ),
+            _row('Активные (MAU)', compactNumber(product.mau)),
+            _row('Платящие', compactNumber(funnelPaying)),
+            _row('Конверсия в оплату', percent(funnelPaidConversion)),
+            _row('CAC', funnelCac <= 0 ? '—' : money(funnelCac)),
+            _row('ARPU', money(funnelArpu)),
+            _row('Органический трафик', percent(funnelOrganicShare)),
           ],
         ),
       ),
@@ -571,18 +611,18 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                           )
                         : FilledButton.tonal(
                             key: Key('research-feature-${feature.id}'),
-                            onPressed:
-                                research == null && state.cash >= researchCost
-                                ? () => widget.controller.dispatch(
-                                    StartCompanyResearch(
-                                      kind: ResearchTargetKind.feature,
-                                      targetId: feature.id,
+                            onPressed: research == null
+                                ? () => Navigator.of(context).push<void>(
+                                    MaterialPageRoute(
+                                      builder: (_) => ResearchScreen(
+                                        controller: widget.controller,
+                                      ),
                                     ),
                                   )
                                 : null,
                             child: AppText(
                               research == null
-                                  ? 'Исследовать'
+                                  ? 'Открыть R&D'
                                   : '${(researchProgress * 100).round()}%',
                             ),
                           ),
@@ -697,18 +737,18 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                           )
                         : FilledButton.tonal(
                             key: Key('research-technology-${technology.id}'),
-                            onPressed:
-                                research == null && state.cash >= researchCost
-                                ? () => widget.controller.dispatch(
-                                    StartCompanyResearch(
-                                      kind: ResearchTargetKind.technology,
-                                      targetId: technology.id,
+                            onPressed: research == null
+                                ? () => Navigator.of(context).push<void>(
+                                    MaterialPageRoute(
+                                      builder: (_) => ResearchScreen(
+                                        controller: widget.controller,
+                                      ),
                                     ),
                                   )
                                 : null,
                             child: AppText(
                               research == null
-                                  ? 'Исследовать'
+                                  ? 'Открыть R&D'
                                   : '${(researchProgress * 100).round()}%',
                             ),
                           ),
@@ -1201,19 +1241,39 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
     final freeTier = (_freeTierDraft ?? product.freeTierPercent)
         .clamp(0, 0.9)
         .toDouble();
-    final experienceImpact = state.monetizationExperienceImpact(product);
+    final monetizationPreview = product.copyWith(
+      price: value,
+      monetizationIntensity: intensity,
+      freeTierPercent: freeTier,
+    );
+    final previewSatisfaction = state.productUserSatisfaction(
+      monetizationPreview,
+    );
+    final currentPaidConversion = state.productPaidConversionRate(product);
+    final previewPaidConversion = state.productPaidConversionRate(
+      monetizationPreview,
+    );
+    final paidConversionChange = _relativeDeltaPercent(
+      previewPaidConversion - currentPaidConversion,
+      currentPaidConversion,
+    );
+    final previewPayingUsers = (product.mau * previewPaidConversion).round();
+    final previewRevenue = state.productMonetizationRevenueEstimate(
+      monetizationPreview,
+    );
+    final previewArpu = product.mau <= 0 ? 0.0 : previewRevenue / product.mau;
     final intensityLabel = switch (product.monetization) {
       MonetizationModel.free => 'Монетизация отключена',
       MonetizationModel.subscription => 'Жёсткость paywall',
       MonetizationModel.usageBased => 'Доля платного использования',
-      MonetizationModel.advertising => 'Рекламная агрессивность',
+      MonetizationModel.advertising => 'Навязчивость рекламы',
       MonetizationModel.transactionFee => 'Агрессивность комиссии',
     };
     final settingLabel = switch (product.monetization) {
       MonetizationModel.free => 'Настроек оплаты нет',
       MonetizationModel.subscription => 'Цена подписки',
       MonetizationModel.usageBased => 'Цена за 1 000 операций',
-      MonetizationModel.advertising => 'Рекламная нагрузка',
+      MonetizationModel.advertising => 'Количество рекламы',
       MonetizationModel.transactionFee => 'Комиссия с транзакции',
     };
     String formatSetting(double setting) => switch (product.monetization) {
@@ -1229,7 +1289,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
         subtitle: monetizationName(product.monetization),
         hintTitle: 'Настройка коммерческой модели',
         hintBody:
-            'Каждая модель имеет собственный параметр: цену подписки, цену использования, рекламную нагрузку или комиссию. Более агрессивная настройка увеличивает доход, но рынок учитывает цену и доверие.',
+            'Монетизация больше не даёт скрытые бонусы к метрикам. Цена, paywall, количество рекламы и комиссия меняют удовлетворённость и готовность платить, а уже они влияют на отток и выручку.',
       ),
       const SizedBox(height: 12),
       AppCard(
@@ -1256,27 +1316,27 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   AppText(
-                    '• Free — быстрый набор аудитории без прямой выручки. KPI: activation, retention, MAU. Риск: инфраструктура растёт быстрее дохода.',
+                    '• Free — быстрый набор аудитории без прямой выручки. KPI: начали пользоваться, удержание и MAU. Риск: инфраструктура растёт быстрее дохода.',
                   ),
                   SizedBox(height: 7),
                   AppText(
-                    '• Subscription — повторяющаяся выручка. KPI: платящие, MRR, retention, churn. Риск: высокий прайс и жёсткий paywall выталкивают пользователей.',
+                    '• Subscription — повторяющаяся выручка. KPI: платящие, MRR, удержание и отток. Риск: высокий прайс и жёсткий paywall выталкивают пользователей.',
                   ),
                   SizedBox(height: 7),
                   AppText(
-                    '• Usage based — оплата за реальное использование. KPI: ARPU, активность, маржа после compute. Риск: себестоимость растёт быстрее выручки.',
+                    '• Usage based — оплата за реальное использование. KPI: ARPU, активность и маржа после compute. Риск: себестоимость растёт быстрее выручки.',
                   ),
                   SizedBox(height: 7),
                   AppText(
-                    '• Advertising — бесплатный вход, доход от аудитории. KPI: MAU, DAU, вовлечённость. Риск: рекламный перегруз повышает churn и снижает доверие.',
+                    '• Advertising — бесплатный вход, доход от аудитории. KPI: MAU, DAU, вовлечённость. Риск: слишком большое количество рекламы повышает churn и снижает доверие.',
                   ),
                   SizedBox(height: 7),
                   AppText(
-                    '• Transaction fee — комиссия с операций. KPI: объём операций, activation, доверие. Риск: высокая комиссия уменьшает число операций.',
+                    '• Transaction fee — комиссия с операций. KPI: объём операций, начали пользоваться и доверие. Риск: высокая комиссия уменьшает число операций.',
                   ),
                   Divider(height: 22),
                   AppText(
-                    'Правило: максимизируйте не доход с пользователя, а устойчивую связку revenue + activation + retention + churn + trust.',
+                    'Правило: максимизируйте не доход с пользователя, а устойчивую связку привлечения, удовлетворённости, удержания, доверия и выручки.',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ],
@@ -1331,14 +1391,18 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
               'Прогноз дохода',
               '${money(forecast.low)} – ${money(forecast.high)} / мес.',
             ),
+            _row('Удовлетворённость', '${previewSatisfaction.round()}/100'),
+            _row('Конверсия в оплату', percent(previewPaidConversion)),
             _row(
-              'Влияние на пользователей',
-              'activation ${experienceImpact.activationDelta >= 0 ? '+' : ''}${(experienceImpact.activationDelta * 100).toStringAsFixed(1)} п.п. • retention ${experienceImpact.retentionDelta >= 0 ? '+' : ''}${(experienceImpact.retentionDelta * 100).toStringAsFixed(1)} п.п.',
+              'Изменение платящей конверсии',
+              '${paidConversionChange >= 0 ? '+' : ''}${paidConversionChange.toStringAsFixed(1)}%',
             ),
             _row(
-              'Отток и доверие',
-              'churn ${experienceImpact.churnDelta >= 0 ? '+' : ''}${(experienceImpact.churnDelta * 100).toStringAsFixed(1)} п.п. • trust ${experienceImpact.trustDelta >= 0 ? '+' : ''}${(experienceImpact.trustDelta * 100).toStringAsFixed(1)} п.п.',
+              'Платящих / монетизируемых',
+              compactNumber(previewPayingUsers),
             ),
+            _row('ARPU', money(previewArpu)),
+            _row('Ожидаемая выручка', money(previewRevenue)),
             if (product.monetization != MonetizationModel.free) ...[
               const SizedBox(height: 12),
               Row(
@@ -1449,7 +1513,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
         subtitle: 'Активных каналов: ${campaigns.length}/3',
         hintTitle: 'Отдельный рекламный раздел',
         hintBody:
-            'Канал работает постоянно, пока вы его не остановите. Бюджет задаётся на месяц, списание идёт ежедневно, а пользователи приходят постепенно.',
+            'Канал работает постоянно, пока вы его не остановите. Он приводит заинтересованную аудиторию, но не создаёт пользователей напрямую: дальше продукт должен убедить людей начать пользоваться и остаться.',
       ),
       const SizedBox(height: 12),
       AppCard(
@@ -1551,7 +1615,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
                                 ),
                                 const SizedBox(height: 3),
                                 AppText(
-                                  '${compactNumber(forecast.impressions)} показов • ${compactNumber(forecast.clicks)} переходов • ${forecast.usersLow}–${forecast.usersHigh} пользователей',
+                                  '${compactNumber(forecast.impressions)} показов • ${compactNumber(forecast.clicks)} переходов • ${forecast.usersLow}–${forecast.usersHigh} заинтересованных',
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                                 AppText(
@@ -1893,16 +1957,17 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
   }
 
   Future<void> _showRenameProduct(Product product) async {
-    final controller = TextEditingController(text: product.name);
+    var draftName = product.name;
     final name = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const AppText('Изменить название продукта'),
-        content: TextField(
+        content: TextFormField(
           key: const Key('rename-product-field'),
-          controller: controller,
+          initialValue: product.name,
           autofocus: true,
           maxLength: 32,
+          onChanged: (value) => draftName = value,
           decoration: InputDecoration(
             labelText: trContext(dialogContext, 'Название'),
           ),
@@ -1913,14 +1978,13 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             child: const AppText('Отмена'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+            onPressed: () => Navigator.of(dialogContext).pop(draftName.trim()),
             child: const AppText('Сохранить'),
           ),
         ],
       ),
     );
-    controller.dispose();
-    if (name != null && mounted) {
+    if (name != null && name.isNotEmpty && mounted) {
       widget.controller.dispatch(
         RenameProduct(productId: product.id, name: name),
       );
@@ -2154,4 +2218,9 @@ class _MetricStrip extends StatelessWidget {
           .toList(growable: false),
     );
   }
+}
+
+double _relativeDeltaPercent(double delta, double baseline) {
+  final denominator = math.max(0.01, baseline.abs());
+  return delta / denominator * 100;
 }

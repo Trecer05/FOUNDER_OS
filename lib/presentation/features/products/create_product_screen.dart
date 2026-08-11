@@ -11,6 +11,8 @@ import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/models.dart';
 import '../../../domain/entities/product_strategy_models.dart';
 import '../../../domain/entities/v9_models.dart';
+import '../../../domain/entities/v17_models.dart';
+import '../research/research_screen.dart';
 import '../../../domain/explainability/language_limit_resolver.dart';
 import '../../../domain/explainability/product_configuration_resolver.dart';
 import '../../../domain/simulation/product_estimator.dart';
@@ -129,10 +131,21 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
       }
       _technologyIds
         ..clear()
-        ..addAll(_defaultTechnologies(id));
+        ..addAll(
+          _defaultTechnologies(id).where(
+            (technologyId) => widget.controller.state.researchCompleted(
+              ResearchTargetKind.technology,
+              technologyId,
+            ),
+          ),
+        );
       final mandatoryTechnology =
           ProductConfigurationResolver.mandatoryTechnologyId(_frameworkId);
-      if (mandatoryTechnology != null) {
+      if (mandatoryTechnology != null &&
+          widget.controller.state.researchCompleted(
+            ResearchTargetKind.technology,
+            mandatoryTechnology,
+          )) {
         _technologyIds.add(mandatoryTechnology);
       }
       _featureIds
@@ -160,7 +173,11 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
       _languageIds.addAll(profile.requiredLanguageIds);
       final mandatoryTechnology =
           ProductConfigurationResolver.mandatoryTechnologyId(id);
-      if (mandatoryTechnology != null) {
+      if (mandatoryTechnology != null &&
+          widget.controller.state.researchCompleted(
+            ResearchTargetKind.technology,
+            mandatoryTechnology,
+          )) {
         _technologyIds.add(mandatoryTechnology);
       }
       _technologyIds.removeWhere((technologyId) {
@@ -183,6 +200,39 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
     });
   }
 
+  String? get _technologyStepBlockingReason {
+    final requiredResearch = _requiredTechnologyResearchMessage;
+    if (requiredResearch != null) {
+      return requiredResearch;
+    }
+    if (_technologyIds.any(
+      (id) => !widget.controller.state.researchCompleted(
+        ResearchTargetKind.technology,
+        id,
+      ),
+    )) {
+      return 'В проект можно добавить только исследованные технологии.';
+    }
+    if (_technologyIds.length > _technologyLimit.allowed) {
+      return 'Выбрано ${_technologyIds.length} технологий из допустимых ${_technologyLimit.allowed}. Уберите лишние технологии.';
+    }
+    return null;
+  }
+
+  String? get _requiredTechnologyResearchMessage {
+    final mandatoryTechnology =
+        ProductConfigurationResolver.mandatoryTechnologyId(_frameworkId);
+    if (mandatoryTechnology == null ||
+        widget.controller.state.researchCompleted(
+          ResearchTargetKind.technology,
+          mandatoryTechnology,
+        )) {
+      return null;
+    }
+    final name = GameCatalog.technologyById(mandatoryTechnology).name;
+    return 'Сначала исследуйте обязательную технологию в R&D: $name.';
+  }
+
   bool get _requirementsMet {
     final frameworkProfile = ProductStrategyCatalog.frameworkProfile(
       _frameworkId,
@@ -192,6 +242,13 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         _languageIds.isNotEmpty &&
         _languageIds.length <= _languageLimit.allowed &&
         _technologyIds.length <= _technologyLimit.allowed &&
+        _requiredTechnologyResearchMessage == null &&
+        _technologyIds.every(
+          (id) => widget.controller.state.researchCompleted(
+            ResearchTargetKind.technology,
+            id,
+          ),
+        ) &&
         frameworkProfile.requiredLanguageIds.every(_languageIds.contains) &&
         _featureIds.isNotEmpty &&
         widget.controller.state.investorAgreements.length >=
@@ -221,10 +278,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                   .isNotEmpty
             ? 'Добавьте обязательные языки выбранного фреймворка.'
             : null,
-      3 =>
-        _technologyIds.length > _technologyLimit.allowed
-            ? 'Выбрано ${_technologyIds.length} технологий из допустимых ${_technologyLimit.allowed}. Уберите лишние технологии.'
-            : null,
+      3 => _technologyStepBlockingReason,
       4 =>
         _featureIds.isEmpty
             ? 'В первом релизе нужна хотя бы одна функция.'
@@ -600,6 +654,11 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
       languageIds: _languageIds,
       featureIds: _featureIds,
       selectedTechnologyIds: _technologyIds,
+      onOpenResearch: () => Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => ResearchScreen(controller: widget.controller),
+        ),
+      ),
       onChanged: (technologyId, selected) {
         setState(() {
           if (selected) {

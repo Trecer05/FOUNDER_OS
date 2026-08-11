@@ -279,6 +279,10 @@ void main() {
 }
 
 GameState _fundedInitial() => GameState.initial().copyWith(
+  completedResearchKeys: const <String>[
+    'technology:vector_db',
+    'technology:kubernetes',
+  ],
   investorAgreements: List<InvestorAgreement>.generate(
     5,
     (index) => InvestorAgreement(

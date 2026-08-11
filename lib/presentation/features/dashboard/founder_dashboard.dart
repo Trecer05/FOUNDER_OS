@@ -19,6 +19,7 @@ import '../../../application/localization/app_localizer.dart';
 import '../../../application/localization/app_text.dart';
 import '../../shared/widgets/scoped_listenable_builder.dart';
 import '../../shared/widgets/company_logo.dart';
+import '../../shared/widgets/formatters.dart';
 
 class FounderDashboard extends StatefulWidget {
   const FounderDashboard({
@@ -327,6 +328,18 @@ class _FounderDashboardState extends State<FounderDashboard> {
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                 ),
+                const SizedBox(width: 10),
+                _HeaderStat(
+                  icon: Icons.favorite_outline,
+                  value: compactNumber(state.companyFans),
+                  label: 'Фанаты',
+                ),
+                const SizedBox(width: 8),
+                _HeaderStat(
+                  icon: Icons.workspace_premium_outlined,
+                  value: state.brandReputation.toStringAsFixed(0),
+                  label: 'Репутация',
+                ),
               ],
             );
           },
@@ -517,4 +530,33 @@ class _EventContent {
   final String body;
   final String action;
   final IconData icon;
+}
+
+class _HeaderStat extends StatelessWidget {
+  const _HeaderStat({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: trContext(context, label),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 17),
+        const SizedBox(width: 3),
+        AppText(
+          value,
+          translate: false,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+        ),
+      ],
+    ),
+  );
 }

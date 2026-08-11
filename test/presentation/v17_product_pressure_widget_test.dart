@@ -44,7 +44,9 @@ void main() {
       );
       expect(find.text('Интенсивность монетизации'), findsNothing);
       expect(find.text('Жёсткость paywall'), findsOneWidget);
-      expect(find.text('Влияние на пользователей'), findsOneWidget);
+      expect(find.text('Удовлетворённость'), findsWidgets);
+      expect(find.text('Конверсия в оплату'), findsOneWidget);
+      expect(find.text('Ожидаемая выручка'), findsOneWidget);
 
       await tester.tap(find.text('Справочник по моделям монетизации'));
       await tester.pumpAndSettle();

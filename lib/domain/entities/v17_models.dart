@@ -361,6 +361,7 @@ class WorldProjectProgress {
     required this.completedUpgradeIds,
     required this.activeUpgradeId,
     required this.activeUpgradeCompletesAtMinutes,
+    this.customName = '',
   });
 
   final String projectId;
@@ -369,6 +370,7 @@ class WorldProjectProgress {
   final List<String> completedUpgradeIds;
   final String activeUpgradeId;
   final int activeUpgradeCompletesAtMinutes;
+  final String customName;
 
   WorldProjectProgress copyWith({
     int? completedPhases,
@@ -376,6 +378,7 @@ class WorldProjectProgress {
     List<String>? completedUpgradeIds,
     String? activeUpgradeId,
     int? activeUpgradeCompletesAtMinutes,
+    String? customName,
   }) => WorldProjectProgress(
     projectId: projectId,
     completedPhases: completedPhases ?? this.completedPhases,
@@ -385,6 +388,7 @@ class WorldProjectProgress {
     activeUpgradeId: activeUpgradeId ?? this.activeUpgradeId,
     activeUpgradeCompletesAtMinutes:
         activeUpgradeCompletesAtMinutes ?? this.activeUpgradeCompletesAtMinutes,
+    customName: customName ?? this.customName,
   );
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -394,6 +398,7 @@ class WorldProjectProgress {
     'completedUpgradeIds': completedUpgradeIds,
     'activeUpgradeId': activeUpgradeId,
     'activeUpgradeCompletesAtMinutes': activeUpgradeCompletesAtMinutes,
+    'customName': customName,
   };
 
   factory WorldProjectProgress.fromJson(Map<String, Object?> json) =>
@@ -408,6 +413,7 @@ class WorldProjectProgress {
         activeUpgradeId: json['activeUpgradeId'] as String? ?? '',
         activeUpgradeCompletesAtMinutes:
             (json['activeUpgradeCompletesAtMinutes'] as num?)?.toInt() ?? -1,
+        customName: json['customName'] as String? ?? '',
       );
 }
 

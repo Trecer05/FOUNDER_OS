@@ -58,7 +58,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   simulationMinutes: state.simulationMinutes,
                   cash: state.cash,
                   incomeRunRate:
-                      state.monthlyProductRevenue + state.portfolioIncome,
+                      state.monthlyProductRevenue +
+                      state.monthlyWorldProjectRevenue +
+                      state.portfolioIncome,
                   expenseRunRate: state.monthlyCosts,
                   profitRunRate: state.monthlyProfit,
                 ),
@@ -91,7 +93,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   MetricCard(
                     label: 'Доход / мес.',
                     value: money(
-                      state.monthlyProductRevenue + state.portfolioIncome,
+                      state.monthlyProductRevenue +
+                          state.monthlyWorldProjectRevenue +
+                          state.portfolioIncome,
                     ),
                   ),
                   MetricCard(
@@ -226,10 +230,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         width: double.infinity,
                         child: FilledButton.icon(
                           key: const Key('request-business-loan'),
-                          onPressed: () => _dispatchCreditWithFeedback(
-                            context,
-                            const RequestBusinessLoan(),
-                          ),
+                          onPressed: () => _showBusinessLoanRequest(context),
                           icon: const Icon(Icons.request_quote_outlined),
                           label: const AppText(
                             'Подать заявку на бизнес-кредит',
@@ -585,6 +586,103 @@ class _FinanceScreenState extends State<FinanceScreen> {
           ),
         );
       },
+    );
+  }
+
+  Future<void> _showBusinessLoanRequest(BuildContext context) async {
+    final state = widget.controller.state;
+    var draft = math
+        .max(50000, math.min(1000000, state.valuation * 0.08))
+        .round()
+        .toString();
+    final requestedAmount = await showDialog<double>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          final amount =
+              double.tryParse(draft.replaceAll(' ', '').replaceAll(',', '.')) ??
+              0;
+          final chance = state.businessLoanApprovalChance(amount);
+          final ratio = state.businessLoanRequestRatio(math.max(0, amount));
+          final interest = state.businessLoanInterestRate(
+            math.max(50000, amount),
+          );
+          return AlertDialog(
+            title: const AppText('Запрос бизнес-кредита'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const AppText(
+                    'Вы сами задаёте сумму. Чем больше кредит относительно оценки компании, тем ниже шанс одобрения и выше ставка.',
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    initialValue: draft,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: trContext(context, 'Сумма кредита'),
+                      suffixText: '₽',
+                    ),
+                    onChanged: (value) => setDialogState(() => draft = value),
+                  ),
+                  const SizedBox(height: 12),
+                  _FinanceStatusRow(
+                    label: 'Оценка компании',
+                    value: money(state.valuation),
+                  ),
+                  _FinanceStatusRow(
+                    label: 'Доля от оценки',
+                    value: '${(ratio * 100).toStringAsFixed(1)}%',
+                  ),
+                  _FinanceStatusRow(
+                    label: 'Шанс одобрения',
+                    value: '${(chance * 100).round()}%',
+                  ),
+                  _FinanceStatusRow(
+                    label: 'Ориентировочная ставка',
+                    value: '${(interest * 100).toStringAsFixed(1)}%',
+                  ),
+                  _FinanceStatusRow(
+                    label: 'К возврату при одобрении',
+                    value: money(amount * (1 + interest)),
+                  ),
+                  _FinanceStatusRow(
+                    label: 'Платёж в неделю',
+                    value: money(amount * (1 + interest) / 16),
+                  ),
+                  if (amount < 50000) ...[
+                    const SizedBox(height: 8),
+                    const AppText('Введите сумму от 50 000 ₽.'),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const AppText('Отмена'),
+              ),
+              FilledButton(
+                onPressed: amount < 50000
+                    ? null
+                    : () => Navigator.of(dialogContext).pop(amount),
+                child: const AppText('Отправить заявку'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (requestedAmount == null || !context.mounted) {
+      return;
+    }
+    _dispatchCreditWithFeedback(
+      context,
+      RequestBusinessLoan(amount: requestedAmount),
     );
   }
 

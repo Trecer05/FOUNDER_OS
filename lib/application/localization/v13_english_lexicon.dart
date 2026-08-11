@@ -9,6 +9,94 @@ class V13EnglishTemplate {
 
 abstract final class V13EnglishLexicon {
   static const Map<String, String> overrides = <String, String>{
+    'Дерево корпоративных исследований': 'Company research tree',
+    'Идите от базовых возможностей к сложным. Каждый следующий уровень дороже и дольше, а зависимые узлы открываются только после предыдущих исследований.':
+        'Progress from basic capabilities to advanced ones. Every next level costs more and takes longer, and dependent nodes unlock only after prerequisites.',
+    'Как устроено дерево R&D': 'How the R&D tree works',
+    'У каждого узла есть уровень, цена, срок и зависимости. Базовые технологии доступны сразу. Сильные технологии и функции требуют предыдущие исследования.':
+        'Every node has a level, price, duration and prerequisites. Baseline technologies are available immediately; advanced nodes require earlier research.',
+    'Базовая технология': 'Baseline technology',
+    'Сначала предыдущий уровень': 'Research previous level first',
+    'Воронка пользователей': 'User funnel',
+    'Не скрытый коэффициент: реклама создаёт интерес, продукт конвертирует его в начало использования, а удовлетворённость и доверие определяют удержание, отток, рекомендации и деньги.':
+        'This is not a hidden coefficient: advertising creates interest, the product converts it into usage starts, and satisfaction and trust determine retention, churn, referrals and money.',
+    'Доверие': 'Trust',
+    'Интерес / мес.': 'Interest / mo.',
+    'Начали пользоваться / мес.': 'Started using / mo.',
+    'Активные (MAU)': 'Active (MAU)',
+    'Платящие': 'Paying users',
+    'Конверсия в оплату': 'Paid conversion',
+    'Начали пользоваться': 'Started using',
+    'Изменение платящей конверсии': 'Paid conversion change',
+    'CAC': 'CAC',
+    'ARPU': 'ARPU',
+    'Органический трафик': 'Organic traffic',
+    'Платящих / монетизируемых': 'Paying / monetized',
+    'Ожидаемая выручка': 'Expected revenue',
+    'Монетизация больше не даёт скрытые бонусы к метрикам. Цена, paywall, количество рекламы и комиссия меняют удовлетворённость и готовность платить, а уже они влияют на отток и выручку.':
+        'Monetization no longer gives hidden metric bonuses. Price, paywall, ad quantity and fees change satisfaction and willingness to pay, which then affect churn and revenue.',
+    'Канал работает постоянно, пока вы его не остановите. Он приводит заинтересованную аудиторию, но не создаёт пользователей напрямую: дальше продукт должен убедить людей начать пользоваться и остаться.':
+        'A channel runs until you stop it. It brings interested people but does not create users directly: the product must convince them to start using it and stay.',
+    '• Free — быстрый набор аудитории без прямой выручки. KPI: начали пользоваться, удержание и MAU. Риск: инфраструктура растёт быстрее дохода.':
+        '• Free — fast audience growth without direct revenue. KPIs: started using, retention and MAU. Risk: infrastructure grows faster than income.',
+    '• Subscription — повторяющаяся выручка. KPI: платящие, MRR, удержание и отток. Риск: высокий прайс и жёсткий paywall выталкивают пользователей.':
+        '• Subscription — recurring revenue. KPIs: paying users, MRR, retention and churn. Risk: high price and a hard paywall push users away.',
+    '• Usage based — оплата за реальное использование. KPI: ARPU, активность и маржа после compute. Риск: себестоимость растёт быстрее выручки.':
+        '• Usage based — pay for actual usage. KPIs: ARPU, activity and margin after compute. Risk: cost can grow faster than revenue.',
+    '• Transaction fee — комиссия с операций. KPI: объём операций, начали пользоваться и доверие. Риск: высокая комиссия уменьшает число операций.':
+        '• Transaction fee — fee on transactions. KPIs: transaction volume, started using and trust. Risk: a high fee reduces transaction volume.',
+    'Правило: максимизируйте не доход с пользователя, а устойчивую связку привлечения, удовлетворённости, удержания, доверия и выручки.':
+        'Rule: optimize a sustainable combination of acquisition, satisfaction, retention, trust and revenue, not just revenue per user.',
+    'Запрос бизнес-кредита': 'Business loan request',
+    'Вы сами задаёте сумму. Чем больше кредит относительно оценки компании, тем ниже шанс одобрения и выше ставка.':
+        'You choose the amount. The larger the loan relative to company valuation, the lower the approval chance and the higher the rate.',
+    'Сумма кредита': 'Loan amount',
+    'Доля от оценки': 'Share of valuation',
+    'Шанс одобрения': 'Approval chance',
+    'Ориентировочная ставка': 'Estimated rate',
+    'К возврату при одобрении': 'Total repayment if approved',
+    'Платёж в неделю': 'Weekly payment',
+    'Введите сумму от 50 000 ₽.': 'Enter an amount of at least 50,000 RUB.',
+    'Отправить заявку': 'Submit application',
+    'Минимальная сумма бизнес-кредита — 50 000 ₽.':
+        'The minimum business loan amount is 50,000 RUB.',
+    'Требуется локализация атаки': 'Attack containment required',
+    'Runway — 2 месяца или меньше': 'Runway — 2 months or less',
+    'Прогноз показывает заинтересованных людей, а не готовых пользователей. Финальный результат зависит от того, сколько из них реально начнут пользоваться продуктом и останутся.':
+        'The forecast shows interested people, not acquired users. The final result depends on how many actually start using the product and remain.',
+    'Прогноз использует ту же модель, что и симуляция: MAU, удовлетворённость, доверие, цену, интенсивность монетизации, reliability и экосистему.':
+        'The forecast uses the same model as the simulation: MAU, satisfaction, trust, price, monetization intensity, reliability and ecosystem effects.',
+    'Навязчивость рекламы': 'Ad intrusiveness',
+    'Количество рекламы': 'Ad quantity',
+    'Удовлетворённость пользователей': 'User satisfaction',
+    'Удовлетворённость': 'Satisfaction',
+    'Исследования R&D': 'R&D research',
+    'Корпоративные исследования': 'Company research',
+    'Как работает R&D': 'How R&D works',
+    'Фанаты': 'Fans',
+    'Репутация': 'Reputation',
+    'Открыть исследования R&D': 'Open R&D research',
+    'Открыть R&D': 'Open R&D',
+    'Нужно R&D': 'R&D required',
+    'Исследовано': 'Researched',
+    'Изменить название мирового проекта': 'Rename world project',
+    'Прямой доход после запуска: нет.': 'Direct revenue after launch: none.',
+    'В проект можно добавить только исследованные технологии.':
+        'Only researched technologies can be added to the product.',
+    'Плюшка включается сразу для всей команды. Стоимость считается на каждого сотрудника, поэтому общий расход автоматически меняется после найма или ухода.':
+        'A perk applies to the whole team. Cost is calculated per employee, so the total automatically changes after hiring or departure.',
+    'Исследование оплачивается один раз и после завершения открывает функцию или технологию для всех подходящих продуктов.':
+        'Research is paid once and unlocks the feature or technology for all compatible products after completion.',
+    'Стоимость и срок видны до запуска. Исследование идёт по игровому времени. После завершения технология доступна при создании нового продукта и для интеграции в существующий.':
+        'Cost and duration are visible before launch. Research follows game time. After completion, the technology is available for new products and integration into existing ones.',
+    'Итог 0–100 складывается из рейтинга, удержания, доверия и активации. Высокий отток уменьшает итог. Это сводный показатель опыта пользователей, а не отдельная скрытая механика.':
+        'The 0–100 score combines rating, retention, trust and activation. High churn lowers it. This is a summary of user experience, not a separate hidden mechanic.',
+    'Функции и технологии со стоимостью до запуска':
+        'Features and technologies with cost shown before research',
+    'Каждая модель имеет собственный параметр: цену подписки, цену использования, количество рекламы или комиссию. Более агрессивная настройка увеличивает доход, но рынок учитывает цену и доверие.':
+        'Each model has its own parameter: subscription price, usage price, ad quantity, or transaction fee. A more aggressive setting increases revenue, but the market also accounts for price and trust.',
+    '• Advertising — бесплатный вход, доход от аудитории. KPI: MAU, DAU, вовлечённость. Риск: слишком большое количество рекламы повышает churn и снижает доверие.':
+        '• Advertising — free entry with audience-driven revenue. KPI: MAU, DAU, engagement. Risk: too many ads increase churn and reduce trust.',
     'Profit / мес.': 'Profit / mo.',
     'API / приложение': 'API / app',
     'Арендная серверная': 'Rented server room',
@@ -3355,6 +3443,98 @@ abstract final class V13EnglishLexicon {
   };
 
   static const List<V13EnglishTemplate> templates = <V13EnglishTemplate>[
+    V13EnglishTemplate('Уровень ZXQPH0QXZ', 'Level ZXQPH0QXZ'),
+    V13EnglishTemplate('Нужно сначала: ZXQPH0QXZ', 'Research first: ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'R&D заблокирован: сначала исследуйте ZXQPH0QXZ.',
+      'R&D locked: research ZXQPH0QXZ first.',
+    ),
+    V13EnglishTemplate(
+      'Банк отказал в кредите ZXQPH0QXZ ₽: сумма равна ZXQPH1QXZ% оценки компании, шанс одобрения был ZXQPH2QXZ%.',
+      'Bank declined a ZXQPH0QXZ RUB loan: the amount equals ZXQPH1QXZ% of company valuation and the approval chance was ZXQPH2QXZ%.',
+    ),
+    V13EnglishTemplate(
+      'Бизнес-кредит одобрен: ZXQPH0QXZ ₽. Ставка ZXQPH1QXZ%, к возврату ZXQPH2QXZ ₽ за 16 недель.',
+      'Business loan approved: ZXQPH0QXZ RUB. Rate ZXQPH1QXZ%, total repayment ZXQPH2QXZ RUB over 16 weeks.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ • локализация стоит ZXQPH1QXZ ₽. Симуляция остановлена до решения инцидента.',
+      'ZXQPH0QXZ • containment costs ZXQPH1QXZ RUB. Simulation is paused until the incident is resolved.',
+    ),
+    V13EnglishTemplate(
+      'Нет полного KMS + backup + SOC контура. Доверие уничтожено: 92% пользователей ушли, продукт фактически погиб. Локализация атаки: ZXQPH0QXZ ₽.',
+      'The full KMS + backup + SOC stack is missing. Trust collapsed: 92% of users left and the product is effectively dead. Attack containment: ZXQPH0QXZ RUB.',
+    ),
+    V13EnglishTemplate(
+      'KMS, disaster recovery и SOC сохранили продукт, но часть средств и 45% пользователей потеряны. Локализация атаки: ZXQPH0QXZ ₽.',
+      'KMS, disaster recovery and SOC saved the product, but some funds and 45% of users were lost. Attack containment: ZXQPH0QXZ RUB.',
+    ),
+    V13EnglishTemplate(
+      'Масштаб потерь снижен внедрёнными контролями. Пользователей осталось ZXQPH0QXZ%. Локализация атаки: ZXQPH1QXZ ₽.',
+      'Implemented controls reduced the impact. ZXQPH0QXZ% of users remain. Attack containment: ZXQPH1QXZ RUB.',
+    ),
+    V13EnglishTemplate(
+      'Финансовый риск: денег примерно на ZXQPH0QXZ мес.',
+      'Financial risk: cash for about ZXQPH0QXZ months.',
+    ),
+    V13EnglishTemplate(
+      'На счету ZXQPH0QXZ ₽, текущий burn ZXQPH1QXZ ₽/мес. Запаса примерно на ZXQPH2QXZ мес. Сократите расходы, увеличьте выручку или привлеките финансирование.',
+      'Cash ZXQPH0QXZ RUB, current burn ZXQPH1QXZ RUB/mo. Runway is about ZXQPH2QXZ months. Cut costs, grow revenue or raise financing.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: ZXQPH1QXZ включён через ZXQPH2QXZ. Бюджет ZXQPH3QXZ ₽/мес., прогноз ZXQPH4QXZ–ZXQPH5QXZ заинтересованных в месяц. Списание идёт ежедневно.',
+      'ZXQPH0QXZ: ZXQPH1QXZ enabled via ZXQPH2QXZ. Budget ZXQPH3QXZ RUB/mo., forecast ZXQPH4QXZ–ZXQPH5QXZ interested people per month. Billing is daily.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ показов • ZXQPH1QXZ переходов • ZXQPH2QXZ–ZXQPH3QXZ заинтересованных',
+      'ZXQPH0QXZ impressions • ZXQPH1QXZ clicks • ZXQPH2QXZ–ZXQPH3QXZ interested',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ • ZXQPH1QXZ дн.',
+      'ZXQPH0QXZ • ZXQPH1QXZ days',
+    ),
+    V13EnglishTemplate(
+      'Готово ZXQPH0QXZ% • осталось ZXQPH1QXZ дн.',
+      'ZXQPH0QXZ% complete • ZXQPH1QXZ days left',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ • на 1 сотрудника: запуск ZXQPH1QXZ, ZXQPH2QXZ/мес. • сейчас ZXQPH3QXZ чел.: запуск ZXQPH4QXZ, ZXQPH5QXZ/мес. • loyalty +ZXQPH6QXZ',
+      'ZXQPH0QXZ • per employee: setup ZXQPH1QXZ, ZXQPH2QXZ/mo. • current team ZXQPH3QXZ people: setup ZXQPH4QXZ, ZXQPH5QXZ/mo. • loyalty +ZXQPH6QXZ',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: включено для ZXQPH1QXZ сотрудников. ',
+      'ZXQPH0QXZ: enabled for ZXQPH1QXZ employees. ',
+    ),
+    V13EnglishTemplate('ZXQPH0QXZ ₽/мес.', 'ZXQPH0QXZ RUB/mo.'),
+    V13EnglishTemplate(
+      'Мировой проект переименован: ZXQPH0QXZ.',
+      'World project renamed: ZXQPH0QXZ.',
+    ),
+    V13EnglishTemplate(
+      'Доход после запуска: ZXQPH0QXZ/мес.',
+      'Revenue after launch: ZXQPH0QXZ/mo.',
+    ),
+    V13EnglishTemplate('Непрочитанных: ZXQPH0QXZ', 'Unread: ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'Сначала исследуйте обязательную технологию в R&D: ZXQPH0QXZ.',
+      'Research the required technology in R&D first: ZXQPH0QXZ.',
+    ),
+    V13EnglishTemplate(
+      'R&D ZXQPH0QXZ • ZXQPH1QXZ дн.',
+      'R&D ZXQPH0QXZ • ZXQPH1QXZ days',
+    ),
+    V13EnglishTemplate(
+      'Рейтинг ZXQPH0QXZ/5 • удержание ZXQPH1QXZ • доверие ZXQPH2QXZ • активация ZXQPH3QXZ • отток ZXQPH4QXZ',
+      'Rating ZXQPH0QXZ/5 • retention ZXQPH1QXZ • trust ZXQPH2QXZ • activation ZXQPH3QXZ • churn ZXQPH4QXZ',
+    ),
+    V13EnglishTemplate(
+      'Активация ZXQPH0QXZZXQPH1QXZ% • удержание ZXQPH2QXZZXQPH3QXZ%',
+      'Activation ZXQPH0QXZZXQPH1QXZ% • retention ZXQPH2QXZZXQPH3QXZ%',
+    ),
+    V13EnglishTemplate(
+      'Отток ZXQPH0QXZZXQPH1QXZ% • доверие ZXQPH2QXZZXQPH3QXZ%',
+      'Churn ZXQPH0QXZZXQPH1QXZ% • trust ZXQPH2QXZZXQPH3QXZ%',
+    ),
     V13EnglishTemplate(
       'ZXQPH0QXZ принят в ZXQPH1QXZ. Зарплата ZXQPH2QXZ ₽/мес., бонус при найме ZXQPH3QXZ ₽.',
       'ZXQPH0QXZ hired in ZXQPH1QXZ. Salary ZXQPH2QXZ ₽/mo., signing bonus ZXQPH3QXZ ₽.',

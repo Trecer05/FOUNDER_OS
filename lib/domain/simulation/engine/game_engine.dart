@@ -222,11 +222,16 @@ class GameEngine {
         state,
         action.projectId,
       ),
+      RenameWorldProject() => _renameWorldProject(
+        state,
+        action.projectId,
+        action.name,
+      ),
       StartWorldProjectUpgrade() => _startWorldProjectUpgrade(state, action),
       SetEcosystemDoctrine() => _setEcosystemDoctrine(state, action.doctrine),
       FundPhilanthropy() => _fundPhilanthropy(state, action.amount),
       ChoosePostGamePath() => _choosePostGamePath(state, action.path),
-      RequestBusinessLoan() => _requestBusinessLoan(state),
+      RequestBusinessLoan() => _requestBusinessLoan(state, action.amount),
       AcceptEmergencyLoan() => _acceptEmergencyLoan(state),
       RedeemDebugPromo() => _redeemDebugPromo(state, action.code),
       RequestInvestorFunding() => _requestFunding(state, action),
@@ -618,16 +623,26 @@ class GameEngine {
           final dau = math
               .min(mau, (mau * outcome.dauMauRatio).round())
               .toInt();
-          final ecosystemBoost = state.ecosystemBoostFor(product.id);
+          final revenueProduct = product.copyWith(
+            activationRate: outcome.activationRate,
+            retention30d: outcome.retention30d,
+            churnRate: outcome.churnRate,
+            rating: (outcome.satisfaction * 5).clamp(1.0, 5.0).toDouble(),
+            speedMs: speedMs,
+            designScore: designScore,
+            securityScore: securityScore,
+            reliability: reliability,
+            featureCoverage: outcome.featureCoverage,
+            qualityScore: outcome.qualityScore,
+            brandTrust: outcome.trustTarget,
+          );
           final revenue = publicAi
-              ? _monthlyRevenue(
-                  product: product,
-                  mau: mau,
-                  reliability: reliability,
-                  ecosystemBoost: ecosystemBoost,
+              ? state.productMonetizationRevenueEstimate(
+                  revenueProduct,
+                  mauOverride: mau,
                 )
               : 0.0;
-          final rating = (outcome.qualityScore / 20).clamp(1.0, 5.0).toDouble();
+          final rating = (outcome.satisfaction * 5).clamp(1.0, 5.0).toDouble();
 
           return product.copyWith(
             users: nextUsers,
@@ -650,17 +665,18 @@ class GameEngine {
                 product.users * outcome.churnRate,
             brandAwareness:
                 (product.brandAwareness +
-                        math.min(0.012, potentialNewUsers / 500000) +
+                        math.min(
+                          0.012,
+                          outcome.monthlyInterested * monthFraction / 650000,
+                        ) +
                         legendBrand * 0.006)
                     .clamp(0, 1)
                     .toDouble(),
             brandTrust:
                 (product.brandTrust +
-                        (outcome.retention30d - product.churnRate) *
+                        (outcome.trustTarget - product.brandTrust) *
                             monthFraction *
-                            0.08 +
-                        state.monetizationExperienceImpact(product).trustDelta *
-                            monthFraction)
+                            0.18)
                     .clamp(0.01, 1)
                     .toDouble(),
             priceSentiment: state.currentPriceSentiment(product),
@@ -691,6 +707,7 @@ class GameEngine {
     next = _appendRecurringOperatingTransactions(state, next);
     next = _advanceChurnShocks(state, next);
     next = _advanceLoanAndLiquidity(state, next);
+    next = _appendRunwayWarning(next);
     final previousDay = state.simulationMinutes ~/ 1440;
     final currentDay = next.simulationMinutes ~/ 1440;
     if (currentDay > previousDay) {
@@ -702,7 +719,9 @@ class GameEngine {
                     simulationMinutes: next.simulationMinutes,
                     cash: next.cash,
                     incomeRunRate:
-                        next.monthlyProductRevenue + next.portfolioIncome,
+                        next.monthlyProductRevenue +
+                        next.monthlyWorldProjectRevenue +
+                        next.portfolioIncome,
                     expenseRunRate: next.monthlyCosts,
                     profitRunRate: next.monthlyProfit,
                   ),
@@ -1066,7 +1085,10 @@ class GameEngine {
     var next = state.copyWith(
       taxYearRevenueAccrued:
           state.taxYearRevenueAccrued +
-          (state.monthlyProductRevenue + state.portfolioIncome) * fraction,
+          (state.monthlyProductRevenue +
+                  state.monthlyWorldProjectRevenue +
+                  state.portfolioIncome) *
+              fraction,
       taxYearExpensesAccrued:
           state.taxYearExpensesAccrued + state.monthlyCosts * fraction,
       taxYearPayrollAccrued:
@@ -1655,9 +1677,6 @@ class GameEngine {
             return product;
           }
           return product.copyWith(
-            users: product.users + delivered,
-            mau: product.mau + (delivered * 0.72).round(),
-            dau: product.dau + (delivered * 0.14).round(),
             brandAwareness:
                 (product.brandAwareness + (brandByProduct[product.id] ?? 0))
                     .clamp(0, 1)
@@ -1797,19 +1816,24 @@ class GameEngine {
           if (product.stage != ProductStage.live || product.users < 100) {
             return product;
           }
-          final impact = state.monetizationExperienceImpact(product);
+          final satisfaction = state.productUserSatisfaction(product) / 100;
+          final trust = product.brandTrust.clamp(0, 1).toDouble();
           final pressure =
-              (0.07 +
-                      state.productStalenessPenalty(product) * 0.10 +
-                      state.productBugPenalty(product) * 0.12 +
-                      impact.churnDelta * 0.60)
-                  .clamp(0.05, 0.28)
+              (0.04 +
+                      (1 - satisfaction) * 0.12 +
+                      (1 - trust) * 0.05 +
+                      state.productStalenessPenalty(product) * 0.08 +
+                      state.productBugPenalty(product) * 0.10)
+                  .clamp(0.04, 0.28)
                   .toDouble();
           final roll = _random01(state.rngSeed, counter++);
           if (roll > pressure) {
             return product;
           }
-          final severity = 0.008 + _random01(state.rngSeed, counter++) * 0.032;
+          final severity =
+              0.004 +
+              (1 - satisfaction) * 0.018 +
+              _random01(state.rngSeed, counter++) * 0.018;
           final lost = math.max(1, (product.users * severity).round()).toInt();
           messages.add(
             '${product.name}: рыночный отток −$lost пользователей за неделю.',
@@ -1948,6 +1972,35 @@ class GameEngine {
         body: reason,
         simulationMinutes: state.simulationMinutes,
         critical: true,
+      ),
+    );
+  }
+
+  GameState _appendRunwayWarning(GameState state) {
+    if (state.cash <= 0 || state.monthlyProfit >= 0 || state.runwayMonths > 2) {
+      return state;
+    }
+    final recentlyWarned = state.companyNotifications.any(
+      (item) =>
+          item.id.startsWith('runway_low_') &&
+          state.simulationMinutes - item.simulationMinutes < 30 * 1440,
+    );
+    if (recentlyWarned) return state;
+    final runway = state.runwayMonths.clamp(0, 2).toDouble();
+    final next = _withFeed(
+      state,
+      'Финансовый риск: денег примерно на ${runway.toStringAsFixed(1)} мес.',
+    );
+    return _withCompanyNotification(
+      next,
+      CompanyNotification(
+        id: 'runway_low_${state.simulationMinutes}',
+        kind: CompanyNotificationKind.finance,
+        title: 'Runway — 2 месяца или меньше',
+        body:
+            'На счету ${state.cash.round()} ₽, текущий burn ${state.monthlyProfit.abs().round()} ₽/мес. Запаса примерно на ${runway.toStringAsFixed(1)} мес. Сократите расходы, увеличьте выручку или привлеките финансирование.',
+        simulationMinutes: state.simulationMinutes,
+        read: false,
       ),
     );
   }
@@ -2101,6 +2154,15 @@ class GameEngine {
     } on Object {
       return state;
     }
+    if (!state.researchPrerequisitesMet(action.kind, action.targetId)) {
+      final prerequisites = state
+          .researchPrerequisiteNames(action.kind, action.targetId)
+          .join(', ');
+      return _withFeed(
+        state,
+        'R&D заблокирован: сначала исследуйте $prerequisites.',
+      );
+    }
     final cost = state.researchCost(action.kind, action.targetId);
     if (state.cash < cost) {
       return _withFeed(
@@ -2193,15 +2255,17 @@ class GameEngine {
         '${definition.name}: программа отключена.',
       );
     }
-    if (state.cash < definition.upfrontCost) {
+    final activationCost = state.companyPerkActivationCost(perkId);
+    if (state.cash < activationCost) {
       return state;
     }
     return _withFeed(
       state.copyWith(
-        cash: state.cash - definition.upfrontCost,
+        cash: state.cash - activationCost,
         enabledCompanyPerkIds: <String>[...state.enabledCompanyPerkIds, perkId],
       ),
-      '${definition.name}: включено. ${definition.monthlyCost.round()} ₽/мес.',
+      '${definition.name}: включено для ${state.employees.length} сотрудников. '
+      '${state.companyPerkMonthlyCost(perkId).round()} ₽/мес.',
     );
   }
 
@@ -2794,6 +2858,41 @@ class GameEngine {
       }
     }
     return next;
+  }
+
+  GameState _renameWorldProject(
+    GameState state,
+    String projectId,
+    String name,
+  ) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty || trimmed.length > 36) {
+      return state;
+    }
+    try {
+      V17EndgameCatalog.worldProjectById(projectId);
+    } on Object {
+      return state;
+    }
+    final current =
+        state.worldProjectProgressFor(projectId) ??
+        WorldProjectProgress(
+          projectId: projectId,
+          completedPhases: 0,
+          activePhaseCompletesAtMinutes: -1,
+          completedUpgradeIds: const <String>[],
+          activeUpgradeId: '',
+          activeUpgradeCompletesAtMinutes: -1,
+        );
+    final updated = current.copyWith(customName: trimmed);
+    final projects = <WorldProjectProgress>[
+      ...state.worldProjects.where((item) => item.projectId != projectId),
+      updated,
+    ];
+    return _withFeed(
+      state.copyWith(worldProjects: projects),
+      'Мировой проект переименован: $trimmed.',
+    );
   }
 
   GameState _fundWorldProjectPhase(GameState state, String projectId) {
@@ -3613,6 +3712,15 @@ class GameEngine {
     final sortedTechnologies = action.technologyIds.toList()..sort();
     for (final technologyId in sortedTechnologies) {
       final technology = GameCatalog.technologyById(technologyId);
+      if (!state.researchCompleted(
+        ResearchTargetKind.technology,
+        technologyId,
+      )) {
+        return _withFeed(
+          state,
+          'Сначала исследуйте технологию в R&D: ${technology.name}.',
+        );
+      }
       final availability = ProductConfigurationResolver.availability(
         frameworkId: action.frameworkId,
         languageIds: action.languageIds,
@@ -6149,7 +6257,7 @@ class GameEngine {
         ],
         rngCounter: sequence,
       ),
-      '${product.name}: ${channel.name} включён через ${agency.name}. Бюджет ${action.budget.round()} ₽/мес., прогноз ${forecast.usersLow}–${forecast.usersHigh} пользователей в месяц. Списание идёт ежедневно.',
+      '${product.name}: ${channel.name} включён через ${agency.name}. Бюджет ${action.budget.round()} ₽/мес., прогноз ${forecast.usersLow}–${forecast.usersHigh} заинтересованных в месяц. Списание идёт ежедневно.',
     );
   }
 
@@ -6186,9 +6294,12 @@ class GameEngine {
     InfrastructureService.aiCompute => 'AI / compute',
   };
 
-  GameState _requestBusinessLoan(GameState state) {
+  GameState _requestBusinessLoan(GameState state, double requestedAmount) {
     if (state.activeLoan != null) {
       return _withFeed(state, 'Сначала погасите активный кредит.');
+    }
+    if (requestedAmount < 50000 || requestedAmount.isNaN) {
+      return _withFeed(state, 'Минимальная сумма бизнес-кредита — 50 000 ₽.');
     }
     final hasProof =
         state.products.isNotEmpty ||
@@ -6200,42 +6311,44 @@ class GameEngine {
         'Банк отказал: сначала создайте продукт или получите контракт.',
       );
     }
-    final riskCount = state.products
-        .where((product) => state.productSecurityRisk(product) > 0.72)
-        .length;
-    if (riskCount >= 2 || state.monthlyCosts > 2500000) {
+
+    final chance = state.businessLoanApprovalChance(requestedAmount);
+    final ratio = state.businessLoanRequestRatio(requestedAmount);
+    final interestRate = state.businessLoanInterestRate(requestedAmount);
+    final roll = _random01(state.rngSeed, state.rngCounter);
+    final nextCounter = state.rngCounter + 1;
+    if (roll >= chance) {
       return _withFeed(
-        state,
-        'Банк отказал: burn или security-риск слишком высокий.',
+        state.copyWith(rngCounter: nextCounter),
+        'Банк отказал в кредите ${requestedAmount.round()} ₽: сумма равна ${(ratio * 100).toStringAsFixed(1)}% оценки компании, шанс одобрения был ${(chance * 100).round()}%.',
       );
     }
-    final amount = math
-        .min(3000000, math.max(350000, state.monthlyCosts * 1.4 + 250000))
-        .toDouble();
-    final totalRepayment = amount * 1.10;
+
+    final totalRepayment = requestedAmount * (1 + interestRate);
     final loan = CompanyLoan(
       principal: totalRepayment,
       remaining: totalRepayment,
       issuedAtMinutes: state.simulationMinutes,
       weeklyPayment: totalRepayment / 16,
-      interestRate: 0.10,
+      interestRate: interestRate,
     );
     return _withFeed(
       state.copyWith(
-        cash: state.cash + amount,
+        cash: state.cash + requestedAmount,
         activeLoan: loan,
+        rngCounter: nextCounter,
         financeTransactions: <FinanceTransaction>[
           FinanceTransaction(
             id: 'business_loan_${state.simulationMinutes}',
             simulationMinutes: state.simulationMinutes,
-            amount: amount,
+            amount: requestedAmount,
             category: FinanceTransactionCategory.financing,
             description: 'Бизнес-кредит',
           ),
           ...state.financeTransactions,
         ].take(120).toList(growable: false),
       ),
-      'Бизнес-кредит одобрен: ${amount.round()} ₽. К возврату ${totalRepayment.round()} ₽ за 16 недель.',
+      'Бизнес-кредит одобрен: ${requestedAmount.round()} ₽. Ставка ${(interestRate * 100).toStringAsFixed(1)}%, к возврату ${totalRepayment.round()} ₽ за 16 недель.',
     );
   }
 
@@ -6704,6 +6817,11 @@ class GameEngine {
     );
   }
 
+  double _securityIncidentLocalizationCost(GameState state, String productId) {
+    final responseMultiplier = state.productIncidentMultiplier(productId);
+    return 240000.0 * (0.55 + responseMultiplier * 0.45);
+  }
+
   GameState _triggerSecurityIncident(GameState state, String productId) {
     final product = state.productById(productId);
     if (product == null || product.stage != ProductStage.live) {
@@ -6717,6 +6835,10 @@ class GameEngine {
         state.hasSecurityControl(productId, 'soc_response');
     final walletCatastrophe = wallet && !hardenedWallet;
     final incidentMultiplier = state.productIncidentMultiplier(productId);
+    final localizationCost = _securityIncidentLocalizationCost(
+      state,
+      productId,
+    );
     final ordinaryUserFactor = (0.70 + (1 - incidentMultiplier) * 0.17).clamp(
       0.70,
       0.87,
@@ -6766,7 +6888,7 @@ class GameEngine {
             kind: NewsKind.security,
             title: '${product.name}: украдены средства пользователей',
             body:
-                'Нет полного KMS + backup + SOC контура. Доверие уничтожено: 92% пользователей ушли, продукт фактически погиб.',
+                'Нет полного KMS + backup + SOC контура. Доверие уничтожено: 92% пользователей ушли, продукт фактически погиб. Локализация атаки: ${localizationCost.round()} ₽.',
             simulationMinutes: state.simulationMinutes,
             critical: true,
           )
@@ -6776,7 +6898,7 @@ class GameEngine {
             kind: NewsKind.security,
             title: '${product.name}: атаку удалось ограничить',
             body:
-                'KMS, disaster recovery и SOC сохранили продукт, но часть средств и 45% пользователей потеряны.',
+                'KMS, disaster recovery и SOC сохранили продукт, но часть средств и 45% пользователей потеряны. Локализация атаки: ${localizationCost.round()} ₽.',
             simulationMinutes: state.simulationMinutes,
             critical: true,
           )
@@ -6785,11 +6907,11 @@ class GameEngine {
             kind: NewsKind.security,
             title: 'Утечка данных в ${product.name}',
             body:
-                'Масштаб потерь снижен внедрёнными контролями. Пользователей осталось ${(ordinaryUserFactor * 100).round()}%.',
+                'Масштаб потерь снижен внедрёнными контролями. Пользователей осталось ${(ordinaryUserFactor * 100).round()}%. Локализация атаки: ${localizationCost.round()} ₽.',
             simulationMinutes: state.simulationMinutes,
             critical: true,
           );
-    return _withNews(
+    final incidentState = _withNews(
       _withFeed(
         state.copyWith(
           products: updatedProducts,
@@ -6801,6 +6923,18 @@ class GameEngine {
       ),
       news,
     );
+    return _withCompanyNotification(
+      incidentState,
+      CompanyNotification(
+        id: 'security_response_${state.simulationMinutes}_$productId',
+        kind: CompanyNotificationKind.finance,
+        title: 'Требуется локализация атаки',
+        body:
+            '${product.name} • локализация стоит ${localizationCost.round()} ₽. Симуляция остановлена до решения инцидента.',
+        simulationMinutes: state.simulationMinutes,
+        read: false,
+      ),
+    );
   }
 
   GameState _resolveCriticalEvent(GameState state) {
@@ -6811,13 +6945,10 @@ class GameEngine {
         state.criticalEvent == CriticalEventType.insolvency) {
       return state;
     }
-    final responseMultiplier = state.criticalProductId == null
-        ? 1.0
-        : state.productIncidentMultiplier(state.criticalProductId!);
     final isSecurityBreach =
         state.criticalEvent == CriticalEventType.securityBreach;
-    final cost = isSecurityBreach
-        ? 240000.0 * (0.55 + responseMultiplier * 0.45)
+    final cost = isSecurityBreach && state.criticalProductId != null
+        ? _securityIncidentLocalizationCost(state, state.criticalProductId!)
         : 0.0;
     return _withFeed(
       state.copyWith(
@@ -6856,14 +6987,11 @@ class GameEngine {
         ? 1.0
         : expectedFeatures.intersection(ownFeatures).length /
               expectedFeatures.length;
-    final competitorFeatureCoverage = 1.0;
     final ownSpeedScore = (100 - speedMs / math.max(1, competitor.speedMs) * 45)
         .clamp(0, 100)
         .toDouble();
-    final competitorSpeedScore = 55.0;
     final ownPriceScore = _priceScore(product.price, competitor.monthlyPrice);
-    final competitorPriceScore = 65.0;
-    var monthlyNewUsers = 0.0;
+    var organicInterest = 0.0;
     var weightedPreference = 0.0;
     var totalAddressable = 0.0;
 
@@ -6875,23 +7003,23 @@ class GameEngine {
           featureCoverage * 100 * segment.featureWeight +
           ownPriceScore * segment.priceWeight;
       final competitorScore =
-          competitorSpeedScore * segment.speedWeight +
+          55 * segment.speedWeight +
           competitor.designScore * segment.designWeight +
           competitor.securityScore * segment.securityWeight +
-          competitorFeatureCoverage * 100 * segment.featureWeight +
-          competitorPriceScore * segment.priceWeight;
+          100 * segment.featureWeight +
+          65 * segment.priceWeight;
       final preference =
           1 / (1 + math.exp(-(ownScore - competitorScore) / 8.5));
       final brandFactor =
           (0.0015 + product.brandAwareness * 0.70 + product.brandTrust * 0.025)
               .clamp(0.001, 1.0)
               .toDouble();
-      final organic =
+      final discovery =
           segment.addressableUsers *
           (0.0007 + preference * 0.0048) *
           brandFactor *
           0.33;
-      monthlyNewUsers += organic * (1 - freshnessPenalty * 0.72);
+      organicInterest += discovery * (1 - freshnessPenalty * 0.72);
       weightedPreference += preference * segment.addressableUsers;
       totalAddressable += segment.addressableUsers;
     }
@@ -6908,45 +7036,6 @@ class GameEngine {
     final overload = math
         .min(0.53, math.max(0, state.productServerLoad(product) - 0.82))
         .toDouble();
-    final monetizationImpact = state.monetizationExperienceImpact(product);
-    final activation =
-        (0.12 +
-                designScore / 330 +
-                featureCoverage * 0.22 +
-                preference * 0.18 +
-                product.brandTrust * 0.10 +
-                qualityBonus / 500 -
-                freshnessPenalty * 0.12 -
-                overload * 0.12 +
-                monetizationImpact.activationDelta)
-            .clamp(0.05, 0.92)
-            .toDouble();
-    final retention =
-        (0.22 +
-                featureCoverage * 0.24 +
-                featureRetentionBonus +
-                designScore / 500 +
-                reliability * 0.14 +
-                ecosystemBoost +
-                retentionBonus +
-                qualityBonus / 600 -
-                freshnessPenalty * 0.16 -
-                overload * 0.10 +
-                monetizationImpact.retentionDelta)
-            .clamp(0.08, 0.92)
-            .toDouble();
-    final priceSentiment = state.currentPriceSentiment(product);
-    final churn =
-        (0.19 -
-                retention * 0.14 +
-                (1 - preference) * 0.08 +
-                overload * 0.10 +
-                freshnessPenalty * 0.11 +
-                priceSentiment * 0.12 +
-                monetizationImpact.churnDelta +
-                (100 - securityScore) / 1000)
-            .clamp(0.015, 0.65)
-            .toDouble();
     final quality =
         (ownSpeedScore * 0.22 +
                 designScore * 0.20 +
@@ -6957,7 +7046,89 @@ class GameEngine {
                 freshnessPenalty * 24)
             .clamp(1, 100)
             .toDouble();
+    final experienceProduct = product.copyWith(
+      speedMs: speedMs,
+      designScore: designScore,
+      securityScore: securityScore,
+      reliability: reliability,
+      featureCoverage: featureCoverage,
+      qualityScore: quality,
+    );
+    final satisfaction = state.productUserSatisfaction(experienceProduct) / 100;
+    final priceSentiment = state.currentPriceSentiment(product);
+    final trustTarget =
+        (0.10 +
+                satisfaction * 0.38 +
+                securityScore / 100 * 0.20 +
+                reliability * 0.14 +
+                state.brandReputation / 100 * 0.10 +
+                product.brandAwareness * 0.08)
+            .clamp(0.03, 0.98)
+            .toDouble();
+    final startUsingRate =
+        (0.07 +
+                designScore / 520 +
+                featureCoverage * 0.16 +
+                preference * 0.13 +
+                trustTarget * 0.10 +
+                satisfaction * 0.18 +
+                qualityBonus / 900 -
+                freshnessPenalty * 0.10 -
+                overload * 0.09)
+            .clamp(0.03, 0.88)
+            .toDouble();
+    final retention =
+        (0.10 +
+                satisfaction * 0.48 +
+                featureRetentionBonus +
+                reliability * 0.10 +
+                trustTarget * 0.08 +
+                ecosystemBoost +
+                retentionBonus +
+                qualityBonus / 1000 -
+                freshnessPenalty * 0.12 -
+                overload * 0.09)
+            .clamp(0.08, 0.94)
+            .toDouble();
+    final churn =
+        (0.20 -
+                retention * 0.14 +
+                (1 - satisfaction) * 0.12 +
+                (1 - trustTarget) * 0.05 +
+                overload * 0.09 +
+                freshnessPenalty * 0.09 +
+                priceSentiment * 0.08 +
+                (100 - securityScore) / 1200)
+            .clamp(0.012, 0.58)
+            .toDouble();
 
+    final referralInterest =
+        product.users *
+        (0.002 +
+            satisfaction * 0.014 +
+            retention * 0.010 +
+            trustTarget * 0.006);
+    organicInterest += referralInterest;
+    final paidInterest = state
+        .activeCampaignsFor(product.id)
+        .fold<double>(
+          0,
+          (sum, campaign) =>
+              sum +
+              state
+                  .advertisingForecast(
+                    product: product,
+                    agencyId: campaign.agencyId,
+                    channelId: campaign.channelId,
+                    budget: campaign.budget,
+                  )
+                  .usersExpected,
+        );
+    final brandMarketingInterest =
+        math.sqrt(math.max(0, product.marketingBudget)) *
+        (1.2 + product.brandAwareness * 1.8);
+    final monthlyInterested =
+        organicInterest + paidInterest + brandMarketingInterest;
     final livePortfolioSize = state.products
         .where((item) => item.stage == ProductStage.live)
         .length;
@@ -6966,53 +7137,38 @@ class GameEngine {
             .clamp(0.78, 1.10)
             .toDouble();
     final marketReadiness =
-        (0.24 +
-                featureCoverage * 0.24 +
-                designScore / 430 +
-                securityScore / 520 +
-                reliability * 0.18 -
-                overload * 0.24 -
-                freshnessPenalty * 0.18)
-            .clamp(0.22, 1.05)
+        (0.30 +
+                satisfaction * 0.28 +
+                featureCoverage * 0.18 +
+                securityScore / 650 +
+                reliability * 0.12 -
+                overload * 0.20 -
+                freshnessPenalty * 0.15)
+            .clamp(0.20, 1.08)
             .toDouble();
 
     return _MarketOutcome(
+      monthlyInterested: monthlyInterested,
+      organicInterest: organicInterest + brandMarketingInterest,
+      paidInterest: paidInterest,
       monthlyNewUsers:
-          monthlyNewUsers *
-          activation *
+          monthlyInterested *
+          startUsingRate *
           (1 + ecosystemBoost) *
           portfolioDiscoveryFactor *
           marketReadiness,
-      activationRate: activation,
+      activationRate: startUsingRate,
       retention30d: retention,
       churnRate: churn,
       qualityScore: quality,
       featureCoverage: featureCoverage,
-      mauRatio: (0.48 + retention * 0.38).clamp(0.35, 0.92).toDouble(),
-      dauMauRatio: (0.16 + retention * 0.28).clamp(0.12, 0.58).toDouble(),
+      satisfaction: satisfaction,
+      trustTarget: trustTarget,
+      mauRatio: (0.42 + retention * 0.44).clamp(0.32, 0.94).toDouble(),
+      dauMauRatio: (0.12 + retention * 0.26 + satisfaction * 0.12)
+          .clamp(0.10, 0.62)
+          .toDouble(),
     );
-  }
-
-  double _monthlyRevenue({
-    required Product product,
-    required int mau,
-    required double reliability,
-    required double ecosystemBoost,
-  }) {
-    final payingShare = 1 - product.freeTierPercent;
-    final intensity = product.monetizationIntensity.clamp(0.1, 1.0).toDouble();
-    final base = switch (product.monetization) {
-      MonetizationModel.free => 0.0,
-      MonetizationModel.subscription =>
-        mau * payingShare * product.price * (0.070 + intensity * 0.030),
-      MonetizationModel.usageBased =>
-        mau * payingShare * product.price * (0.043 + intensity * 0.028),
-      MonetizationModel.advertising =>
-        mau * (7 + intensity * 19) * math.max(0.02, product.price),
-      MonetizationModel.transactionFee =>
-        mau * (6 + intensity * 10) * product.price,
-    };
-    return base * reliability * (1 + ecosystemBoost * 0.55);
   }
 
   double _roleQualityForProduct(
@@ -7219,22 +7375,32 @@ class GameEngine {
 
 class _MarketOutcome {
   const _MarketOutcome({
+    required this.monthlyInterested,
+    required this.organicInterest,
+    required this.paidInterest,
     required this.monthlyNewUsers,
     required this.activationRate,
     required this.retention30d,
     required this.churnRate,
     required this.qualityScore,
     required this.featureCoverage,
+    required this.satisfaction,
+    required this.trustTarget,
     required this.mauRatio,
     required this.dauMauRatio,
   });
 
+  final double monthlyInterested;
+  final double organicInterest;
+  final double paidInterest;
   final double monthlyNewUsers;
   final double activationRate;
   final double retention30d;
   final double churnRate;
   final double qualityScore;
   final double featureCoverage;
+  final double satisfaction;
+  final double trustTarget;
   final double mauRatio;
   final double dauMauRatio;
 }

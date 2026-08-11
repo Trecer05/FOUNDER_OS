@@ -309,7 +309,8 @@ void main() {
     );
 
     expect(forecast.usersExpected, lessThan(5000));
-    expect(forecast.note, contains('конвертирует слабее'));
+    expect(forecast.note, contains('заинтересованных людей'));
+    expect(forecast.note, contains('начнут пользоваться'));
     expect(forecast.impressions, greaterThan(forecast.usersExpected));
   });
 

@@ -433,16 +433,12 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
       children: [
         const SectionHeader(
           title: 'Что именно строим',
-          subtitle:
-              'Масштаб определяет часы, команду, риски и требования к инвесторам.',
+          subtitle: 'Масштаб определяет часы, команду и риски разработки.',
         ),
         const SizedBox(height: 10),
         ...GameCatalog.productBlueprints.map((blueprint) {
           final strategy = ProductStrategyCatalog.strategyFor(blueprint.id);
           final selected = blueprint.id == _blueprintId;
-          final investorsReady =
-              widget.controller.state.investorAgreements.length >=
-              strategy.requiredInvestorCount;
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: AppCard(
@@ -484,11 +480,6 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                       _InfoChip(
                         'Разовая настройка ${money(strategy.setupCost)}',
                       ),
-                      if (strategy.requiredInvestorCount > 0)
-                        _InfoChip(
-                          '${investorsReady ? '✓' : 'Нужно'} инвесторов: ${strategy.requiredInvestorCount}',
-                          warning: !investorsReady,
-                        ),
                       if (strategy.contractsUnlock)
                         const _InfoChip('Открывает контракты'),
                     ],
@@ -932,7 +923,6 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         projection.developmentHours /
         math.max(1, _strategy.optimalTeamSize) /
         8;
-    final currentInvestors = widget.controller.state.investorAgreements.length;
     final frameworkProfile = ProductStrategyCatalog.frameworkProfile(
       _frameworkId,
     );
@@ -1010,10 +1000,6 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
               ),
               _SummaryRow('Нужные специалисты', _requiredTeamSummary),
               _SummaryRow(
-                'Инвесторы',
-                '$currentInvestors/${_strategy.requiredInvestorCount}',
-              ),
-              _SummaryRow(
                 'Монетизация',
                 monetizationName(_monetization),
                 last: true,
@@ -1054,14 +1040,6 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
           AppCard(
             child: AppText(
               'Недостаточно денег на разовую настройку: доступно ${money(widget.controller.state.cash)}.',
-            ),
-          ),
-        ],
-        if (currentInvestors < _strategy.requiredInvestorCount) ...[
-          const SizedBox(height: 12),
-          AppCard(
-            child: AppText(
-              'Проект можно создать сейчас. Разработка будет неактивна, пока под этот продукт не будет найдено инвесторов: ${_strategy.requiredInvestorCount}.',
             ),
           ),
         ],

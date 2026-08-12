@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:founder_os/domain/catalog/game_catalog.dart';
 import 'package:founder_os/domain/catalog/operations_catalog.dart';
 import 'package:founder_os/domain/catalog/world_economy_catalog.dart';
 import 'package:founder_os/domain/commands/game_action.dart';
@@ -246,4 +247,53 @@ void main() {
       expect(expensive, greaterThan(cheap));
     },
   );
+
+  test('owned data centers expose expanded late-game physical capacity', () {
+    expect(WorldEconomyCatalog.dataCenterRackUnits(FacilitySize.small), 128);
+    expect(WorldEconomyCatalog.dataCenterRackUnits(FacilitySize.medium), 384);
+    expect(WorldEconomyCatalog.dataCenterRackUnits(FacilitySize.large), 1280);
+    expect(WorldEconomyCatalog.dataCenterRackUnits(FacilitySize.campus), 4096);
+  });
+
+  test('server catalog exposes hyperscale compute and storage tiers', () {
+    final compute = GameCatalog.serverHardwareById('compute_hypershelf_c128');
+    final storage = GameCatalog.serverHardwareById('storage_fabric_s256');
+    final ai = GameCatalog.serverHardwareById('ai_megapod_m256');
+    expect(compute.computeUnits, greaterThanOrEqualTo(130000));
+    expect(storage.storageGb, greaterThanOrEqualTo(2000000));
+    expect(ai.computeUnits, greaterThanOrEqualTo(260000));
+  });
+
+  test('medium owned data center can host AI MegaPod M256', () {
+    var state = fundedInitial(cash: 500000000);
+    state = engine.reduce(
+      state,
+      const BuildOwnedDataCenter(
+        cityId: 'helsinki',
+        size: FacilitySize.medium,
+        facilityQuality: FacilityQuality.standard,
+        equipmentQuality: FacilityQuality.standard,
+      ),
+    );
+    final site = state.ownedDataCenters.single;
+    state = engine.reduce(
+      state,
+      InstallServer(
+        'ai_megapod_m256',
+        dataCenterSiteId: site.id,
+        service: InfrastructureService.aiCompute,
+      ),
+    );
+    expect(
+      state.installedServers
+          .where(
+            (item) =>
+                item.hardwareId == 'ai_megapod_m256' &&
+                item.dataCenterSiteId == site.id &&
+                item.service == InfrastructureService.aiCompute,
+          )
+          .fold<int>(0, (sum, item) => sum + item.count),
+      1,
+    );
+  });
 }

@@ -54,6 +54,26 @@ void main() {
   });
 
   test(
+    'starting player-selected research does not create notification spam',
+    () {
+      final state = engine.reduce(
+        fundedInitial(cash: 100000000),
+        const StartCompanyResearch(
+          kind: ResearchTargetKind.technology,
+          targetId: 'postgresql',
+        ),
+      );
+      expect(state.activeResearchProjects, hasLength(1));
+      expect(
+        state.companyNotifications.where(
+          (item) => item.kind == CompanyNotificationKind.research,
+        ),
+        isEmpty,
+      );
+    },
+  );
+
+  test(
     'completed company research is reusable and no longer costs time or money',
     () {
       final state = GameState.initial().copyWith(

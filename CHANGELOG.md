@@ -84,3 +84,11 @@
 - Rebalanced development staffing, language learning, HR retention, investor waiting, free-tier satisfaction and loan retry cooldown.
 - Added service-level product hosting routes and expanded campaign budgets.
 - Added reputation breakdown, concrete event dates and live roadmap impact.
+
+## Unreleased — Final stabilization before publisher freeze
+
+- Fixed notification toast navigation and removed unread-backlog replay.
+- Added swipe-up toast dismissal and removed player-confirmed R&D start notifications.
+- Restored Events/Legacy/World Projects as one strategic company section.
+- Removed mandatory product-investor development gates; investors remain optional financing.
+- Expanded owned data centers and added three hyperscale server tiers.

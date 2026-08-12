@@ -3612,6 +3612,20 @@ abstract final class V13EnglishLexicon {
     'Сначала исследуйте выбранные функции в R&D.':
         'Research the selected features in R&D first.',
     'Функций': 'Features',
+    'Масштаб определяет часы, команду и риски разработки.':
+        'Scope determines development hours, team size, and risk.',
+    'Городская платформа: жители, службы, платежи, транспорт и интеграции.':
+        'City platform: residents, services, payments, transport, and integrations.',
+    'Крупная инфраструктура. DevOps и security критичны для надёжного запуска.':
+        'Large-scale infrastructure. DevOps and security are critical for a reliable launch.',
+    'Цифровая система города. Нужна большая команда и годы разработки.':
+        'City-scale digital system. Requires a large team and years of development.',
+    'Плотный CPU-кластер для гигантских API, баз данных и сервисной логики.':
+        'Dense CPU cluster for massive APIs, databases, and service workloads.',
+    'Высокоплотное хранилище для больших файлов, резервных копий и data lake.':
+        'High-density storage for large files, backups, and data lakes.',
+    'Флагманский AI-кластер для крупнейших моделей, массового inference и обучения.':
+        'Flagship AI cluster for the largest models, high-volume inference, and training.',
   };
 
   static const List<V13EnglishTemplate> templates = <V13EnglishTemplate>[

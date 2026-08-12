@@ -419,15 +419,6 @@ class GameEngine {
           );
 
           if (product.stage == ProductStage.development) {
-            final requiredInvestors = ProductStrategyCatalog.strategyFor(
-              product.blueprintId,
-            ).requiredInvestorCount;
-            final productInvestors = state.investorAgreements
-                .where((item) => item.productId == product.id)
-                .length;
-            if (productInvestors < requiredInvestors) {
-              return product;
-            }
             final developmentCapacity = state.productDevelopmentCapacity(
               product.id,
             );
@@ -2307,25 +2298,15 @@ class GameEngine {
     final name = action.kind == ResearchTargetKind.feature
         ? GameCatalog.featureById(action.targetId).name
         : GameCatalog.technologyById(action.targetId).name;
-    return _withCompanyNotification(
-      _withFeed(
-        state.copyWith(
-          cash: state.cash - cost,
-          activeResearchProjects: <CompanyResearchProject>[
-            ...state.activeResearchProjects,
-            project,
-          ],
-        ),
-        'R&D: начато исследование «$name» на $days дн. за ${cost.round()} ₽.',
+    return _withFeed(
+      state.copyWith(
+        cash: state.cash - cost,
+        activeResearchProjects: <CompanyResearchProject>[
+          ...state.activeResearchProjects,
+          project,
+        ],
       ),
-      CompanyNotification(
-        id: 'research_start_${key}_${state.simulationMinutes}',
-        kind: CompanyNotificationKind.research,
-        title: 'R&D запущен',
-        body: '$name • $days дн. • ${cost.round()} ₽',
-        simulationMinutes: state.simulationMinutes,
-        read: false,
-      ),
+      'R&D: начато исследование «$name» на $days дн. за ${cost.round()} ₽.',
     );
   }
 

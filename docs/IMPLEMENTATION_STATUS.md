@@ -498,3 +498,14 @@ Verification: `tools/audit_v17_r15_uat_fixes.py`, focused R15 regression tests, 
 21. Investor-gated продукт можно создать до инвестиций; capacity=0 до нужного количества agreements именно на этот product.
 
 Snapshot schema остаётся 16: новые долговечные правила используют уже сохраняемые Employee.languageIds, FinanceTransaction и ProductServiceRoute.
+
+## Final stabilization before publisher freeze — 2026-08-12
+
+Status: реализовано в fixpack; перед commit требуется автоматический verifier и ручной UAT на устройстве.
+
+- Notification tap/layout regression: исправлено.
+- Toast backlog/rounded corners/swipe-up/research spam: исправлено.
+- Events/Legacy/World Projects strategic section: восстановлено и переработано без переноса.
+- Mandatory product investors: удалены; инвесторы остаются добровольным финансированием.
+- Owned DC capacity + hyperscale server tiers: расширены.
+- Spacing between Competitive Intelligence and Events: исправлено.

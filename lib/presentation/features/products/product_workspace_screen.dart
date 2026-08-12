@@ -315,7 +315,6 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
     final phase = state.r2DevelopmentWorkstreamFor(product);
     final capacity = state.totalDevelopmentCapacityFor(product);
     final staffing = state.developmentStaffingFor(product.id);
-    final missingInvestors = state.productMissingInvestorCount(product);
     final activeWork = state.activeFeatureDevelopmentFor(product.id);
     final competitor = state.competitorsForCategory(product.category).first;
     final availableFeatures = GameCatalog.features
@@ -387,16 +386,6 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
           ],
         ),
       ),
-      if (missingInvestors > 0 &&
-          product.stage == ProductStage.development) ...[
-        const SizedBox(height: 12),
-        AppCard(
-          key: const Key('development-waiting-investor'),
-          child: AppText(
-            'Проект создан, но разработка ждёт инвестора: не хватает $missingInvestors. Команда и roadmap уже можно подготовить.',
-          ),
-        ),
-      ],
       const SizedBox(height: 12),
       if (product.stage == ProductStage.development)
         AppCard(

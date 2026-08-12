@@ -437,3 +437,12 @@ Verification: `tools/audit_v17_r15_uat_fixes.py`, focused R15 regression tests, 
 - Rebalanced development staffing, language learning, HR retention, investor waiting, free-tier satisfaction and loan retry cooldown.
 - Added service-level product hosting routes and expanded campaign budgets.
 - Added reputation breakdown, concrete event dates and live roadmap impact.
+
+## 2026-08-12 — Final stabilization before publisher freeze
+
+- Notification tap now routes through the dedicated notification center instead of raw feature ListViews.
+- Top notification backlog is no longer replayed sequentially; swipe-up dismisses a visible toast.
+- R&D start actions no longer create redundant company notifications.
+- Company Events/Legacy/World Projects are again presented together as a strategic section.
+- Mandatory investors were removed from product development; funding remains an optional equity/cash tool.
+- Owned DC capacity and hyperscale hardware were expanded for late game.

@@ -93,6 +93,7 @@ class MoreScreen extends StatelessWidget {
             CompetitorIntelligenceScreen(controller: controller),
           ),
         ),
+        const SizedBox(height: 10),
         _MenuCard(
           icon: Icons.event_note_outlined,
           title: 'События и достижения',

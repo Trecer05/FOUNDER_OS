@@ -59,7 +59,7 @@ checks = {
     ),
     "14_top_toasts": (
         "lib/presentation/shared/widgets/company_notification_toast_host.dart",
-        ["Duration(seconds: 5)", "_GenieClipper", "top-company-notification-toast"],
+        ["Duration(seconds: 5)", "DismissDirection.up", "CompanyNotificationCenterScreen", "top-company-notification-toast"],
     ),
     "15_ad_budget": (
         "lib/presentation/features/products/product_workspace_screen.dart",
@@ -85,9 +85,9 @@ checks = {
         "test/domain/r2_gameplay_test.dart",
         ["selling website never changes surviving AI product name", "AURA Intelligence"],
     ),
-    "21_investor_wait": (
-        "lib/domain/entities/game_state.dart",
-        ["requiredInvestorCount", "productDevelopmentCapacity"],
+    "21_investors_optional": (
+        "test/domain/r2_gameplay_test.dart",
+        ["products develop without mandatory investors", "productDevelopmentCapacity(product.id)"],
     ),
 }
 

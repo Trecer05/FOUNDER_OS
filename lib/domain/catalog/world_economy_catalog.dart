@@ -254,10 +254,10 @@ abstract final class WorldEconomyCatalog {
   };
 
   static int dataCenterRackUnits(FacilitySize size) => switch (size) {
-    FacilitySize.small => 42,
-    FacilitySize.medium => 140,
-    FacilitySize.large => 420,
-    FacilitySize.campus => 1100,
+    FacilitySize.small => 128,
+    FacilitySize.medium => 384,
+    FacilitySize.large => 1280,
+    FacilitySize.campus => 4096,
   };
 
   static double officeBaseBuildCost(FacilitySize size) => switch (size) {

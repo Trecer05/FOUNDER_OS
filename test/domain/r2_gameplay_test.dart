@@ -44,14 +44,14 @@ void main() {
     expect(blocked.feed.first, contains('исследовать'));
   });
 
-  test('investor-required product exists but waits before development', () {
-    final strategy = ProductStrategyCatalog.products.firstWhere(
-      (item) => item.requiredInvestorCount > 0,
-    );
+  test('products develop without mandatory investors', () {
+    final strategy = ProductStrategyCatalog.strategyFor('cloud_platform');
+    expect(strategy.requiredInvestorCount, 0);
+
     final product = productFixture(
-      id: 'funding_wait',
+      id: 'self_funded_cloud',
       blueprintId: strategy.blueprintId,
-      name: 'Funding Wait',
+      name: 'Self Funded Cloud',
       stage: ProductStage.development,
       featureIds: const <String>[],
     ).copyWith(developmentProgress: 0.25);
@@ -60,7 +60,7 @@ void main() {
       role: EmployeeRole.backend,
       languageIds: product.languageIds,
     );
-    var state = fundedInitial().copyWith(
+    final state = fundedInitial().copyWith(
       products: <Product>[product],
       employees: <Employee>[employee],
       employeeAssignments: <EmployeeAssignment>[
@@ -70,23 +70,10 @@ void main() {
           assignedAtMinutes: 0,
         ),
       ],
+      investorAgreements: const <InvestorAgreement>[],
     );
-    expect(state.productMissingInvestorCount(product), greaterThan(0));
-    expect(state.productDevelopmentCapacity(product.id), 0);
 
-    final agreements = List<InvestorAgreement>.generate(
-      strategy.requiredInvestorCount,
-      (index) => InvestorAgreement(
-        id: 'agreement_$index',
-        investorId: 'investor_$index',
-        productId: product.id,
-        investedAmount: 1000000,
-        equityPercent: 1,
-        revenueSharePercent: 0,
-        buybackPrice: 1300000,
-      ),
-    );
-    state = state.copyWith(investorAgreements: agreements);
+    expect(state.productMissingInvestorCount(product), 0);
     expect(state.productFundingReady(product), isTrue);
     expect(state.productDevelopmentCapacity(product.id), greaterThan(0));
   });

@@ -222,3 +222,11 @@ Snapshot-поле `activationRate` сохраняется ради обратн�
 - Product funding gate стал product-specific: создать продукт можно заранее, но development capacity равен 0 до нужных InvestorAgreement.productId.
 - ProductServiceRoute принимает dedicated hosting route `hosting:<plan>:<product>:<service>`; recurring cost считается на уникальный route.
 - Missing language даёт 50% contribution и может быть выучен только через фактическую работу на соответствующем продукте.
+
+## 2026-08-12 — Final stabilization overrides R2 investor/notification decisions
+
+- Product investors are optional. No product may stop development solely because an investor agreement is missing.
+- The notification center is the only notification-history surface. CompanyHub is reserved for events, legacy and world projects.
+- Player-confirmed R&D starts use feed feedback only; they do not create a company notification/toast.
+- Top toasts never replay an existing unread backlog and never serialize a burst into a long queue.
+- Owned data-center capacity is intentionally raised for late-game scale; new hardware remains constrained by rack, power and cooling.

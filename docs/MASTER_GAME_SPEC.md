@@ -1336,3 +1336,15 @@ V9 content validator обязан возвращать 0 issues для productio
 21. Investor-gated продукт можно создать до инвестиций; capacity=0 до нужного количества agreements именно на этот product.
 
 Snapshot schema остаётся 16: новые долговечные правила используют уже сохраняемые Employee.languageIds, FinanceTransaction и ProductServiceRoute.
+
+## Final stabilization override — publisher freeze
+
+This section supersedes the earlier R2 investor-gate and notification-hub wording.
+
+- Investors are optional financing/equity. Product creation and development never require an investor agreement.
+- Company notifications live behind the top bell; CompanyHub contains strategic events, legacy and world projects, not a duplicate notification feed.
+- Player-confirmed R&D starts do not emit company notifications.
+- A burst of notifications may update the unread center, but only the newest fresh non-research item is promoted to a top toast.
+- Top toast: clean rounded card, tap opens the notification center, upward swipe dismisses/read-marks it.
+- Owned data-center rack ladder: 128 / 384 / 1280 / 4096 U for small / medium / large / campus.
+- Hyperscale server catalog includes compute, storage and AI mega tiers while preserving rack/power/cooling constraints.

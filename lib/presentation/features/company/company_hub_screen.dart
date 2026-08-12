@@ -13,8 +13,6 @@ import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
 
-enum _CompanyHubSection { notifications, opportunities, legacy }
-
 class CompanyHubScreen extends StatefulWidget {
   const CompanyHubScreen({required this.controller, super.key});
 
@@ -25,7 +23,6 @@ class CompanyHubScreen extends StatefulWidget {
 }
 
 class _CompanyHubScreenState extends State<CompanyHubScreen> {
-  _CompanyHubSection _section = _CompanyHubSection.notifications;
   final Map<String, Set<String>> _eventSelections = <String, Set<String>>{};
 
   @override
@@ -35,126 +32,16 @@ class _CompanyHubScreenState extends State<CompanyHubScreen> {
       key: const Key('company-hub-list'),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
       children: [
-        SectionHeader(
-          title: 'События компании',
-          subtitle: 'Непрочитанных: ${state.unreadCompanyNotificationCount}',
-          hintTitle: 'Зачем нужна эта вкладка',
-          hintBody:
-              'Здесь собраны события, которые нельзя терять из виду: уходы сотрудников, легенды рынка, инвесторы, налоги, мероприятия, R&D и мировые проекты.',
+        const SectionHeader(
+          title: 'События и достижения',
+          subtitle: 'Мероприятия, мировые проекты, legacy и история компании',
         ),
-        const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SegmentedButton<_CompanyHubSection>(
-            key: const Key('company-hub-sections'),
-            showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(
-                value: _CompanyHubSection.notifications,
-                icon: Icon(Icons.notifications_outlined),
-                label: AppText('Уведомления'),
-              ),
-              ButtonSegment(
-                value: _CompanyHubSection.opportunities,
-                icon: Icon(Icons.event_available_outlined),
-                label: AppText('Возможности'),
-              ),
-              ButtonSegment(
-                value: _CompanyHubSection.legacy,
-                icon: Icon(Icons.public_outlined),
-                label: AppText('Наследие'),
-              ),
-            ],
-            selected: <_CompanyHubSection>{_section},
-            onSelectionChanged: (value) =>
-                setState(() => _section = value.first),
-          ),
-        ),
-        const SizedBox(height: 14),
-        switch (_section) {
-          _CompanyHubSection.notifications => _notifications(state),
-          _CompanyHubSection.opportunities => _opportunities(state),
-          _CompanyHubSection.legacy => _legacy(state),
-        },
-      ],
-    );
-  }
-
-  Widget _notifications(GameState state) {
-    final items = state.companyNotifications.take(80).toList(growable: false);
-    return Column(
-      key: const Key('company-notifications'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: AppText(
-                'Важные события',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ),
-            TextButton.icon(
-              key: const Key('mark-company-notifications-read'),
-              onPressed: state.unreadCompanyNotificationCount == 0
-                  ? null
-                  : () => widget.controller.dispatch(
-                      const MarkAllCompanyNotificationsRead(),
-                    ),
-              icon: const Icon(Icons.done_all_outlined),
-              label: const AppText('Прочитать все'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        if (items.isEmpty)
-          const AppCard(
-            child: AppText(
-              'Пока тихо. Здесь появятся налоги, предложения, легенды, R&D и кадровые риски.',
-            ),
-          )
-        else
-          ...items.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: AppCard(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(_notificationIcon(item.kind)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          AppText(
-                            item.title,
-                            style: TextStyle(
-                              fontWeight: item.read
-                                  ? FontWeight.w700
-                                  : FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          AppText(item.body),
-                          const SizedBox(height: 4),
-                          AppText(
-                            'День ${item.simulationMinutes ~/ 1440 + 1}',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (!item.read)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 4),
-                        child: Icon(Icons.circle, size: 9),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+        const SizedBox(height: 16),
+        _opportunities(state),
+        const SizedBox(height: 24),
+        const Divider(height: 1),
+        const SizedBox(height: 24),
+        _legacy(state),
       ],
     );
   }
@@ -591,20 +478,6 @@ class _CompanyHubScreenState extends State<CompanyHubScreen> {
       );
     }
   }
-
-  IconData _notificationIcon(CompanyNotificationKind kind) => switch (kind) {
-    CompanyNotificationKind.employee => Icons.person_off_outlined,
-    CompanyNotificationKind.legend => Icons.workspace_premium_outlined,
-    CompanyNotificationKind.investor => Icons.account_balance_outlined,
-    CompanyNotificationKind.tax => Icons.receipt_long_outlined,
-    CompanyNotificationKind.event => Icons.event_outlined,
-    CompanyNotificationKind.research => Icons.science_outlined,
-    CompanyNotificationKind.product => Icons.apps_outlined,
-    CompanyNotificationKind.contract => Icons.handshake_outlined,
-    CompanyNotificationKind.development => Icons.build_circle_outlined,
-    CompanyNotificationKind.finance => Icons.payments_outlined,
-    CompanyNotificationKind.legacy => Icons.public_outlined,
-  };
 
   String _postGamePathName(PostGamePath path) => switch (path) {
     PostGamePath.none => 'Не выбрано',

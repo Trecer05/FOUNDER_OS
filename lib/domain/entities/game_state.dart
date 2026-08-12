@@ -961,16 +961,6 @@ class GameState {
     final product = productById(productId);
     if (product == null) return 0;
 
-    final requiredInvestors = ProductStrategyCatalog.strategyFor(
-      product.blueprintId,
-    ).requiredInvestorCount;
-    final linkedInvestors = investorAgreements
-        .where((item) => item.productId == product.id)
-        .length;
-    if (linkedInvestors < requiredInvestors) {
-      return 0;
-    }
-
     final team = employeesForProduct(productId);
     final staffing = developmentStaffingFor(productId);
     final aiMultiplier = 1 + productAiDevelopmentBoost(productId);

@@ -20,7 +20,7 @@ void main() {
         frameworkId: 'static_web',
         languageIds: <String>['html_css'],
         technologyIds: <String>[],
-        featureIds: <String>['landing_page'],
+        featureIds: <String>[],
         monetization: MonetizationModel.advertising,
       ),
     );
@@ -39,7 +39,7 @@ void main() {
         frameworkId: 'static_web',
         languageIds: <String>['html_css'],
         technologyIds: <String>['redis'],
-        featureIds: <String>['landing_page'],
+        featureIds: <String>[],
       );
       final blocked = engine.reduce(state, action);
       expect(blocked.products, isEmpty);

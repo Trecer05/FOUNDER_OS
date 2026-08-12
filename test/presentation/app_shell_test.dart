@@ -24,7 +24,11 @@ void main() {
       expect(find.byIcon(Icons.apps_outlined), findsOneWidget);
       expect(find.byIcon(Icons.groups_2_outlined), findsOneWidget);
       expect(find.byIcon(Icons.dns_outlined), findsOneWidget);
-      expect(find.byIcon(Icons.notifications_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.handshake_outlined), findsOneWidget);
+      expect(
+        find.byKey(const Key('open-company-notifications')),
+        findsOneWidget,
+      );
       expect(find.byIcon(Icons.grid_view_rounded), findsOneWidget);
     },
   );
@@ -37,7 +41,7 @@ void main() {
         Icons.apps_outlined,
         Icons.groups_2_outlined,
         Icons.dns_outlined,
-        Icons.notifications_outlined,
+        Icons.handshake_outlined,
         Icons.grid_view_rounded,
         Icons.space_dashboard_outlined,
       ]) {

@@ -1308,3 +1308,31 @@ V9 content validator обязан возвращать 0 issues для productio
 - Бизнес-кредит можно закрыть досрочно с исключением ещё не заработанных процентов.
 - Исследованные функции реально входят в roadmap; продуктовый fit определяет влияние функции на приток, retention и quality. Неподходящая функция не создаёт спрос сама по себе.
 - Окно ручных сохранений адаптивно, скроллится и не должно переполняться на узком iPhone.
+
+## R2 — Background Operations & Product Depth (2026-08-12)
+
+Статус: автоматическая проверка выполняется пакетом R2; ручной Simulator UAT обязателен перед release-ready/commit.
+
+1. Функции первого релиза больше не выдаются бесплатно: выбранная функция должна быть завершена в R&D. Продукт может стартовать без функций.
+2. R&D разделён на lazy tabs «Технологии» / «Функции продукта» с ListView.builder и RepaintBoundary.
+3. Холодный старт сразу рисует FOUNDER.OS splash с логотипом, реальным progress state и советом; настройки и snapshot грузятся параллельно.
+4. При background приложение сохраняет wall-clock. При возврате GameEngine детерминированно догоняет время до elapsed или critical event. Нативный слой прогнозирует ближайший critical event и ставит локальное уведомление.
+5. Контракты — primary navigation. Уведомления — top bell; contract=blue, development/product=green.
+6. Отказ по business-loan создаёт 7-дневный retry cooldown.
+7. Сотрудник без языка проекта работает с 50% language contribution и детерминированно осваивает язык на реальной назначенной работе. Development UI выделяет frontend/backend/server setup/QA phases.
+8. Notification center помечает прочитанными только реально построенные видимые карточки, поддерживает clear-all и swipe-left delete.
+9. Development technical summary вынесен вверх. Завершение core development — одно notification при launch.
+10. Staffing penalty смягчён: один недостающий специалист создаёт bottleneck, но не обрушает всю скорость.
+11. Live product показывает acquisition/retention/quality impact текущих функций и improvements.
+12. Industry events показывают конкретные игровые даты вместо «через N дней».
+13. Overview показывает signed drivers репутации: trust, rating, team loyalty, ecosystem doctrine.
+14. Новые уведомления 5 секунд показываются сверху, кликабельны и затем genie-like анимируются в центр уведомлений.
+15. Campaign budget масштабируется до 100 млн ₽ и текущего cash, с крупными presets.
+16. HR снижает departure probability, постепенно поддерживает loyalty/morale и может автоматически удержать сотрудника небольшим raise.
+17. «Жёсткость paywall» → «Жёсткость платного доступа».
+18. Free tier теперь положительно влияет на satisfaction/retention и снижает churn pressure.
+19. Infrastructure routes разделены по API/storage/AI compute. Dedicated hosting задаётся на product+service, одновременно можно использовать несколько hosting plans и owned DC.
+20. Продажа продукта не меняет identity/name остальных продуктов; добавлен regression.
+21. Investor-gated продукт можно создать до инвестиций; capacity=0 до нужного количества agreements именно на этот product.
+
+Snapshot schema остаётся 16: новые долговечные правила используют уже сохраняемые Employee.languageIds, FinanceTransaction и ProductServiceRoute.

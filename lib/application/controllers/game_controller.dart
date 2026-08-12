@@ -2,7 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../background/background_simulation_service.dart';
+import '../performance/native_performance_bridge.dart';
+import '../settings/display_preferences.dart';
 import '../../domain/commands/game_action.dart';
 import '../../domain/entities/game_state.dart';
 import '../../domain/entities/models.dart';
@@ -14,20 +18,37 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
     required SnapshotStore snapshotStore,
     GameEngine engine = const GameEngine(),
     bool startClock = true,
+    bool enableBackgroundLifecycle = true,
     Duration tickInterval = const Duration(seconds: 1),
-  }) : this._(snapshotStore, engine, startClock, tickInterval);
+  }) : this._(
+         snapshotStore,
+         engine,
+         startClock,
+         enableBackgroundLifecycle,
+         tickInterval,
+       );
 
   GameController._(
     this._snapshotStore,
     this._engine,
     this._startClock,
+    this._backgroundLifecycleEnabled,
     this._tickInterval,
   );
+
+  static const _backgroundTimestampKey =
+      'founder_os.background_started_at_epoch_ms';
 
   final SnapshotStore _snapshotStore;
   final GameEngine _engine;
   final bool _startClock;
+  final bool _backgroundLifecycleEnabled;
   final Duration _tickInterval;
+  SharedPreferencesAsync? _lifecyclePreferences;
+  SharedPreferencesAsync get _backgroundPreferences =>
+      _lifecyclePreferences ??= SharedPreferencesAsync();
+  final NativePerformanceBridge _nativeBridge =
+      NativePerformanceBridge.instance;
 
   GameState _state = GameState.initial();
   Timer? _timer;
@@ -38,6 +59,8 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
   String? _storageError;
   bool _initialized = false;
   bool _disposed = false;
+  bool _lifecycleWorkRunning = false;
+  int _backgroundGeneration = 0;
 
   GameState? _pendingSnapshot;
   bool _saveRunning = false;
@@ -49,7 +72,7 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
   bool get supportsManualSaves => _snapshotStore is SaveSlotStore;
 
   Future<void> initialize() async {
-    if (_startClock) {
+    if (_startClock && _backgroundLifecycleEnabled) {
       WidgetsBinding.instance.addObserver(this);
     }
     try {
@@ -60,7 +83,15 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
       _storageError = 'Сохранение повреждено: $error';
     }
 
+    if (_startClock && _backgroundLifecycleEnabled) {
+      await _nativeBridge.cancelCriticalNotification();
+      await _applyBackgroundCatchUp();
+    }
+
     _initialized = true;
+    if (_startClock && _backgroundLifecycleEnabled) {
+      unawaited(_nativeBridge.requestNotificationPermission());
+    }
     _lastAutosavedFourHourBlock = _state.simulationMinutes ~/ (4 * 60);
     _lastRecoveryWeek = _state.simulationMinutes ~/ (7 * 1440);
     if (_snapshotStore is BankruptcyRecoveryStore) {
@@ -91,24 +122,21 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _consumeElapsedTime() {
-    if (_disposed || !_initialized) {
-      return;
-    }
+    if (_disposed || !_initialized) return;
+
     final elapsedSeconds = _activeClock.elapsedMilliseconds ~/ 1000;
     final pendingSeconds = elapsedSeconds - _consumedClockSeconds;
-    if (pendingSeconds <= 0) {
-      return;
-    }
+    if (pendingSeconds <= 0) return;
     _consumedClockSeconds = elapsedSeconds;
 
-    // Batch timer drift into one deterministic reducer call. A bounded batch
-    // avoids a large foreground spike after a debugger pause while preserving
-    // normal active-session time.
     var remaining = pendingSeconds;
     while (remaining > 0) {
       final batch = remaining > 15 ? 15 : remaining;
       dispatch(AdvanceTime(batch), playSound: false, save: false);
       remaining -= batch;
+      if (_state.criticalEvent != CriticalEventType.none || _state.gameOver) {
+        break;
+      }
     }
 
     final block = _state.simulationMinutes ~/ (4 * 60);
@@ -119,14 +147,11 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void dispatch(GameAction action, {bool playSound = true, bool save = true}) {
-    if (_disposed) {
-      return;
-    }
+    if (_disposed) return;
+
     final previousCash = _state.cash;
     final next = _engine.reduce(_state, action);
-    if (identical(_state, next)) {
-      return;
-    }
+    if (identical(_state, next)) return;
 
     _state = next;
     final recoveryWeek = next.simulationMinutes ~/ (7 * 1440);
@@ -150,8 +175,6 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  /// Coalesces bursts of save requests and always persists the newest snapshot.
-  /// Intermediate snapshots are never written after a newer one is queued.
   Future<void> saveNow() {
     _pendingSnapshot = _state;
     _saveCompleter ??= Completer<void>();
@@ -171,43 +194,50 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
           await _snapshotStore.save(snapshot);
           if (_storageError != null) {
             _storageError = null;
-            if (!_disposed) {
-              notifyListeners();
-            }
+            if (!_disposed) notifyListeners();
           }
         } on Object catch (error) {
           _storageError = 'Не удалось сохранить: $error';
-          if (!_disposed) {
-            notifyListeners();
-          }
+          if (!_disposed) notifyListeners();
         }
       }
     } finally {
       _saveRunning = false;
       final completer = _saveCompleter;
       _saveCompleter = null;
-      if (completer != null && !completer.isCompleted) {
-        completer.complete();
-      }
+      if (completer != null && !completer.isCompleted) completer.complete();
       if (_pendingSnapshot != null && !_disposed) {
         unawaited(saveNow());
       }
     }
   }
 
-  Future<void> reset() async {
-    if (_disposed) {
-      return;
-    }
+  Future<int?> _readBackgroundStartedAt() async {
+    if (!_startClock || !_backgroundLifecycleEnabled) return null;
+    return _backgroundPreferences.getInt(_backgroundTimestampKey);
+  }
 
-    if (_startClock) {
-      _stopTicker();
-    }
-    // Drain every old autosave before clearing storage. After this point no
-    // snapshot from the previous company is allowed to win a race.
+  Future<void> _writeBackgroundStartedAt(int value) async {
+    if (!_startClock || !_backgroundLifecycleEnabled) return;
+    await _backgroundPreferences.setInt(_backgroundTimestampKey, value);
+  }
+
+  Future<void> _clearBackgroundStartedAt() async {
+    if (!_startClock || !_backgroundLifecycleEnabled) return;
+    await _backgroundPreferences.remove(_backgroundTimestampKey);
+  }
+
+  Future<void> reset() async {
+    if (_disposed) return;
+    if (_startClock) _stopTicker();
+
     await saveNow();
     _pendingSnapshot = null;
     await _snapshotStore.clear();
+    await _clearBackgroundStartedAt();
+    if (_startClock && _backgroundLifecycleEnabled) {
+      await _nativeBridge.cancelCriticalNotification();
+    }
 
     _state = _freshInitialState();
     _storageError = null;
@@ -228,9 +258,7 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
       notifyListeners();
     }
 
-    if (_startClock && !_disposed) {
-      _startTicker();
-    }
+    if (_startClock && !_disposed) _startTicker();
   }
 
   GameState _freshInitialState() => GameState.initial(
@@ -241,8 +269,7 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
     if (_snapshotStore is! SaveSlotStore) {
       return const <SaveSlotSummary>[];
     }
-    final store = _snapshotStore as SaveSlotStore;
-    return store.listSlots();
+    return (_snapshotStore as SaveSlotStore).listSlots();
   }
 
   Future<void> saveToSlot(String slotId) async {
@@ -259,9 +286,7 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
     try {
       await saveNow();
       final loaded = await store.loadSlot(slotId);
-      if (loaded == null) {
-        return false;
-      }
+      if (loaded == null) return false;
       _pendingSnapshot = null;
       _state = loaded;
       _storageError = null;
@@ -273,9 +298,7 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
       await _snapshotStore.save(_state);
       return true;
     } finally {
-      if (_startClock && !_disposed) {
-        _startTicker();
-      }
+      if (_startClock && !_disposed) _startTicker();
     }
   }
 
@@ -318,22 +341,109 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
     return true;
   }
 
+  Future<void> _enterBackground() async {
+    if (!_backgroundLifecycleEnabled ||
+        _disposed ||
+        !_initialized ||
+        _lifecycleWorkRunning) {
+      return;
+    }
+    _lifecycleWorkRunning = true;
+    final generation = ++_backgroundGeneration;
+    try {
+      _stopTicker();
+      if (!_state.paused &&
+          !_state.gameOver &&
+          _state.criticalEvent == CriticalEventType.none) {
+        await _writeBackgroundStartedAt(DateTime.now().millisecondsSinceEpoch);
+        final prediction = await BackgroundSimulationService.predictCritical(
+          _state,
+          english: DisplayPreferences.instance.language == AppLanguage.en,
+        );
+        if (!_disposed &&
+            generation == _backgroundGeneration &&
+            prediction != null) {
+          await _nativeBridge.scheduleCriticalNotification(
+            title: prediction.title,
+            body: prediction.body,
+            delaySeconds: prediction.delaySeconds,
+          );
+        }
+      } else {
+        await _clearBackgroundStartedAt();
+      }
+      await saveNow();
+    } finally {
+      _lifecycleWorkRunning = false;
+    }
+  }
+
+  Future<void> _resumeFromBackground() async {
+    if (!_backgroundLifecycleEnabled ||
+        _disposed ||
+        !_initialized ||
+        _lifecycleWorkRunning) {
+      return;
+    }
+    _lifecycleWorkRunning = true;
+    ++_backgroundGeneration;
+    try {
+      await _nativeBridge.cancelCriticalNotification();
+      await _applyBackgroundCatchUp();
+      if (!_disposed) {
+        notifyListeners();
+        await saveNow();
+      }
+    } finally {
+      _lifecycleWorkRunning = false;
+      if (_startClock && !_disposed) _startTicker();
+    }
+  }
+
+  Future<void> _applyBackgroundCatchUp() async {
+    final startedAt = await _readBackgroundStartedAt();
+    if (startedAt == null) return;
+    await _clearBackgroundStartedAt();
+
+    final elapsedSeconds =
+        (DateTime.now().millisecondsSinceEpoch - startedAt) ~/ 1000;
+    if (elapsedSeconds <= 0 ||
+        _state.paused ||
+        _state.gameOver ||
+        _state.criticalEvent != CriticalEventType.none) {
+      return;
+    }
+
+    final previousMinutes = _state.simulationMinutes;
+    _state = BackgroundSimulationService.catchUp(_state, elapsedSeconds);
+    _lastAutosavedFourHourBlock = _state.simulationMinutes ~/ (4 * 60);
+    _lastRecoveryWeek = _state.simulationMinutes ~/ (7 * 1440);
+    final advancedMinutes = _state.simulationMinutes - previousMinutes;
+    if (advancedMinutes > 0) {
+      _state = _state.copyWith(
+        feed: <String>[
+          'Фоновая симуляция: прошло ${advancedMinutes ~/ 60} игровых ч. Компания продолжала работу.',
+          ..._state.feed,
+        ].take(80).toList(growable: false),
+      );
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
-        if (_startClock && !_disposed) {
-          _startTicker();
+        if (_startClock && _backgroundLifecycleEnabled && !_disposed) {
+          unawaited(_resumeFromBackground());
         }
         return;
       case AppLifecycleState.inactive:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
-        if (_startClock) {
-          _stopTicker();
+        if (_startClock && _backgroundLifecycleEnabled) {
+          unawaited(_enterBackground());
         }
-        unawaited(saveNow());
         return;
     }
   }
@@ -341,7 +451,8 @@ class GameController extends ChangeNotifier with WidgetsBindingObserver {
   @override
   void dispose() {
     _disposed = true;
-    if (_startClock) {
+    ++_backgroundGeneration;
+    if (_startClock && _backgroundLifecycleEnabled) {
       WidgetsBinding.instance.removeObserver(this);
     }
     _stopTicker();

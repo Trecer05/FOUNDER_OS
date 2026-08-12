@@ -1,7 +1,7 @@
-// UAT_FIXPACK_R1
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
 import '../../../application/controllers/game_controller.dart';
 import '../../../application/localization/app_text.dart';
@@ -21,122 +21,166 @@ class ResearchScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const AppText('Исследования R&D')),
-      body: ScopedListenableBuilder(
-        listenable: controller,
-        builder: (context, _) {
-          final state = controller.state;
-          final technologies = GameCatalog.technologies.toList(growable: false)
-            ..sort((left, right) {
-              final byDepth = state
-                  .researchDepth(ResearchTargetKind.technology, left.id)
-                  .compareTo(
-                    state.researchDepth(
-                      ResearchTargetKind.technology,
-                      right.id,
-                    ),
-                  );
-              return byDepth != 0 ? byDepth : left.id.compareTo(right.id);
-            });
-          final features = GameCatalog.features.toList(growable: false)
-            ..sort((left, right) {
-              final byDepth = state
-                  .researchDepth(ResearchTargetKind.feature, left.id)
-                  .compareTo(
-                    state.researchDepth(ResearchTargetKind.feature, right.id),
-                  );
-              if (byDepth != 0) return byDepth;
-              final byCost = left.developmentCost.compareTo(
-                right.developmentCost,
-              );
-              return byCost != 0 ? byCost : left.id.compareTo(right.id);
-            });
-
-          return ListView(
-            key: const Key('research-screen-list'),
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-            children: [
-              const SectionHeader(
-                title: 'Дерево корпоративных исследований',
-                subtitle:
-                    'Технологии и функции развиваются отдельно. Узел показывает цену, срок и реальную зависимость до запуска.',
-                hintTitle: 'Как устроено дерево R&D',
-                hintBody:
-                    'Базовые узлы доступны сразу. Более глубокие технологии и функции требуют предыдущие исследования. После завершения функция становится доступна для подходящих продуктов и roadmap.',
-              ),
-              const SizedBox(height: 12),
-              _ResearchGroup(
-                title: 'Технологии',
-                subtitle: 'Стек, инфраструктура и безопасность.',
-                child: Column(
-                  children: technologies
-                      .map(
-                        (technology) => _ResearchRow(
-                          state: state,
-                          controller: controller,
-                          kind: ResearchTargetKind.technology,
-                          targetId: technology.id,
-                          title: technology.name,
-                          description: technology.description,
-                        ),
-                      )
-                      .toList(growable: false),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _ResearchGroup(
-                title: 'Функции продукта',
-                subtitle:
-                    'Исследованные функции можно добавлять в новые и выпущенные продукты.',
-                child: Column(
-                  children: features
-                      .map(
-                        (feature) => _ResearchRow(
-                          state: state,
-                          controller: controller,
-                          kind: ResearchTargetKind.feature,
-                          targetId: feature.id,
-                          title: feature.name,
-                          description: feature.description,
-                        ),
-                      )
-                      .toList(growable: false),
-                ),
-              ),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const AppText('Исследования R&D'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Технологии'),
+              Tab(text: 'Функции продукта'),
             ],
-          );
-        },
+          ),
+        ),
+        body: ScopedListenableBuilder(
+          listenable: controller,
+          builder: (context, _) {
+            final state = controller.state;
+            final technologies =
+                GameCatalog.technologies.toList(growable: false)
+                  ..sort((left, right) {
+                    final byDepth = state
+                        .researchDepth(ResearchTargetKind.technology, left.id)
+                        .compareTo(
+                          state.researchDepth(
+                            ResearchTargetKind.technology,
+                            right.id,
+                          ),
+                        );
+                    return byDepth != 0 ? byDepth : left.id.compareTo(right.id);
+                  });
+            final features = GameCatalog.features.toList(growable: false)
+              ..sort((left, right) {
+                final byDepth = state
+                    .researchDepth(ResearchTargetKind.feature, left.id)
+                    .compareTo(
+                      state.researchDepth(ResearchTargetKind.feature, right.id),
+                    );
+                if (byDepth != 0) return byDepth;
+                final byCost = left.developmentCost.compareTo(
+                  right.developmentCost,
+                );
+                return byCost != 0 ? byCost : left.id.compareTo(right.id);
+              });
+
+            return Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 10, 16, 4),
+                  child: SectionHeader(
+                    title: 'Корпоративные исследования',
+                    subtitle:
+                        'Списки строятся лениво: экран не создаёт сотни карточек при каждом тике симуляции.',
+                    hintTitle: 'Как устроено дерево R&D',
+                    hintBody:
+                        'Базовые технологии доступны сразу. Функции продукта требуют исследования: без завершённого R&D их нельзя включить в первый релиз или roadmap.',
+                  ),
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _ResearchList(
+                        key: const Key('research-screen-list'),
+                        state: state,
+                        controller: controller,
+                        kind: ResearchTargetKind.technology,
+                        items: technologies
+                            .map(
+                              (item) => _ResearchItem(
+                                id: item.id,
+                                title: item.name,
+                                description: item.description,
+                              ),
+                            )
+                            .toList(growable: false),
+                      ),
+                      _ResearchList(
+                        key: const Key('research-feature-list'),
+                        state: state,
+                        controller: controller,
+                        kind: ResearchTargetKind.feature,
+                        items: features
+                            .map(
+                              (item) => _ResearchItem(
+                                id: item.id,
+                                title: item.name,
+                                description: item.description,
+                              ),
+                            )
+                            .toList(growable: false),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 }
 
-class _ResearchGroup extends StatelessWidget {
-  const _ResearchGroup({
+class _ResearchItem {
+  const _ResearchItem({
+    required this.id,
     required this.title,
-    required this.subtitle,
-    required this.child,
+    required this.description,
   });
 
+  final String id;
   final String title;
-  final String subtitle;
-  final Widget child;
+  final String description;
+}
+
+class _ResearchList extends StatelessWidget {
+  const _ResearchList({
+    required this.state,
+    required this.controller,
+    required this.kind,
+    required this.items,
+    super.key,
+  });
+
+  final GameState state;
+  final GameController controller;
+  final ResearchTargetKind kind;
+  final List<_ResearchItem> items;
 
   @override
-  Widget build(BuildContext context) => AppCard(
-    child: ExpansionTile(
-      initiallyExpanded: true,
-      tilePadding: EdgeInsets.zero,
-      childrenPadding: EdgeInsets.zero,
-      title: AppText(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.w900),
-      ),
-      subtitle: AppText(subtitle),
-      children: [child],
-    ),
-  );
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      scrollCacheExtent: const ScrollCacheExtent.pixels(180),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
+      itemCount: items.length + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: AppCard(
+              child: AppText(
+                kind == ResearchTargetKind.technology
+                    ? 'Стек, инфраструктура и безопасность. Исследованные технологии становятся доступны всем продуктам.'
+                    : 'Функции не выдаются бесплатно. Сначала завершите R&D, затем выбирайте их при создании или добавляйте в выпущенный продукт.',
+              ),
+            ),
+          );
+        }
+        final item = items[index - 1];
+        return RepaintBoundary(
+          child: _ResearchRow(
+            state: state,
+            controller: controller,
+            kind: kind,
+            targetId: item.id,
+            title: item.title,
+            description: item.description,
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _ResearchRow extends StatelessWidget {
@@ -186,9 +230,8 @@ class _ResearchRow extends StatelessWidget {
                 .ceil(),
           );
 
-    final indent = math.min(28.0, depth * 9.0);
     return Padding(
-      padding: EdgeInsets.only(left: indent, bottom: 10),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Container(
         key: Key('research-screen-${kind.name}-$targetId'),
         width: double.infinity,
@@ -223,7 +266,7 @@ class _ResearchRow extends StatelessWidget {
               runSpacing: 7,
               children: [
                 if (baselineTechnology)
-                  const Chip(label: AppText('Базовая'))
+                  const Chip(label: AppText('Базовая технология'))
                 else if (completed)
                   const Chip(label: AppText('Исследовано'))
                 else ...[

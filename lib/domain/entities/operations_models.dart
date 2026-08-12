@@ -185,6 +185,7 @@ extension ManagedEmployee on Employee {
     bool? remote,
     EmployeeGrade? grade,
     String? locationCityId,
+    List<String>? languageIds,
   }) {
     return Employee(
       id: id,
@@ -201,7 +202,7 @@ extension ManagedEmployee on Employee {
       morale: morale ?? this.morale,
       workload: workload ?? this.workload,
       remote: remote ?? this.remote,
-      languageIds: languageIds,
+      languageIds: languageIds ?? this.languageIds,
       hiredAtMinutes: hiredAtMinutes,
       isHr: isHr,
       grade: grade ?? this.grade,

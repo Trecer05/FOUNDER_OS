@@ -164,11 +164,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
             )
           else
             ...products.map(
-              (product) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _ProductCard(
-                  controller: widget.controller,
-                  product: product,
+              (product) => KeyedSubtree(
+                key: ValueKey(product.id),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _ProductCard(
+                    controller: widget.controller,
+                    product: product,
+                  ),
                 ),
               ),
             ),

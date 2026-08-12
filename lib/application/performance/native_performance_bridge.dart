@@ -2,10 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Thin, optional bridge for platform work that is safer and cheaper outside
-/// the Dart heap: atomic snapshot I/O and monotonic-clock diagnostics.
+/// the Dart heap: atomic snapshot I/O, monotonic-clock diagnostics, and local
+/// critical-event notifications.
 ///
-/// The simulation itself deliberately remains in Dart so seeded RNG and reducer
-/// behavior cannot diverge between iOS, Android, tests, and future platforms.
+/// The simulation itself remains in Dart so seeded RNG and reducer behavior
+/// cannot diverge between iOS, Android, tests, and future platforms.
 class NativePerformanceBridge {
   NativePerformanceBridge({MethodChannel? channel, this._platformAvailable})
     : _channel = channel ?? const MethodChannel(_channelName);
@@ -104,6 +105,62 @@ class NativePerformanceBridge {
       return null;
     } on PlatformException {
       return null;
+    }
+  }
+
+  Future<bool> requestNotificationPermission() async {
+    if (!await isAvailable()) {
+      return false;
+    }
+    try {
+      return await _channel.invokeMethod<bool>(
+            'requestNotificationPermission',
+          ) ??
+          false;
+    } on MissingPluginException {
+      _available = false;
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  Future<bool> scheduleCriticalNotification({
+    required String title,
+    required String body,
+    required int delaySeconds,
+  }) async {
+    if (!await isAvailable()) {
+      return false;
+    }
+    try {
+      return await _channel.invokeMethod<bool>(
+            'scheduleCriticalNotification',
+            <String, Object?>{
+              'title': title,
+              'body': body,
+              'delaySeconds': delaySeconds,
+            },
+          ) ??
+          false;
+    } on MissingPluginException {
+      _available = false;
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  Future<void> cancelCriticalNotification() async {
+    if (!await isAvailable()) {
+      return;
+    }
+    try {
+      await _channel.invokeMethod<void>('cancelCriticalNotification');
+    } on MissingPluginException {
+      _available = false;
+    } on PlatformException {
+      return;
     }
   }
 

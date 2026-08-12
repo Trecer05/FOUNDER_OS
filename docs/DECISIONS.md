@@ -213,3 +213,12 @@ Snapshot-поле `activationRate` сохраняется ради обратн�
 - Клиентские заказы — недельный детерминированный рынок из seed + week; активный контракт восстанавливает свой template по ID даже после смены недели.
 - Feature fit отделён от общего quality: core-фичи дают заметный acquisition/retention, совместимые — меньший, cross-category — только малый quality без самостоятельного user acquisition.
 - Досрочное полное погашение бизнес-кредита убирает будущую незаработанную часть процентов.
+
+## 2026-08-12 — R2 background time, service routing and product funding
+
+- Не держим Flutter-процесс искусственно живым в background. Источник истины — wall-clock catch-up через тот же GameEngine reducer.
+- Нативный iOS/Android слой отвечает только за scheduled critical notification; игровая логика остаётся Dart.
+- Snapshot schema 16 сохраняется: язык сотрудника живёт в Employee.languageIds, loan cooldown — в finance ledger, multi-hosting — в ProductServiceRoute.
+- Product funding gate стал product-specific: создать продукт можно заранее, но development capacity равен 0 до нужных InvestorAgreement.productId.
+- ProductServiceRoute принимает dedicated hosting route `hosting:<plan>:<product>:<service>`; recurring cost считается на уникальный route.
+- Missing language даёт 50% contribution и может быть выучен только через фактическую работу на соответствующем продукте.

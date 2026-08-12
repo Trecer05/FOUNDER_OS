@@ -843,7 +843,6 @@ class GameState {
       );
     }
     final strategy = ProductStrategyCatalog.strategyFor(product.blueprintId);
-    final phase = ProductStrategyCatalog.phaseFor(product.developmentProgress);
     final team = employeesForProduct(productId);
     final selectedLanguages = product.languageIds.toSet();
     final coveredLanguages = <String>{};
@@ -857,55 +856,93 @@ class GameState {
         : coveredLanguages.length / selectedLanguages.length;
     final roleCoverage = productRoleCoverage(productId);
     final teamSize = team.length;
+
+    // R2: missing one person is a bottleneck, not a death sentence.
     final sizeEfficiency = teamSize == 0
         ? 0.10
         : teamSize < strategy.minimumTeamSize
-        ? (0.30 + 0.70 * teamSize / math.max(1, strategy.minimumTeamSize))
-              .clamp(0.18, 1.0)
+        ? (0.62 + 0.38 * teamSize / math.max(1, strategy.minimumTeamSize))
+              .clamp(0.55, 1.0)
               .toDouble()
         : teamSize <= strategy.maximumEfficientTeamSize
         ? 1.0
-        : (1 - (teamSize - strategy.maximumEfficientTeamSize) * 0.07)
-              .clamp(0.52, 1.0)
+        : (1 - (teamSize - strategy.maximumEfficientTeamSize) * 0.045)
+              .clamp(0.64, 1.0)
               .toDouble();
-    final efficiency =
-        (sizeEfficiency *
-                (0.38 + languageCoverage * 0.62) *
-                (0.52 + roleCoverage * 0.48))
-            .clamp(0.05, 1.0)
-            .toDouble();
+    final roleFactor = (0.72 + roleCoverage * 0.28).clamp(0.72, 1.0);
+    final languageFactor = (0.82 + languageCoverage * 0.18).clamp(0.82, 1.0);
+    final efficiency = teamSize == 0
+        ? 0.10
+        : (sizeEfficiency * roleFactor * languageFactor)
+              .clamp(0.42, 1.0)
+              .toDouble();
+
+    final progress = product.developmentProgress;
+    final requiresDevOps = roleRequirementsFor(
+      product,
+    ).any((item) => item.role == EmployeeRole.devOps && item.minimumCount > 0);
+    final phaseCriticalRoles = <EmployeeRole>{
+      if (progress < 0.08) ...[
+        EmployeeRole.productManager,
+        EmployeeRole.designer,
+      ] else if (progress < 0.18) ...[
+        EmployeeRole.backend,
+        EmployeeRole.security,
+      ] else if (progress < 0.38) ...[
+        EmployeeRole.frontend,
+        EmployeeRole.mobile,
+        EmployeeRole.designer,
+      ] else if (progress < 0.62) ...[
+        EmployeeRole.backend,
+        EmployeeRole.aiMl,
+      ] else if (progress < 0.72 && requiresDevOps) ...[
+        EmployeeRole.devOps,
+        EmployeeRole.security,
+      ] else if (progress < 0.84) ...[
+        EmployeeRole.frontend,
+        EmployeeRole.backend,
+        EmployeeRole.mobile,
+        EmployeeRole.aiMl,
+      ] else if (progress < 0.96) ...[
+        EmployeeRole.qa,
+        EmployeeRole.security,
+        EmployeeRole.devOps,
+      ] else ...[
+        EmployeeRole.productManager,
+        EmployeeRole.qa,
+        EmployeeRole.devOps,
+      ],
+    };
 
     final criticalIds = <String>[];
     final movableIds = <String>[];
     for (final employee in team) {
-      final phaseCritical = phase.criticalRoles.contains(employee.role);
+      final phaseCritical = phaseCriticalRoles.contains(employee.role);
       final uniqueLanguage = employee.languageIds.any((language) {
-        if (!selectedLanguages.contains(language)) {
-          return false;
-        }
+        if (!selectedLanguages.contains(language)) return false;
         return team
             .where((other) => other.id != employee.id)
             .where((other) => other.languageIds.contains(language))
             .isEmpty;
       });
-      if (phaseCritical ||
-          uniqueLanguage ||
-          teamSize <= strategy.minimumTeamSize) {
+      if (phaseCritical || uniqueLanguage) {
         criticalIds.add(employee.id);
       } else {
         movableIds.add(employee.id);
       }
     }
 
+    final missing = missingRoleRequirements(productId);
     final status = teamSize == 0
-        ? 'Проект почти стоит: работает только основатель'
-        : teamSize < strategy.minimumTeamSize
-        ? 'Недокомплект'
+        ? 'Нет назначенной команды'
+        : missing.isNotEmpty
+        ? 'Есть bottleneck: ${missing.map((item) => item.role.name).join(', ')}'
         : teamSize > strategy.maximumEfficientTeamSize
-        ? 'Перегруз команды: коммуникации съедают скорость'
+        ? 'Слишком большая команда: коммуникационный overhead'
         : teamSize < strategy.optimalTeamSize
-        ? 'Рабочая команда, но до оптимума не хватает людей'
+        ? 'Рабочая команда, можно ускорить точечным наймом'
         : 'Сбалансированная команда';
+
     return DevelopmentStaffingSnapshot(
       teamSize: teamSize,
       minimumTeamSize: strategy.minimumTeamSize,
@@ -922,12 +959,20 @@ class GameState {
 
   double productDevelopmentCapacity(String productId) {
     final product = productById(productId);
-    if (product == null) {
+    if (product == null) return 0;
+
+    final requiredInvestors = ProductStrategyCatalog.strategyFor(
+      product.blueprintId,
+    ).requiredInvestorCount;
+    final linkedInvestors = investorAgreements
+        .where((item) => item.productId == product.id)
+        .length;
+    if (linkedInvestors < requiredInvestors) {
       return 0;
     }
+
     final team = employeesForProduct(productId);
     final staffing = developmentStaffingFor(productId);
-    final phase = developmentPhaseFor(product);
     final aiMultiplier = 1 + productAiDevelopmentBoost(productId);
     final productManagerMultiplier =
         1 + productManagerBonusPercentFor(productId);
@@ -953,6 +998,44 @@ class GameState {
       EmployeeRole.sales,
       EmployeeRole.support,
     };
+
+    final progress = product.developmentProgress;
+    final requiresDevOps = roleRequirementsFor(
+      product,
+    ).any((item) => item.role == EmployeeRole.devOps && item.minimumCount > 0);
+    final phaseCriticalRoles = <EmployeeRole>{
+      if (progress < 0.08) ...[
+        EmployeeRole.productManager,
+        EmployeeRole.designer,
+      ] else if (progress < 0.18) ...[
+        EmployeeRole.backend,
+        EmployeeRole.security,
+      ] else if (progress < 0.38) ...[
+        EmployeeRole.frontend,
+        EmployeeRole.mobile,
+        EmployeeRole.designer,
+      ] else if (progress < 0.62) ...[
+        EmployeeRole.backend,
+        EmployeeRole.aiMl,
+      ] else if (progress < 0.72 && requiresDevOps) ...[
+        EmployeeRole.devOps,
+        EmployeeRole.security,
+      ] else if (progress < 0.84) ...[
+        EmployeeRole.frontend,
+        EmployeeRole.backend,
+        EmployeeRole.mobile,
+        EmployeeRole.aiMl,
+      ] else if (progress < 0.96) ...[
+        EmployeeRole.qa,
+        EmployeeRole.security,
+        EmployeeRole.devOps,
+      ] else ...[
+        EmployeeRole.productManager,
+        EmployeeRole.qa,
+        EmployeeRole.devOps,
+      ],
+    };
+
     final selectedLanguages = product.languageIds.toSet();
     var effectiveFte = 0.0;
     for (final employee in team) {
@@ -966,16 +1049,16 @@ class GameState {
           officeProductivityMultiplier(employee) *
           companyPerkProductivityMultiplier *
           productCrunchMultiplier(productId);
-      final phaseWeight = phase.criticalRoles.contains(employee.role)
+      final phaseWeight = phaseCriticalRoles.contains(employee.role)
           ? 1.0
           : engineeringRoles.contains(employee.role)
-          ? 0.58
-          : 0.30;
+          ? 0.68
+          : 0.38;
       final languageMatch = languageIndependentRoles.contains(employee.role)
-          ? 0.90
+          ? 0.95
           : employee.languageIds.any(selectedLanguages.contains)
           ? 1.0
-          : 0.28;
+          : 0.50;
       final allocation =
           employeeAllocationForProduct(employee.id, productId) / 100;
       effectiveFte += productivity * phaseWeight * languageMatch * allocation;
@@ -1527,27 +1610,63 @@ class GameState {
     (sum, item) => sum + item.allocatedCapacityPercent,
   );
 
-  double _capacityAtRoute(
+  HostingPlan? routedHostingFor(
     String productId,
     InfrastructureService service,
-    double Function(String siteId, InfrastructureService service) ownedCapacity,
-    double rentedCapacity,
   ) {
-    if (!usingOwnedInfrastructure) {
-      return rentedCapacity;
-    }
     final route = dataCenterRouteFor(productId, service);
-    return ownedCapacity(route, service);
+    if (!route.startsWith('hosting:')) return null;
+    final parts = route.split(':');
+    if (parts.length < 2) return null;
+    final planId = parts[1];
+    try {
+      return V9ContentCatalog.hostingById(planId);
+    } on Object {
+      return null;
+    }
   }
+
+  double _hostingMemoryGb(HostingPlan plan) => switch (plan.id) {
+    'no_hosting' => 0.0,
+    'shared_launch' => 2.0,
+    'vps_core' => 4.0,
+    'managed_scale' => 16.0,
+    'cloud_flex' => 64.0,
+    'cloud_pro' => 192.0,
+    'serverless_burst' => 32.0,
+    'managed_db' => 64.0,
+    'object_storage' => 8.0,
+    'cdn_edge' => 8.0,
+    _ => math.max(2, plan.computeUnits / 8).toDouble(),
+  };
+
+  double _hostingNetworkGbps(HostingPlan plan) =>
+      math.max(0.1, plan.bandwidthTb * 0.60).toDouble();
 
   double _allocationShareForRoute(
     String productId,
     InfrastructureService service,
   ) {
     final product = productById(productId);
-    if (product == null) {
-      return 0;
+    if (product == null) return 0;
+
+    final route = dataCenterRouteFor(productId, service);
+    if (route.startsWith('hosting:')) {
+      final routedProducts = products
+          .where((item) => dataCenterRouteFor(item.id, service) == route)
+          .toList(growable: false);
+      if (routedProducts.length <= 1) return 1;
+      final totalAtRoute = routedProducts.fold<double>(
+        0,
+        (sum, item) => sum + item.allocatedCapacityPercent,
+      );
+      return totalAtRoute <= 0
+          ? 1 / routedProducts.length
+          : (product.allocatedCapacityPercent / totalAtRoute)
+                .clamp(0, 1)
+                .toDouble();
     }
+
     if (!usingOwnedInfrastructure) {
       final total = products.fold<double>(
         0,
@@ -1558,7 +1677,7 @@ class GameState {
           .clamp(0, 1)
           .toDouble();
     }
-    final route = dataCenterRouteFor(productId, service);
+
     final totalAtRoute = products.fold<double>(0, (sum, item) {
       return dataCenterRouteFor(item.id, service) == route
           ? sum + item.allocatedCapacityPercent
@@ -1572,60 +1691,67 @@ class GameState {
 
   double allocatedComputeFor(String productId) {
     final product = productById(productId);
-    if (product == null) {
-      return 0;
-    }
-    final capacity = _capacityAtRoute(
-      productId,
-      InfrastructureService.aiCompute,
-      preparedComputeUnitsAtDataCenterForService,
-      totalComputeUnits,
-    );
+    if (product == null) return 0;
+    final routed = routedHostingFor(productId, InfrastructureService.aiCompute);
+    final capacity = routed != null
+        ? routed.computeUnits * hostingOperationsEfficiency
+        : usingOwnedInfrastructure
+        ? preparedComputeUnitsAtDataCenterForService(
+            dataCenterRouteFor(productId, InfrastructureService.aiCompute),
+            InfrastructureService.aiCompute,
+          )
+        : totalComputeUnits;
     return capacity *
         _allocationShareForRoute(productId, InfrastructureService.aiCompute);
   }
 
   double allocatedMemoryFor(String productId) {
     final product = productById(productId);
-    if (product == null) {
-      return 0;
-    }
-    final capacity = _capacityAtRoute(
-      productId,
-      InfrastructureService.appApi,
-      preparedMemoryGbAtDataCenterForService,
-      totalMemoryGb,
-    );
+    if (product == null) return 0;
+    final routed = routedHostingFor(productId, InfrastructureService.appApi);
+    final capacity = routed != null
+        ? _hostingMemoryGb(routed)
+        : usingOwnedInfrastructure
+        ? preparedMemoryGbAtDataCenterForService(
+            dataCenterRouteFor(productId, InfrastructureService.appApi),
+            InfrastructureService.appApi,
+          )
+        : totalMemoryGb;
     return capacity *
         _allocationShareForRoute(productId, InfrastructureService.appApi);
   }
 
   double allocatedStorageFor(String productId) {
     final product = productById(productId);
-    if (product == null) {
-      return 0;
-    }
-    final capacity = _capacityAtRoute(
+    if (product == null) return 0;
+    final routed = routedHostingFor(
       productId,
       InfrastructureService.dataStorage,
-      preparedStorageGbAtDataCenterForService,
-      totalStorageGb,
     );
+    final capacity = routed != null
+        ? routed.storageGb
+        : usingOwnedInfrastructure
+        ? preparedStorageGbAtDataCenterForService(
+            dataCenterRouteFor(productId, InfrastructureService.dataStorage),
+            InfrastructureService.dataStorage,
+          )
+        : totalStorageGb;
     return capacity *
         _allocationShareForRoute(productId, InfrastructureService.dataStorage);
   }
 
   double allocatedNetworkFor(String productId) {
     final product = productById(productId);
-    if (product == null) {
-      return 0;
-    }
-    final capacity = _capacityAtRoute(
-      productId,
-      InfrastructureService.appApi,
-      preparedNetworkGbpsAtDataCenterForService,
-      totalNetworkGbps,
-    );
+    if (product == null) return 0;
+    final routed = routedHostingFor(productId, InfrastructureService.appApi);
+    final capacity = routed != null
+        ? _hostingNetworkGbps(routed)
+        : usingOwnedInfrastructure
+        ? preparedNetworkGbpsAtDataCenterForService(
+            dataCenterRouteFor(productId, InfrastructureService.appApi),
+            InfrastructureService.appApi,
+          )
+        : totalNetworkGbps;
     return capacity *
         _allocationShareForRoute(productId, InfrastructureService.appApi);
   }
@@ -1809,12 +1935,19 @@ class GameState {
           );
     final priceFairness = (1 - pricePressure).clamp(0.05, 1).toDouble();
     final intensity = product.monetizationIntensity.clamp(0.1, 1.0).toDouble();
+    final freeTier = product.freeTierPercent.clamp(0, 0.9).toDouble();
     final monetizationComfort = switch (product.monetization) {
       MonetizationModel.free => 1.0,
       MonetizationModel.subscription =>
-        (1 - intensity * 0.18 - pricePressure * 0.45).clamp(0.05, 1),
+        (1 - intensity * 0.18 - pricePressure * 0.45 + freeTier * 0.20).clamp(
+          0.05,
+          1,
+        ),
       MonetizationModel.usageBased =>
-        (1 - intensity * 0.14 - pricePressure * 0.30).clamp(0.05, 1),
+        (1 - intensity * 0.14 - pricePressure * 0.30 + freeTier * 0.14).clamp(
+          0.05,
+          1,
+        ),
       MonetizationModel.advertising => (1 - intensity * 0.62).clamp(0.05, 1),
       MonetizationModel.transactionFee =>
         (1 - intensity * 0.24 - pricePressure * 0.30).clamp(0.05, 1),
@@ -2044,9 +2177,9 @@ class GameState {
     final retentionDelta = switch (product.monetization) {
       MonetizationModel.free => 0.012,
       MonetizationModel.subscription =>
-        -(intensity * 0.045 + pricePressure * 0.10),
+        -(intensity * 0.045 + pricePressure * 0.10) + freeTier * 0.028,
       MonetizationModel.usageBased =>
-        -(intensity * 0.025 + pricePressure * 0.06),
+        -(intensity * 0.025 + pricePressure * 0.06) + freeTier * 0.020,
       MonetizationModel.advertising => -(intensity * 0.090),
       MonetizationModel.transactionFee =>
         -(intensity * 0.035 + pricePressure * 0.05),
@@ -2054,8 +2187,9 @@ class GameState {
     final churnDelta = switch (product.monetization) {
       MonetizationModel.free => -0.006,
       MonetizationModel.subscription =>
-        intensity * 0.038 + pricePressure * 0.10,
-      MonetizationModel.usageBased => intensity * 0.023 + pricePressure * 0.065,
+        intensity * 0.038 + pricePressure * 0.10 - freeTier * 0.020,
+      MonetizationModel.usageBased =>
+        intensity * 0.023 + pricePressure * 0.065 - freeTier * 0.014,
       MonetizationModel.advertising => intensity * 0.070,
       MonetizationModel.transactionFee =>
         intensity * 0.032 + pricePressure * 0.055,
@@ -2208,7 +2342,24 @@ class GameState {
             return sum + hardware.monthlyCost * item.count;
           })
         : hostingPlan.monthlyCost;
-    return base * companyProfile.officeRentMultiplier;
+
+    final dedicatedHostingRoutes = productServiceRoutes
+        .where((item) => item.dataCenterSiteId.startsWith('hosting:'))
+        .map((item) => item.dataCenterSiteId)
+        .toSet();
+    final dedicatedHostingCost = dedicatedHostingRoutes.fold<double>(0, (
+      sum,
+      route,
+    ) {
+      final parts = route.split(':');
+      if (parts.length < 2) return sum;
+      try {
+        return sum + V9ContentCatalog.hostingById(parts[1]).monthlyCost;
+      } on Object {
+        return sum;
+      }
+    });
+    return (base + dedicatedHostingCost) * companyProfile.officeRentMultiplier;
   }
 
   double get monthlyServerRoomCost {

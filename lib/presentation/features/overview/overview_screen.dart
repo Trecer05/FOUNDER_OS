@@ -5,6 +5,7 @@ import '../../../application/controllers/game_controller.dart';
 import '../../../domain/entities/business_models.dart';
 import '../../../domain/entities/game_state.dart';
 import '../../../domain/entities/models.dart';
+import '../../../domain/entities/r2_gameplay_extensions.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/metric_card.dart';
@@ -62,6 +63,77 @@ class OverviewScreen extends StatelessWidget {
               positive: state.runwayMonths >= 6,
             ),
           ],
+        ),
+        const SizedBox(height: 12),
+        Builder(
+          builder: (context) {
+            final reputation = state.reputationBreakdown;
+            final delta = reputation.projectedDailyDelta;
+            return AppCard(
+              key: const Key('reputation-breakdown'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: AppText(
+                          'Почему меняется репутация',
+                          style: TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                      AppText(
+                        '${delta >= 0 ? '+' : ''}${delta.toStringAsFixed(3)}/день',
+                        translate: false,
+                        style: TextStyle(
+                          color: delta >= 0 ? AppColors.green : AppColors.red,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ...reputation.drivers.map(
+                    (driver) => Padding(
+                      padding: const EdgeInsets.only(bottom: 7),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                AppText(
+                                  driver.label,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                AppText(
+                                  driver.explanation,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                          AppText(
+                            '${driver.deltaPerDay >= 0 ? '+' : ''}${driver.deltaPerDay.toStringAsFixed(3)}',
+                            translate: false,
+                            style: TextStyle(
+                              color: driver.deltaPerDay >= 0
+                                  ? AppColors.green
+                                  : AppColors.red,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
         const SizedBox(height: 18),
         const SectionHeader(

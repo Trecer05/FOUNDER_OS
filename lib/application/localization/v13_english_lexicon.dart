@@ -729,6 +729,85 @@ abstract final class V13EnglishLexicon {
     'Плюшки команды': 'Team perks',
     'Покупка конкурентов больше не является условием финала. Победа достигается тремя мировыми проектами.':
         'Acquiring competitors is no longer a victory condition. Victory comes from completing the three world projects.',
+    'API, storage и compute назначаются отдельно. Один продукт может использовать hosting, другой — свой ЦОД, а внутри одного продукта сервисы тоже можно развести.':
+        'API, storage, and compute are assigned separately. One product can use hosting, another an owned data center, and services inside one product can also be split.',
+    'Backend / данные': 'Backend / data',
+    'Backend, интеграции и deployment': 'Backend, integrations, and deployment',
+    'CPU/GPU/AI inference и тяжёлые backend-задачи.':
+        'CPU/GPU/AI inference and heavy backend jobs.',
+    'FOUNDER.OS • время остановлено': 'FOUNDER.OS • time stopped',
+    'Frontend / клиент': 'Frontend / client',
+    'HR сработал на удержание': 'HR retention action',
+    'HR удержал сотрудника': 'HR retained an employee',
+    'QA и стабилизация': 'QA and stabilization',
+    'Storage / данные': 'Storage / data',
+    'Архитектура': 'Architecture',
+    'Базовые технологии доступны сразу. Функции продукта требуют исследования: без завершённого R&D их нельзя включить в первый релиз или roadmap.':
+        'Baseline technologies are available immediately. Product features require research: without completed R&D they cannot enter the first release or roadmap.',
+    'Доверие к продуктам': 'Product trust',
+    'Доктрина экосистемы': 'Ecosystem doctrine',
+    'Запускаем компанию…': 'Starting the company…',
+    'Изменить маршрут': 'Change route',
+    'Интеграции и функции': 'Integrations and features',
+    'Лояльность команды': 'Team loyalty',
+    'Мощности по сервисам': 'Capacity by service',
+    'Настраиваем интерфейс…': 'Preparing the interface…',
+    'Настройка серверов и deployment': 'Server setup and deployment',
+    'Не назначено': 'Not assigned',
+    'Не удалось загрузить игру': 'Could not load the game',
+    'Нет назначенной команды': 'No assigned team',
+    'Новых уведомлений пока нет.': 'No notifications yet.',
+    'Отвечает за API, application RAM и сеть.':
+        'Handles API, application RAM, and network traffic.',
+    'Очистить все': 'Clear all',
+    'Повторить': 'Retry',
+    'Процент определяет долю общего пула там, где несколько продуктов используют одну и ту же площадку.':
+        'The percentage determines the share of a common pool when several products use the same site.',
+    'Рабочая команда, можно ускорить точечным наймом':
+        'Working team; targeted hiring can speed it up',
+    'Распределение доли compute': 'Compute share allocation',
+    'Рейтинг продуктов': 'Product ratings',
+    'Симуляция остановлена': 'Simulation stopped',
+    'Слишком большая команда: коммуникационный overhead':
+        'Team is too large: communication overhead',
+    'Совет: HR снижает риск ухода и помогает удерживать сильных сотрудников.':
+        'Tip: HR lowers departure risk and helps retain strong employees.',
+    'Совет: R&D открывает функции — хороший fit ускоряет приток и удержание.':
+        'Tip: R&D unlocks features — good product fit improves acquisition and retention.',
+    'Совет: держите API, storage и AI compute на подходящей инфраструктуре.':
+        'Tip: keep API, storage, and AI compute on suitable infrastructure.',
+    'Совет: если приложение закрыто, компания продолжает жить до критической ситуации.':
+        'Tip: while the app is closed, the company keeps running until a critical situation.',
+    'Совет: один недостающий специалист больше не должен останавливать весь проект.':
+        'Tip: one missing specialist should no longer stop the entire project.',
+    'Совет: реклама создаёт интерес, а продукт должен конвертировать его в пользователей.':
+        'Tip: advertising creates interest; the product must convert it into users.',
+    'Списки строятся лениво: экран не создаёт сотни карточек при каждом тике симуляции.':
+        'Lists are built lazily, so the screen does not create hundreds of cards on every simulation tick.',
+    'Стек обновлён': 'Stack updated',
+    'Стек, инфраструктура и безопасность. Исследованные технологии становятся доступны всем продуктам.':
+        'Stack, infrastructure, and security. Researched technologies become available to all products.',
+    'Техническая работа завершена': 'Technical work completed',
+    'Улучшение завершено': 'Improvement completed',
+    'Файлы, базы, логи и резервные данные.':
+        'Files, databases, logs, and backups.',
+    'Функции не выдаются бесплатно. Сначала завершите R&D, затем выбирайте их при создании или добавляйте в выпущенный продукт.':
+        'Features are not granted for free. Complete R&D first, then choose them during creation or add them to a released product.',
+    'Функция выпущена': 'Feature released',
+    'Читаем сохранение и настройки…': 'Loading save and settings…',
+    'исследовать': 'research',
+    'повторную заявку': 'another application',
+    'События и достижения': 'Events and achievements',
+    'Мероприятия, мировые проекты, legacy и история компании':
+        'Events, world projects, legacy, and company history',
+    'Почему меняется репутация': 'Why reputation changes',
+    'API, storage и AI compute получают отдельные маршруты.':
+        'API, storage, and AI compute use separate routes.',
+    'Жёсткость платного доступа': 'Paid-access strictness',
+    'Влияние текущего roadmap': 'Current roadmap impact',
+    'Приток пользователей': 'User acquisition',
+    'Улучшений': 'Improvements',
+    'Текущая фаза': 'Current phase',
   };
 
   static const Map<String, String> exact = <String, String>{
@@ -3522,6 +3601,17 @@ abstract final class V13EnglishLexicon {
     'ключевая': 'core',
     'подходит': 'fits',
     'слабая связь': 'weak fit',
+    'HR не нанят. Автоподбор проектов заблокирован, а команда не получает HR-бонус к удержанию.':
+        'HR is not hired. Project auto-staffing is locked, and the team gets no HR retention bonus.',
+    'HR открывает автоматический подбор, снижает шанс увольнения, постепенно поддерживает loyalty/morale и может сам сделать небольшое повышение ставки сотруднику с риском ухода. Грейд HR ограничивает грейд автоматически нанимаемых специалистов.':
+        'HR unlocks auto-staffing, lowers departure risk, gradually supports loyalty and morale, and can make a small automatic raise for an employee at risk of leaving. HR grade limits the grade of automatically hired specialists.',
+    'Контракт завершён': 'Contract completed',
+    'Нагрузка': 'Load',
+    'Проект заблокирован: выбранные функции сначала нужно исследовать в R&D.':
+        'Project blocked: selected features must be researched in R&D first.',
+    'Сначала исследуйте выбранные функции в R&D.':
+        'Research the selected features in R&D first.',
+    'Функций': 'Features',
   };
 
   static const List<V13EnglishTemplate> templates = <V13EnglishTemplate>[
@@ -5669,6 +5759,165 @@ abstract final class V13EnglishLexicon {
       '≈ ZXQPH0QXZ рабочих часов • retention +ZXQPH1QXZ п.п. • compute ×ZXQPH2QXZ',
       '≈ ZXQPH0QXZ work hours • retention +ZXQPH1QXZ pp • compute ×ZXQPH2QXZ',
     ),
+    V13EnglishTemplate(
+      'HR удержал ZXQPH0QXZ: ставка автоматически повышена на 6%.',
+      'HR retained ZXQPH0QXZ: salary was automatically increased by 6%.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ выпущен. Рынок сравнивает его с прямым конкурентом.',
+      'ZXQPH0QXZ was released. The market is comparing it with its direct competitor.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ вышел на рынок',
+      'ZXQPH0QXZ entered the market',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ готов к рынку и выпущен. Основной development-процесс завершён.',
+      'ZXQPH0QXZ is market-ready and released. Core development is complete.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ • ZXQPH1QXZ/мес.',
+      'ZXQPH0QXZ • ZXQPH1QXZ/mo.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ. Откройте игру, чтобы принять решение.',
+      'ZXQPH0QXZ. Open the game to make a decision.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: +6% к ставке, лояльность восстановлена. HR предотвратил уход.',
+      'ZXQPH0QXZ: +6% salary, loyalty restored. HR prevented the departure.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: HR сам поднял ставку на 5% и снизил риск ухода.',
+      'ZXQPH0QXZ: HR proactively raised salary by 5% and reduced departure risk.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: ZXQPH1QXZ введена в эксплуатацию.',
+      'ZXQPH0QXZ: ZXQPH1QXZ is now in production.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: ZXQPH1QXZ теперь влияет на продукт и рынок.',
+      'ZXQPH0QXZ: ZXQPH1QXZ now affects the product and its market.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: ZXQPH1QXZ требует ZXQPH2QXZ.',
+      'ZXQPH0QXZ: ZXQPH1QXZ requires ZXQPH2QXZ.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: ZXQPH1QXZ → ZXQPH2QXZ. Хостинг закреплён только за выбранным сервисом.',
+      'ZXQPH0QXZ: ZXQPH1QXZ → ZXQPH2QXZ. Hosting is dedicated to the selected service.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: roadmap-задача завершена.',
+      'ZXQPH0QXZ: roadmap task completed.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: не хватает ZXQPH1QXZ ₽ на setup.',
+      'ZXQPH0QXZ: ZXQPH1QXZ RUB is missing for setup.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: освоен ZXQPH1QXZ на реальном проекте. Языковой штраф снят.',
+      'ZXQPH0QXZ learned ZXQPH1QXZ on a real project. The language penalty is removed.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: релизу нужен активный hosting или собственные серверы.',
+      'ZXQPH0QXZ needs active hosting or owned servers for release.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: сначала арендуйте серверную или выберите отдельный hosting plan.',
+      'ZXQPH0QXZ: rent a server room or choose a dedicated hosting plan first.',
+    ),
+    V13EnglishTemplate(
+      'Арендная серверная • ZXQPH0QXZ',
+      'Rented server room • ZXQPH0QXZ',
+    ),
+    V13EnglishTemplate(
+      'Банк отказал в кредите ZXQPH0QXZ ₽: сумма равна ZXQPH1QXZ% оценки компании, шанс одобрения был ZXQPH2QXZ%. Повторная заявка — через 7 дней.',
+      'Bank declined the ZXQPH0QXZ RUB loan: it equals ZXQPH1QXZ% of valuation and approval chance was ZXQPH2QXZ%. Retry in 7 days.',
+    ),
+    V13EnglishTemplate(
+      'Бизнес-кредит одобрен: ZXQPH0QXZ ₽. Ставка ZXQPH1QXZ%, к возврату ZXQPH2QXZ ₽ за 16 недель.',
+      'Business loan approved: ZXQPH0QXZ RUB. Rate ZXQPH1QXZ%, total repayment ZXQPH2QXZ RUB over 16 weeks.',
+    ),
+    V13EnglishTemplate(
+      'Готово ZXQPH0QXZ% • осталось ZXQPH1QXZ дн.',
+      'ZXQPH0QXZ% complete • ZXQPH1QXZ days left',
+    ),
+    V13EnglishTemplate('Есть bottleneck: ZXQPH0QXZ', 'Bottleneck: ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'Лояльность ZXQPH0QXZ%. Есть 3 дня на counter-offer +ZXQPH1QXZ% к зарплате.',
+      'Loyalty ZXQPH0QXZ%. You have 3 days for a +ZXQPH1QXZ% salary counter-offer.',
+    ),
+    V13EnglishTemplate(
+      'Не удалось сохранить новую компанию: ZXQPH0QXZ',
+      'Could not save the new company: ZXQPH0QXZ',
+    ),
+    V13EnglishTemplate(
+      'Не удалось сохранить: ZXQPH0QXZ',
+      'Could not save: ZXQPH0QXZ',
+    ),
+    V13EnglishTemplate(
+      'После отказа банка повторную заявку можно подать через ZXQPH0QXZ дн.',
+      'After a bank rejection, you can apply again in ZXQPH0QXZ days.',
+    ),
+    V13EnglishTemplate(
+      'Сохранение повреждено: ZXQPH0QXZ',
+      'Save is corrupted: ZXQPH0QXZ',
+    ),
+    V13EnglishTemplate(
+      'Среднее доверие ZXQPH0QXZ%',
+      'Average trust ZXQPH0QXZ%',
+    ),
+    V13EnglishTemplate('Средний рейтинг ZXQPH0QXZ', 'Average rating ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'Средняя лояльность ZXQPH0QXZ/100',
+      'Average loyalty ZXQPH0QXZ/100',
+    ),
+    V13EnglishTemplate(
+      'Фоновая симуляция: прошло ZXQPH0QXZ игровых ч. Компания продолжала работу.',
+      'Background simulation: ZXQPH0QXZ game hours passed. The company kept operating.',
+    ),
+    V13EnglishTemplate(
+      'Повторная заявка через ZXQPH0QXZ дн.',
+      'Retry in ZXQPH0QXZ days',
+    ),
+    V13EnglishTemplate('Текущая фаза: ZXQPH0QXZ', 'Current phase: ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'Проект создан, но разработка ждёт инвестора: не хватает ZXQPH0QXZ. Команда и roadmap уже можно подготовить.',
+      'Project created, but development is waiting for investors: ZXQPH0QXZ missing. You can prepare the team and roadmap now.',
+    ),
+    V13EnglishTemplate('Bottleneck: ZXQPH0QXZ', 'Bottleneck: ZXQPH0QXZ'),
+    V13EnglishTemplate(
+      'Вход ZXQPH0QXZ • место продукта ZXQPH1QXZ • доступно до ZXQPH2QXZ.',
+      'Entry ZXQPH0QXZ • product slot ZXQPH1QXZ • available until ZXQPH2QXZ.',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ продукта • ZXQPH1QXZ • ZXQPH2QXZ',
+      'ZXQPH0QXZ products • ZXQPH1QXZ • ZXQPH2QXZ',
+    ),
+    V13EnglishTemplate(
+      'Почему меняется репутация • ZXQPH0QXZ',
+      'Why reputation changes • ZXQPH0QXZ',
+    ),
+    V13EnglishTemplate('ZXQPH0QXZ • ZXQPH1QXZ', 'ZXQPH0QXZ • ZXQPH1QXZ'),
+    V13EnglishTemplate(
+      'Нанят: ZXQPH0QXZ. Автоподбор доступен • риск ухода команды снижен • HR может автоматически удерживать сотрудников небольшим повышением ставки.',
+      'Hired: ZXQPH0QXZ. Auto-staffing is available • team departure risk is reduced • HR can retain employees with a small automatic raise.',
+    ),
+    V13EnglishTemplate(
+      'Проект можно создать сейчас. Разработка будет неактивна, пока под этот продукт не будет найдено инвесторов: ZXQPH0QXZ.',
+      'You can create the project now. Development stays inactive until this product has ZXQPH0QXZ investor(s).',
+    ),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ / ZXQPH1QXZ ZXQPH2QXZ',
+      'ZXQPH0QXZ / ZXQPH1QXZ ZXQPH2QXZ',
+    ),
+    V13EnglishTemplate('+ZXQPH0QXZ п.п.', '+ZXQPH0QXZ pp'),
+    V13EnglishTemplate(
+      'ZXQPH0QXZ: «ZXQPH1QXZ» выполнен. Финальная выплата проведена.',
+      'ZXQPH0QXZ: “ZXQPH1QXZ” completed. Final payment processed.',
+    ),
+    V13EnglishTemplate('ZXQPH0QXZZXQPH1QXZ/день', 'ZXQPH0QXZZXQPH1QXZ/day'),
   ];
 
   static const Map<String, String> templateOverrides = <String, String>{

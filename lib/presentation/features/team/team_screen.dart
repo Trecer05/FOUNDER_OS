@@ -142,7 +142,7 @@ class _TeamScreenState extends State<TeamScreen> {
           key: const Key('team-hr-status'),
           hintTitle: 'HR / People Partner',
           hintBody:
-              'Только нанятый HR открывает автоматический подбор команды. Грейд HR ограничивает грейд автоматически нанимаемых специалистов: intern нанимает intern, junior — до junior, middle — до middle, senior — любой грейд. HR не считается Product Manager и не закрывает продуктовые дефициты.',
+              'HR открывает автоматический подбор, снижает шанс увольнения, постепенно поддерживает loyalty/morale и может сам сделать небольшое повышение ставки сотруднику с риском ухода. Грейд HR ограничивает грейд автоматически нанимаемых специалистов.',
           child: Builder(
             builder: (context) {
               final hiredHr = state.employees
@@ -162,8 +162,8 @@ class _TeamScreenState extends State<TeamScreen> {
                   const SizedBox(height: 6),
                   AppText(
                     hiredHr.isNotEmpty
-                        ? 'Нанят: ${hiredHr.map((item) => '${item.name} (${gradeName(item.grade)})').join(', ')}. Автоподбор доступен.'
-                        : 'HR не нанят. Автоподбор проектов заблокирован.',
+                        ? 'Нанят: ${hiredHr.map((item) => '${item.name} (${gradeName(item.grade)})').join(', ')}. Автоподбор доступен • риск ухода команды снижен • HR может автоматически удерживать сотрудников небольшим повышением ставки.'
+                        : 'HR не нанят. Автоподбор проектов заблокирован, а команда не получает HR-бонус к удержанию.',
                   ),
                   if (hiredHr.isEmpty && hrCandidates.isNotEmpty) ...[
                     const SizedBox(height: 10),

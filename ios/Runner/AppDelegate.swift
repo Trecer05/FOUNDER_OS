@@ -1,9 +1,11 @@
 import Flutter
 import UIKit
+import UserNotifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private let performanceChannelName = "founder_os/native_performance"
+  private let criticalNotificationId = "founder_os_critical"
   private let snapshotQueue = DispatchQueue(
     label: "founder_os.snapshot",
     qos: .utility
@@ -14,6 +16,7 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    UNUserNotificationCenter.current().delegate = self
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -101,14 +104,102 @@ import UIKit
       }
     case "monotonicMicros":
       result(Int64(ProcessInfo.processInfo.systemUptime * 1_000_000))
+    case "requestNotificationPermission":
+      UNUserNotificationCenter.current().requestAuthorization(
+        options: [.alert, .sound, .badge]
+      ) { granted, _ in
+        DispatchQueue.main.async { result(granted) }
+      }
+    case "scheduleCriticalNotification":
+      guard
+        let arguments = call.arguments as? [String: Any],
+        let title = arguments["title"] as? String,
+        let body = arguments["body"] as? String,
+        let delaySeconds = arguments["delaySeconds"] as? Int
+      else {
+        result(FlutterError(
+          code: "invalid_arguments",
+          message: "title, body and delaySeconds are required.",
+          details: nil
+        ))
+        return
+      }
+      scheduleCriticalNotification(
+        title: title,
+        body: body,
+        delaySeconds: delaySeconds,
+        result: result
+      )
+    case "cancelCriticalNotification":
+      UNUserNotificationCenter.current().removePendingNotificationRequests(
+        withIdentifiers: [criticalNotificationId]
+      )
+      result(true)
     case "diagnostics":
       result([
         "available": true,
         "backend": "swift_atomic_file",
         "platform": "ios",
+        "backgroundCriticalNotifications": true,
       ])
     default:
       result(FlutterMethodNotImplemented)
+    }
+  }
+
+  private func scheduleCriticalNotification(
+    title: String,
+    body: String,
+    delaySeconds: Int,
+    result: @escaping FlutterResult
+  ) {
+    let center = UNUserNotificationCenter.current()
+    center.requestAuthorization(options: [.alert, .sound, .badge]) { [weak self] granted, error in
+      guard let self else { return }
+      if let error {
+        DispatchQueue.main.async {
+          result(FlutterError(
+            code: "notification_permission_failed",
+            message: error.localizedDescription,
+            details: nil
+          ))
+        }
+        return
+      }
+      guard granted else {
+        DispatchQueue.main.async { result(false) }
+        return
+      }
+
+      let content = UNMutableNotificationContent()
+      content.title = title
+      content.body = body
+      content.sound = .default
+      let trigger = UNTimeIntervalNotificationTrigger(
+        timeInterval: TimeInterval(max(1, delaySeconds)),
+        repeats: false
+      )
+      let request = UNNotificationRequest(
+        identifier: self.criticalNotificationId,
+        content: content,
+        trigger: trigger
+      )
+      center.removePendingNotificationRequests(
+        withIdentifiers: [self.criticalNotificationId]
+      )
+      center.add(request) { error in
+        DispatchQueue.main.async {
+          if let error {
+            result(FlutterError(
+              code: "notification_schedule_failed",
+              message: error.localizedDescription,
+              details: nil
+            ))
+          } else {
+            result(true)
+          }
+        }
+      }
     }
   }
 

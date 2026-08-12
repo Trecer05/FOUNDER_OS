@@ -5,7 +5,8 @@ import '../../../application/controllers/game_controller.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/models.dart';
 import '../../../domain/entities/v12_game_state_extensions.dart';
-import '../company/company_hub_screen.dart';
+import '../company/company_notification_center_screen.dart';
+import '../contracts/contracts_screen.dart';
 import '../infrastructure/infrastructure_screen.dart';
 import '../more/more_screen.dart';
 import '../overview/overview_screen.dart';
@@ -19,6 +20,7 @@ import '../../../application/localization/app_localizer.dart';
 import '../../../application/localization/app_text.dart';
 import '../../shared/widgets/scoped_listenable_builder.dart';
 import '../../shared/widgets/company_logo.dart';
+import '../../shared/widgets/company_notification_toast_host.dart';
 import '../../shared/widgets/formatters.dart';
 
 class FounderDashboard extends StatefulWidget {
@@ -52,7 +54,7 @@ class _FounderDashboardState extends State<FounderDashboard> {
       () => ProductsScreen(controller: widget.controller),
       () => TeamScreen(controller: widget.controller),
       () => InfrastructureScreen(controller: widget.controller),
-      () => CompanyHubScreen(controller: widget.controller),
+      () => ContractsScreen(controller: widget.controller),
       () => MoreScreen(controller: widget.controller),
     ];
     widget.controller.addListener(_handleControllerUpdate);
@@ -304,175 +306,190 @@ class _FounderDashboardState extends State<FounderDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 16,
-        title: ScopedListenableBuilder(
-          listenable: widget.controller,
-          builder: (context, _) {
-            final state = widget.controller.state;
-            return Row(
-              children: <Widget>[
-                CompanyLogo(
-                  logoId: state.companyProfile.logoId,
-                  size: 26,
-                  borderRadius: 7,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: AppText(
-                    state.companyProfile.companyName,
-                    translate: false,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w900),
+    return CompanyNotificationToastHost(
+      controller: widget.controller,
+      child: Scaffold(
+        appBar: AppBar(
+          titleSpacing: 16,
+          title: ScopedListenableBuilder(
+            listenable: widget.controller,
+            builder: (context, _) {
+              final state = widget.controller.state;
+              return Row(
+                children: <Widget>[
+                  CompanyLogo(
+                    logoId: state.companyProfile.logoId,
+                    size: 26,
+                    borderRadius: 7,
                   ),
-                ),
-                const SizedBox(width: 10),
-                _HeaderStat(
-                  icon: Icons.favorite_outline,
-                  value: compactNumber(state.companyFans),
-                  label: 'Фанаты',
-                ),
-                const SizedBox(width: 8),
-                _HeaderStat(
-                  icon: Icons.workspace_premium_outlined,
-                  value: state.brandReputation.toStringAsFixed(0),
-                  label: 'Репутация',
-                ),
-              ],
-            );
-          },
-        ),
-        actions: <Widget>[
-          PopupMenuButton<String>(
-            tooltip: trContext(context, 'Меню компании'),
-            onSelected: (value) async {
-              if (value == 'save') {
-                await showSaveSlotsDialog(
-                  context,
-                  widget.controller,
-                  mode: SaveSlotDialogMode.save,
-                );
-                return;
-              }
-              if (value == 'main_menu') {
-                if (!widget.controller.state.paused) {
-                  widget.controller.dispatch(
-                    const TogglePause(),
-                    playSound: false,
-                  );
-                }
-                await widget.controller.saveNow();
-                if (mounted) {
-                  widget.onExitToMainMenu?.call();
-                }
-                return;
-              }
-              if (value != 'reset') {
-                return;
-              }
-              final confirmed = await showDialog<bool>(
-                context: context,
-                builder: (dialogContext) => AlertDialog(
-                  title: const AppText('Начать заново?'),
-                  content: const AppText(
-                    'Текущий автосейв будет заменён. Ручные слоты останутся доступными.',
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: AppText(
+                      state.companyProfile.companyName,
+                      translate: false,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
                   ),
-                  actions: <Widget>[
-                    TextButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(false),
-                      child: const AppText('Отмена'),
-                    ),
-                    FilledButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(true),
-                      child: const AppText('Сбросить'),
-                    ),
-                  ],
-                ),
+                  const SizedBox(width: 10),
+                  _HeaderStat(
+                    icon: Icons.favorite_outline,
+                    value: compactNumber(state.companyFans),
+                    label: 'Фанаты',
+                  ),
+                  const SizedBox(width: 8),
+                  _HeaderStat(
+                    icon: Icons.workspace_premium_outlined,
+                    value: state.brandReputation.toStringAsFixed(0),
+                    label: 'Репутация',
+                  ),
+                ],
               );
-              if ((confirmed ?? false) && mounted) {
-                await widget.controller.reset();
-                if (mounted) {
-                  setState(() => _tab = 0);
-                }
-              }
             },
-            itemBuilder: (_) => <PopupMenuEntry<String>>[
-              if (widget.controller.supportsManualSaves)
-                const PopupMenuItem<String>(
-                  value: 'save',
-                  child: AppText('Сохранить игру'),
-                ),
-              if (widget.onExitToMainMenu != null)
-                const PopupMenuItem<String>(
-                  value: 'main_menu',
-                  child: AppText('В главное меню'),
-                ),
-              const PopupMenuItem<String>(
-                value: 'reset',
-                child: AppText('Новая компания'),
-              ),
-            ],
           ),
-        ],
-      ),
-      body: SafeArea(
-        top: false,
-        child: ScopedListenableBuilder(
-          listenable: widget.controller,
-          builder: (context, _) => _screenBuilders[_tab](),
-        ),
-      ),
-      bottomNavigationBar: NavigationBar(
-        height: 68,
-        selectedIndex: _tab,
-        onDestinationSelected: _selectTab,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: <NavigationDestination>[
-          NavigationDestination(
-            icon: const Icon(Icons.space_dashboard_outlined),
-            selectedIcon: const Icon(Icons.space_dashboard),
-            label: trContext(context, 'Обзор'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.apps_outlined),
-            selectedIcon: const Icon(Icons.apps),
-            label: trContext(context, 'Продукты'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.groups_2_outlined),
-            selectedIcon: const Icon(Icons.groups_2),
-            label: trContext(context, 'Команда'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.dns_outlined),
-            selectedIcon: const Icon(Icons.dns),
-            label: trContext(context, 'Инфра'),
-          ),
-          NavigationDestination(
-            icon: ScopedListenableBuilder(
+          actions: <Widget>[
+            ScopedListenableBuilder(
               listenable: widget.controller,
               builder: (context, _) {
                 final count =
                     widget.controller.state.unreadCompanyNotificationCount;
-                return count > 0
-                    ? Badge(
-                        label: Text(count > 99 ? '99+' : '$count'),
-                        child: const Icon(Icons.notifications_outlined),
-                      )
-                    : const Icon(Icons.notifications_outlined);
+                return IconButton(
+                  key: const Key('open-company-notifications'),
+                  tooltip: trContext(context, 'Уведомления'),
+                  onPressed: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute(
+                      builder: (_) => CompanyNotificationCenterScreen(
+                        controller: widget.controller,
+                      ),
+                    ),
+                  ),
+                  icon: count > 0
+                      ? Badge(
+                          label: Text(count > 99 ? '99+' : '$count'),
+                          child: const Icon(Icons.notifications_outlined),
+                        )
+                      : const Icon(Icons.notifications_outlined),
+                );
               },
             ),
-            selectedIcon: const Icon(Icons.notifications),
-            label: trContext(context, 'События'),
+            PopupMenuButton<String>(
+              tooltip: trContext(context, 'Меню компании'),
+              onSelected: (value) async {
+                if (value == 'save') {
+                  await showSaveSlotsDialog(
+                    context,
+                    widget.controller,
+                    mode: SaveSlotDialogMode.save,
+                  );
+                  return;
+                }
+                if (value == 'main_menu') {
+                  if (!widget.controller.state.paused) {
+                    widget.controller.dispatch(
+                      const TogglePause(),
+                      playSound: false,
+                    );
+                  }
+                  await widget.controller.saveNow();
+                  if (mounted) {
+                    widget.onExitToMainMenu?.call();
+                  }
+                  return;
+                }
+                if (value != 'reset') {
+                  return;
+                }
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: const AppText('Начать заново?'),
+                    content: const AppText(
+                      'Текущий автосейв будет заменён. Ручные слоты останутся доступными.',
+                    ),
+                    actions: <Widget>[
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                        child: const AppText('Отмена'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(true),
+                        child: const AppText('Сбросить'),
+                      ),
+                    ],
+                  ),
+                );
+                if ((confirmed ?? false) && mounted) {
+                  await widget.controller.reset();
+                  if (mounted) {
+                    setState(() => _tab = 0);
+                  }
+                }
+              },
+              itemBuilder: (_) => <PopupMenuEntry<String>>[
+                if (widget.controller.supportsManualSaves)
+                  const PopupMenuItem<String>(
+                    value: 'save',
+                    child: AppText('Сохранить игру'),
+                  ),
+                if (widget.onExitToMainMenu != null)
+                  const PopupMenuItem<String>(
+                    value: 'main_menu',
+                    child: AppText('В главное меню'),
+                  ),
+                const PopupMenuItem<String>(
+                  value: 'reset',
+                  child: AppText('Новая компания'),
+                ),
+              ],
+            ),
+          ],
+        ),
+        body: SafeArea(
+          top: false,
+          child: ScopedListenableBuilder(
+            listenable: widget.controller,
+            builder: (context, _) => _screenBuilders[_tab](),
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.grid_view_rounded),
-            selectedIcon: const Icon(Icons.grid_view),
-            label: trContext(context, 'Ещё'),
-          ),
-        ],
+        ),
+        bottomNavigationBar: NavigationBar(
+          height: 68,
+          selectedIndex: _tab,
+          onDestinationSelected: _selectTab,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: <NavigationDestination>[
+            NavigationDestination(
+              icon: const Icon(Icons.space_dashboard_outlined),
+              selectedIcon: const Icon(Icons.space_dashboard),
+              label: trContext(context, 'Обзор'),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.apps_outlined),
+              selectedIcon: const Icon(Icons.apps),
+              label: trContext(context, 'Продукты'),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.groups_2_outlined),
+              selectedIcon: const Icon(Icons.groups_2),
+              label: trContext(context, 'Команда'),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.dns_outlined),
+              selectedIcon: const Icon(Icons.dns),
+              label: trContext(context, 'Инфра'),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.handshake_outlined),
+              selectedIcon: const Icon(Icons.handshake),
+              label: trContext(context, 'Контракты'),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.grid_view_rounded),
+              selectedIcon: const Icon(Icons.grid_view),
+              label: trContext(context, 'Ещё'),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -6,12 +6,15 @@ import '../../../app/theme/app_theme.dart';
 import '../../../application/controllers/game_controller.dart';
 import '../../../application/settings/display_preferences.dart';
 import '../../../domain/catalog/game_catalog.dart';
+import '../../../domain/catalog/feature_impact_catalog.dart';
+import '../../../domain/catalog/v9_content_catalog.dart';
 import '../../../domain/catalog/product_evolution_catalog.dart';
 import '../../../domain/catalog/product_strategy_catalog.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/models.dart';
 import '../../../domain/entities/v12_game_state_extensions.dart';
 import '../../../domain/entities/product_evolution_models.dart';
+import '../../../domain/entities/r2_gameplay_extensions.dart';
 import '../../../domain/entities/v17_models.dart';
 import '../../../domain/explainability/staffing_deficit_resolver.dart';
 import '../../../domain/explainability/product_configuration_resolver.dart';
@@ -309,8 +312,10 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
 
   Widget _development(Product product) {
     final state = widget.controller.state;
-    final phase = state.developmentPhaseFor(product);
+    final phase = state.r2DevelopmentWorkstreamFor(product);
     final capacity = state.totalDevelopmentCapacityFor(product);
+    final staffing = state.developmentStaffingFor(product.id);
+    final missingInvestors = state.productMissingInvestorCount(product);
     final activeWork = state.activeFeatureDevelopmentFor(product.id);
     final competitor = state.competitorsForCategory(product.category).first;
     final availableFeatures = GameCatalog.features
@@ -341,15 +346,98 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             'Мощность разработки — эффективная скорость команды в FTE. 1,0 FTE примерно равен одному подходящему специалисту на полной занятости. Значение учитывает навыки, роль, языки, долю времени, мораль и AI-помощь.',
       ),
       const SizedBox(height: 12),
+      AppCard(
+        key: const Key('development-technical-summary'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const AppText(
+                  'Текущая фаза',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(width: 6),
+                Expanded(child: AppText(phase.name)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _MetricStrip(
+              items: [
+                _Pair(
+                  'Прогресс',
+                  '${(product.developmentProgress * 100).round()}%',
+                ),
+                _Pair('Скорость', '${capacity.toStringAsFixed(2)} FTE'),
+                _Pair('Команда', '${(staffing.efficiency * 100).round()}%'),
+                _Pair(
+                  'Нагрузка',
+                  '${(state.productServerLoad(product) * 100).round()}%',
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const AppText('Bottleneck:', translate: false),
+                const SizedBox(width: 6),
+                Expanded(child: AppText(staffing.status)),
+              ],
+            ),
+          ],
+        ),
+      ),
+      if (missingInvestors > 0 &&
+          product.stage == ProductStage.development) ...[
+        const SizedBox(height: 12),
+        AppCard(
+          key: const Key('development-waiting-investor'),
+          child: AppText(
+            'Проект создан, но разработка ждёт инвестора: не хватает $missingInvestors. Команда и roadmap уже можно подготовить.',
+          ),
+        ),
+      ],
+      const SizedBox(height: 12),
       if (product.stage == ProductStage.development)
         AppCard(
           child: DevelopmentStageProgressRail(state: state, product: product),
         )
       else
-        const AppCard(
-          child: AppText(
-            'Основная разработка завершена. Дальше продукт развивается через функции и технические улучшения.',
-          ),
+        Builder(
+          builder: (context) {
+            final impact = FeatureImpactCatalog.portfolioImpact(
+              product: product,
+              blueprint: GameCatalog.blueprintById(product.blueprintId),
+              features: GameCatalog.features,
+            );
+            return AppCard(
+              key: const Key('live-roadmap-impact'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const AppText(
+                    'Влияние текущего roadmap',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 8),
+                  _row(
+                    'Приток пользователей',
+                    '×${impact.acquisitionMultiplier.toStringAsFixed(2)}',
+                  ),
+                  _row(
+                    'Retention',
+                    '+${(impact.retentionBonus * 100).toStringAsFixed(1)} п.п.',
+                  ),
+                  _row('Quality', '+${impact.qualityBonus.toStringAsFixed(1)}'),
+                  _row('Функций', '${product.featureIds.length}'),
+                  _row(
+                    'Улучшений',
+                    '${state.productImprovements.where((item) => item.productId == product.id).length}',
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       if (product.stage == ProductStage.development) ...[
         const SizedBox(height: 12),
@@ -1264,7 +1352,7 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
     final previewArpu = product.mau <= 0 ? 0.0 : previewRevenue / product.mau;
     final intensityLabel = switch (product.monetization) {
       MonetizationModel.free => 'Монетизация отключена',
-      MonetizationModel.subscription => 'Жёсткость paywall',
+      MonetizationModel.subscription => 'Жёсткость платного доступа',
       MonetizationModel.usageBased => 'Доля платного использования',
       MonetizationModel.advertising => 'Навязчивость рекламы',
       MonetizationModel.transactionFee => 'Агрессивность комиссии',
@@ -1503,8 +1591,14 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
     _agencyId ??= agencies.first.id;
     _channelId ??= channels.first.id;
     final selectedAgency = ProductStrategyCatalog.agencyById(_agencyId!);
-    final effectiveBudget = math
-        .max(_campaignBudget, selectedAgency.minimumBudget)
+    final maxCampaignBudget = math
+        .max(
+          selectedAgency.minimumBudget,
+          math.min(1000000000.0, math.max(3000000.0, state.cash)),
+        )
+        .toDouble();
+    final effectiveBudget = _campaignBudget
+        .clamp(selectedAgency.minimumBudget, maxCampaignBudget)
         .toDouble();
     final campaigns = state.activeCampaignsFor(product.id);
     return _list([
@@ -1558,10 +1652,37 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             Slider(
               value: effectiveBudget,
               min: selectedAgency.minimumBudget,
-              max: math.max(selectedAgency.minimumBudget, 3000000).toDouble(),
-              divisions: 30,
+              max: maxCampaignBudget,
+              divisions: 50,
               label: money(effectiveBudget),
               onChanged: (value) => setState(() => _campaignBudget = value),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children:
+                  <double>[
+                        1000000,
+                        5000000,
+                        25000000,
+                        100000000,
+                        250000000,
+                        1000000000,
+                      ]
+                      .where(
+                        (value) =>
+                            value >= selectedAgency.minimumBudget &&
+                            value <= maxCampaignBudget,
+                      )
+                      .map(
+                        (value) => ActionChip(
+                          label: AppText(money(value), translate: false),
+                          onPressed: () =>
+                              setState(() => _campaignBudget = value),
+                        ),
+                      )
+                      .toList(growable: false),
             ),
             const SizedBox(height: 8),
             const AppText(
@@ -1826,74 +1947,87 @@ class _ProductWorkspaceScreenState extends State<ProductWorkspaceScreen> {
             'Здесь показывается реальный blueprint продукта, а не техническая enum-категория. Сайт компании остаётся сайтом, даже если внутри экономики использует web/SaaS-механику.',
       ),
       const SizedBox(height: 12),
-      if (state.usingOwnedInfrastructure)
-        AppCard(
-          key: const Key('workspace-service-routing'),
-          hintTitle: 'Раздельная инфраструктура по сервисам',
-          hintBody:
-              'API/приложение, данные и AI/compute можно направить на разные ЦОД. Мощность делится только между продуктами, использующими ту же площадку и тот же тип сервиса.',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const AppText(
-                'Маршрутизация сервисов',
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 8),
-              ...const <InfrastructureService>[
-                InfrastructureService.appApi,
-                InfrastructureService.dataStorage,
-                InfrastructureService.aiCompute,
-              ].map((service) {
-                final route = state.dataCenterRouteFor(product.id, service);
-                final serviceLabel = switch (service) {
-                  InfrastructureService.sharedLegacy => 'Legacy shared',
-                  InfrastructureService.appApi =>
-                    'API / приложение / RAM / сеть',
-                  InfrastructureService.dataStorage => 'Данные / storage',
-                  InfrastructureService.aiCompute =>
-                    'Compute / AI / backend jobs',
-                };
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: DropdownButtonFormField<String>(
-                    key: Key('service-route-${product.id}-${service.name}'),
-                    initialValue: route,
-                    isExpanded: true,
-                    decoration: InputDecoration(labelText: serviceLabel),
-                    items: <DropdownMenuItem<String>>[
+      AppCard(
+        key: const Key('workspace-service-routing'),
+        hintTitle: 'Раздельная инфраструктура по сервисам',
+        hintBody:
+            'API/приложение, данные и AI/compute можно направить на разные ЦОД. Мощность делится только между продуктами, использующими ту же площадку и тот же тип сервиса.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const AppText(
+              'Маршрутизация сервисов',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            ...const <InfrastructureService>[
+              InfrastructureService.appApi,
+              InfrastructureService.dataStorage,
+              InfrastructureService.aiCompute,
+            ].map((service) {
+              final rawRoute = state.dataCenterRouteFor(product.id, service);
+              final route = rawRoute.startsWith('hosting:')
+                  ? 'hosting:${rawRoute.split(':')[1]}'
+                  : rawRoute;
+              final serviceLabel = switch (service) {
+                InfrastructureService.sharedLegacy => 'Legacy shared',
+                InfrastructureService.appApi => 'API / приложение / RAM / сеть',
+                InfrastructureService.dataStorage => 'Данные / storage',
+                InfrastructureService.aiCompute =>
+                  'Compute / AI / backend jobs',
+              };
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: DropdownButtonFormField<String>(
+                  key: Key('service-route-${product.id}-${service.name}'),
+                  initialValue: route,
+                  isExpanded: true,
+                  decoration: InputDecoration(labelText: serviceLabel),
+                  items: <DropdownMenuItem<String>>[
+                    if (state.selectedServerRoomId != 'no_server_room')
                       DropdownMenuItem<String>(
                         value: '',
                         child: AppText(
                           'Арендная серверная • ${state.serverRoom.name}',
                         ),
                       ),
-                      ...state.ownedDataCenters.map(
-                        (site) => DropdownMenuItem<String>(
-                          value: site.id,
-                          child: AppText(state.ownedDataCenterLabel(site)),
+                    ...V9ContentCatalog.hostingPlans
+                        .where(
+                          (plan) =>
+                              plan.id != 'no_hosting' && plan.id != 'owned',
+                        )
+                        .map(
+                          (plan) => DropdownMenuItem<String>(
+                            value: 'hosting:${plan.id}',
+                            child: AppText(plan.name),
+                          ),
                         ),
+                    ...state.ownedDataCenters.map(
+                      (site) => DropdownMenuItem<String>(
+                        value: site.id,
+                        child: AppText(state.ownedDataCenterLabel(site)),
                       ),
-                    ],
-                    onChanged: (siteId) {
-                      if (siteId == null) {
-                        return;
-                      }
-                      widget.controller.dispatch(
-                        AssignProductInfrastructureService(
-                          productId: product.id,
-                          service: service,
-                          dataCenterSiteId: siteId,
-                        ),
-                      );
-                    },
-                  ),
-                );
-              }),
-            ],
-          ),
+                    ),
+                  ],
+                  onChanged: (siteId) {
+                    if (siteId == null) {
+                      return;
+                    }
+                    widget.controller.dispatch(
+                      AssignProductInfrastructureService(
+                        productId: product.id,
+                        service: service,
+                        dataCenterSiteId: siteId,
+                      ),
+                    );
+                  },
+                ),
+              );
+            }),
+          ],
         ),
-      if (state.usingOwnedInfrastructure) const SizedBox(height: 12),
+      ),
+      const SizedBox(height: 12),
       AppCard(
         hintTitle: 'Активная и подготовленная мощность',
         hintBody:

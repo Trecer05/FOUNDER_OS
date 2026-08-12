@@ -7,8 +7,8 @@ import '../../../domain/commands/game_action.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/section_header.dart';
-import '../contracts/contracts_screen.dart';
 import '../ecosystem/ecosystem_screen.dart';
+import '../company/company_hub_screen.dart';
 import '../security/security_center_screen.dart';
 import '../tutorial/founder_tutorial_dialog.dart';
 import '../operations/operations_screen.dart';
@@ -93,21 +93,11 @@ class MoreScreen extends StatelessWidget {
             CompetitorIntelligenceScreen(controller: controller),
           ),
         ),
-        const SizedBox(height: 10),
         _MenuCard(
-          icon: Icons.handshake_outlined,
-          title: 'Клиентские контракты',
-          subtitle: state.contractsUnlocked
-              ? '${state.activeContracts.length} активных • ${state.contractEmployeeAssignments.length} назначений'
-              : 'Закрыто до релиза сайта компании',
-          warning:
-              state.contractsUnlocked &&
-              state.activeContracts.any(
-                (contract) =>
-                    contract.deadlineAtMinutes - state.simulationMinutes <
-                    2 * 1440,
-              ),
-          onTap: () => _open(context, ContractsScreen(controller: controller)),
+          icon: Icons.event_note_outlined,
+          title: 'События и достижения',
+          subtitle: 'Мероприятия, мировые проекты, legacy и история компании',
+          onTap: () => _open(context, CompanyHubScreen(controller: controller)),
         ),
         const SizedBox(height: 10),
         _MenuCard(

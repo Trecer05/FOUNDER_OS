@@ -191,11 +191,9 @@ class _CompanyHubScreenState extends State<CompanyHubScreen> {
             final totalCost =
                 definition.entryCost +
                 definition.productSlotCost * selected.length;
-            final daysLeft =
-                ((opportunity.availableUntilMinutes - state.simulationMinutes) /
-                        1440)
-                    .ceil()
-                    .clamp(0, 999);
+            final availableUntil = state.formatDateAt(
+              opportunity.availableUntilMinutes,
+            );
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: AppCard(
@@ -212,7 +210,7 @@ class _CompanyHubScreenState extends State<CompanyHubScreen> {
                     AppText(definition.description),
                     const SizedBox(height: 6),
                     AppText(
-                      'Вход ${money(definition.entryCost)} • место продукта ${money(definition.productSlotCost)} • окно ещё $daysLeft дн.',
+                      'Вход ${money(definition.entryCost)} • место продукта ${money(definition.productSlotCost)} • доступно до $availableUntil.',
                     ),
                     const SizedBox(height: 10),
                     if (liveProducts.isEmpty)
@@ -272,14 +270,11 @@ class _CompanyHubScreenState extends State<CompanyHubScreen> {
           const SizedBox(height: 8),
           ...state.bookedIndustryEvents.map((booking) {
             final definition = V17EndgameCatalog.eventById(booking.templateId);
-            final days =
-                ((booking.eventAtMinutes - state.simulationMinutes) / 1440)
-                    .ceil()
-                    .clamp(0, 999);
+            final eventDate = state.formatDateAt(booking.eventAtMinutes);
             return ListTile(
               title: AppText(definition.name, translate: false),
               subtitle: AppText(
-                '${booking.productIds.length} продукта • через $days дн. • ${money(booking.totalCost)}',
+                '${booking.productIds.length} продукта • $eventDate • ${money(booking.totalCost)}',
               ),
             );
           }),
@@ -605,6 +600,8 @@ class _CompanyHubScreenState extends State<CompanyHubScreen> {
     CompanyNotificationKind.event => Icons.event_outlined,
     CompanyNotificationKind.research => Icons.science_outlined,
     CompanyNotificationKind.product => Icons.apps_outlined,
+    CompanyNotificationKind.contract => Icons.handshake_outlined,
+    CompanyNotificationKind.development => Icons.build_circle_outlined,
     CompanyNotificationKind.finance => Icons.payments_outlined,
     CompanyNotificationKind.legacy => Icons.public_outlined,
   };

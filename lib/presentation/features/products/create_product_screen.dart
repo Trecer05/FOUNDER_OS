@@ -173,9 +173,12 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
       _featureIds
         ..clear()
         ..addAll(
-          GameCatalog.blueprintById(
-            id,
-          ).expectedFeatureIds.take(id == 'company_website' ? 3 : 2),
+          GameCatalog.blueprintById(id).expectedFeatureIds.where(
+            (featureId) => widget.controller.state.researchCompleted(
+              ResearchTargetKind.feature,
+              featureId,
+            ),
+          ),
         );
       _monetization = strategy.allowedMonetizationModels.first;
       _nameController.text = _defaultName(id);
@@ -272,9 +275,12 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
           ),
         ) &&
         frameworkProfile.requiredLanguageIds.every(_languageIds.contains) &&
-        _featureIds.isNotEmpty &&
-        widget.controller.state.investorAgreements.length >=
-            _strategy.requiredInvestorCount &&
+        _featureIds.every(
+          (id) => widget.controller.state.researchCompleted(
+            ResearchTargetKind.feature,
+            id,
+          ),
+        ) &&
         widget.controller.state.cash >= _projection.developmentCost;
   }
 
@@ -302,8 +308,13 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
             : null,
       3 => _technologyStepBlockingReason,
       4 =>
-        _featureIds.isEmpty
-            ? 'В первом релизе нужна хотя бы одна функция.'
+        _featureIds.any(
+              (id) => !widget.controller.state.researchCompleted(
+                ResearchTargetKind.feature,
+                id,
+              ),
+            )
+            ? 'Сначала исследуйте выбранные функции в R&D.'
             : null,
       5 =>
         !_strategy.allowedMonetizationModels.contains(_monetization)
@@ -710,12 +721,10 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
           final selected = _featureIds.contains(feature.id);
           final hours = math.max(20, feature.developmentCost / 520).round();
           final baseline = _blueprint.expectedFeatureIds.contains(feature.id);
-          final researched =
-              baseline ||
-              widget.controller.state.researchCompleted(
-                ResearchTargetKind.feature,
-                feature.id,
-              );
+          final researched = widget.controller.state.researchCompleted(
+            ResearchTargetKind.feature,
+            feature.id,
+          );
           final mark = FeatureImpactCatalog.featureMark(_blueprint, feature);
           final fitLabel = FeatureImpactCatalog.featureFitLabel(
             _blueprint,
@@ -1052,7 +1061,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
           const SizedBox(height: 12),
           AppCard(
             child: AppText(
-              'Проект заблокирован: нужно инвесторов ${_strategy.requiredInvestorCount}.',
+              'Проект можно создать сейчас. Разработка будет неактивна, пока под этот продукт не будет найдено инвесторов: ${_strategy.requiredInvestorCount}.',
             ),
           ),
         ],

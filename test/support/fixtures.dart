@@ -176,6 +176,7 @@ Employee employeeFixture({
   bool remote = true,
   EmployeeGrade grade = EmployeeGrade.middle,
   String cityId = 'moscow',
+  List<String>? languageIds,
 }) => Employee(
   id: id,
   name: name,
@@ -194,4 +195,5 @@ Employee employeeFixture({
   hiredAtMinutes: 0,
   grade: grade,
   locationCityId: cityId,
+  languageIds: languageIds ?? const <String>[],
 );

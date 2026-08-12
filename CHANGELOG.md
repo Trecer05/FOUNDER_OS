@@ -74,3 +74,13 @@
 
 - Fixed manual save dialog intrinsic-layout crash on narrow phones.
 - Corrected lazy R&D viewport regression and contract-role assignment fixture.
+
+## Unreleased — R2 Background Operations
+
+- Added visible cold-start progress/tips and deterministic background catch-up.
+- Added native critical-event notifications for iOS/Android.
+- Reworked R&D feature gating and lazy rendering.
+- Added top notification center/toasts, contract/development colors, read/delete/clear behavior.
+- Rebalanced development staffing, language learning, HR retention, investor waiting, free-tier satisfaction and loan retry cooldown.
+- Added service-level product hosting routes and expanded campaign budgets.
+- Added reputation breakdown, concrete event dates and live roadmap impact.

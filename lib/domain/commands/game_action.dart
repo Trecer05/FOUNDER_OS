@@ -568,6 +568,20 @@ class JoinIndustryEvent extends GameAction {
   final List<String> productIds;
 }
 
+class MarkCompanyNotificationRead extends GameAction {
+  const MarkCompanyNotificationRead(this.notificationId);
+  final String notificationId;
+}
+
+class DeleteCompanyNotification extends GameAction {
+  const DeleteCompanyNotification(this.notificationId);
+  final String notificationId;
+}
+
+class ClearCompanyNotifications extends GameAction {
+  const ClearCompanyNotifications();
+}
+
 class MarkAllCompanyNotificationsRead extends GameAction {
   const MarkAllCompanyNotificationsRead();
 }

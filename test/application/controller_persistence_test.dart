@@ -77,6 +77,7 @@ void main() {
     final store = FailingSlotStore();
     final controller = GameController(
       snapshotStore: store,
+      enableBackgroundLifecycle: false,
       tickInterval: const Duration(milliseconds: 10),
     );
     try {

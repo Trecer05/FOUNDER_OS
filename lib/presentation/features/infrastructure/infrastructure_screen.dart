@@ -17,6 +17,7 @@ import '../../shared/widgets/responsive_info_row.dart';
 import '../../shared/widgets/section_header.dart';
 import '../../../application/localization/app_text.dart';
 import '../../../application/localization/app_localizer.dart';
+import '../products/product_workspace_screen.dart';
 
 enum _InfraTab { hosting, offices, rooms, hardware, allocation }
 
@@ -760,11 +761,10 @@ class _AllocationList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(
-          title: 'Распределение мощности',
-          subtitle: state.usingOwnedInfrastructure
-              ? 'Собственные площадки разделены по сервисам. Проценты считаются внутри выбранного ЦОД; сумма по компании может быть выше 100%.'
-              : 'Выделено ${directPercent(state.totalAllocatedPercent)} из 100% общего арендного пула.',
+        const SectionHeader(
+          title: 'Мощности по сервисам',
+          subtitle:
+              'API, storage и compute назначаются отдельно. Один продукт может использовать hosting, другой — свой ЦОД, а внутри одного продукта сервисы тоже можно развести.',
         ),
         const SizedBox(height: 10),
         _OwnedMigrationCard(controller: controller),
@@ -774,33 +774,151 @@ class _AllocationList extends StatelessWidget {
             child: AppText('Создайте продукт, чтобы распределять мощности.'),
           )
         else ...[
-          AppCard(
-            child: Column(
-              children: [
-                LinearProgressIndicator(
-                  value: state.usingOwnedInfrastructure
-                      ? 1
-                      : (state.totalAllocatedPercent / 100)
-                            .clamp(0, 1)
-                            .toDouble(),
-                  color: AppColors.primary,
+          ...const <InfrastructureService>[
+            InfrastructureService.appApi,
+            InfrastructureService.dataStorage,
+            InfrastructureService.aiCompute,
+          ].map((service) {
+            final title = switch (service) {
+              InfrastructureService.sharedLegacy => 'Legacy',
+              InfrastructureService.appApi => 'API / приложение',
+              InfrastructureService.dataStorage => 'Storage / данные',
+              InfrastructureService.aiCompute => 'Compute / AI / backend jobs',
+            };
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: AppCard(
+                key: Key('infra-service-group-${service.name}'),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppText(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    AppText(
+                      service == InfrastructureService.appApi
+                          ? 'Отвечает за API, application RAM и сеть.'
+                          : service == InfrastructureService.dataStorage
+                          ? 'Файлы, базы, логи и резервные данные.'
+                          : 'CPU/GPU/AI inference и тяжёлые backend-задачи.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 10),
+                    ...state.products.map((product) {
+                      final rawRoute = state.dataCenterRouteFor(
+                        product.id,
+                        service,
+                      );
+                      final hosting = state.routedHostingFor(
+                        product.id,
+                        service,
+                      );
+                      final ownedMatches = state.ownedDataCenters
+                          .where((item) => item.id == rawRoute)
+                          .toList(growable: false);
+                      final routeName = hosting != null
+                          ? hosting.name
+                          : rawRoute.isEmpty
+                          ? state.selectedServerRoomId == 'no_server_room'
+                                ? 'Не назначено'
+                                : state.serverRoom.name
+                          : ownedMatches.isNotEmpty
+                          ? state.ownedDataCenterLabel(ownedMatches.first)
+                          : 'Не назначено';
+                      final routeCost = hosting?.monthlyCost;
+                      final demand = switch (service) {
+                        InfrastructureService.sharedLegacy => 0.0,
+                        InfrastructureService.appApi =>
+                          state.productMemoryDemand(product),
+                        InfrastructureService.dataStorage =>
+                          state.productStorageDemand(product),
+                        InfrastructureService.aiCompute =>
+                          state.productComputeDemand(product),
+                      };
+                      final allocated = switch (service) {
+                        InfrastructureService.sharedLegacy => 0.0,
+                        InfrastructureService.appApi =>
+                          state.allocatedMemoryFor(product.id),
+                        InfrastructureService.dataStorage =>
+                          state.allocatedStorageFor(product.id),
+                        InfrastructureService.aiCompute =>
+                          state.allocatedComputeFor(product.id),
+                      };
+                      final unit = switch (service) {
+                        InfrastructureService.appApi => 'GB RAM',
+                        InfrastructureService.dataStorage => 'GB',
+                        InfrastructureService.aiCompute => 'CU',
+                        InfrastructureService.sharedLegacy => '',
+                      };
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 9),
+                        child: Material(
+                          color: AppColors.surfaceMuted,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: AppText(
+                                        product.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                    AppText(
+                                      '${demand.toStringAsFixed(0)} / ${allocated.toStringAsFixed(0)} $unit',
+                                      translate: false,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Expanded(child: AppText(routeName)),
+                                    if (routeCost != null)
+                                      AppText('${money(routeCost)}/мес.'),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                TextButton.icon(
+                                  onPressed: () =>
+                                      Navigator.of(context).push<void>(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              ProductWorkspaceScreen(
+                                                controller: controller,
+                                                productId: product.id,
+                                              ),
+                                        ),
+                                      ),
+                                  icon: const Icon(Icons.route_outlined),
+                                  label: const AppText('Изменить маршрут'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                ResponsiveInfoRow(
-                  'Всего Compute',
-                  '${state.totalComputeUnits.round()} CU',
-                ),
-                ResponsiveInfoRow(
-                  state.usingOwnedInfrastructure ? 'Режим' : 'Свободно',
-                  state.usingOwnedInfrastructure
-                      ? 'Раздельные сервисные пулы'
-                      : directPercent(100 - state.totalAllocatedPercent),
-                  last: true,
-                ),
-              ],
-            ),
+              ),
+            );
+          }),
+          const SizedBox(height: 4),
+          const SectionHeader(
+            title: 'Распределение доли compute',
+            subtitle:
+                'Процент определяет долю общего пула там, где несколько продуктов используют одну и ту же площадку.',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           ...state.products.map((product) {
             final value =
                 drafts[product.id] ?? product.allocatedCapacityPercent;
@@ -814,24 +932,16 @@ class _AllocationList extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              AppText(
-                                product.name,
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              AppText(
-                                '${categoryName(product.category)} • load ${percent(load, fractionDigits: 1)}',
-                              ),
-                            ],
+                          child: AppText(
+                            product.name,
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),
-                        AppText(
-                          '${value.round()}%',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
+                        AppText('${value.round()}%'),
                       ],
+                    ),
+                    AppText(
+                      'load ${percent(load, fractionDigits: 1)} • API ${state.allocatedMemoryFor(product.id).round()} GB • storage ${state.allocatedStorageFor(product.id).round()} GB • compute ${state.allocatedComputeFor(product.id).round()} CU',
                     ),
                     Slider(
                       value: value.clamp(0, 100).toDouble(),
@@ -852,21 +962,6 @@ class _AllocationList extends StatelessWidget {
                             .allocatedCapacityPercent;
                         onDraftChanged(product.id, applied);
                       },
-                    ),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        _ValueChip(
-                          'CU ${state.productComputeDemand(product).round()} / ${state.allocatedComputeFor(product.id).round()}',
-                        ),
-                        _ValueChip(
-                          'RAM ${state.productMemoryDemand(product).round()} / ${state.allocatedMemoryFor(product.id).round()} GB',
-                        ),
-                        _ValueChip(
-                          'Storage ${state.productStorageDemand(product).round()} / ${state.allocatedStorageFor(product.id).round()} GB',
-                        ),
-                      ],
                     ),
                   ],
                 ),

@@ -8,6 +8,7 @@ import '../../../application/controllers/game_controller.dart';
 import '../../../domain/catalog/game_catalog.dart';
 import '../../../domain/commands/game_action.dart';
 import '../../../domain/entities/management_models.dart';
+import '../../../domain/entities/r2_gameplay_extensions.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/formatters.dart';
 import '../../shared/widgets/metric_card.dart';
@@ -276,10 +277,14 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         width: double.infinity,
                         child: FilledButton.icon(
                           key: const Key('request-business-loan'),
-                          onPressed: () => _showBusinessLoanRequest(context),
+                          onPressed: state.businessLoanRetryRemainingDays > 0
+                              ? null
+                              : () => _showBusinessLoanRequest(context),
                           icon: const Icon(Icons.request_quote_outlined),
-                          label: const AppText(
-                            'Подать заявку на бизнес-кредит',
+                          label: AppText(
+                            state.businessLoanRetryRemainingDays > 0
+                                ? 'Повторная заявка через ${state.businessLoanRetryRemainingDays} дн.'
+                                : 'Подать заявку на бизнес-кредит',
                           ),
                         ),
                       ),

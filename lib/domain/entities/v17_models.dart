@@ -18,7 +18,8 @@ class ProductServiceRoute {
   final InfrastructureService service;
 
   /// Empty string means the currently rented server room. Owned data centers
-  /// use [OwnedDataCenterSite.id].
+  /// use [OwnedDataCenterSite.id]. A value `hosting:<planId>` routes this
+  /// concrete product/service to its own rented hosting plan.
   final String dataCenterSiteId;
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -303,6 +304,8 @@ enum CompanyNotificationKind {
   event,
   research,
   product,
+  contract,
+  development,
   finance,
   legacy,
 }

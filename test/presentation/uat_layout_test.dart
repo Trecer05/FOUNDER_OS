@@ -28,39 +28,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final list = find.byKey(const Key('research-screen-list'));
-    expect(list, findsOneWidget);
-
-    // The features group is intentionally below the full technology tree and
-    // may not be built by ListView yet. Traverse the real scroll position and
-    // assert it becomes reachable rather than requiring an off-screen lazy
-    // child to exist at frame zero.
-    final scrollable = find.descendant(
-      of: list,
-      matching: find.byType(Scrollable),
-    );
-    expect(scrollable, findsOneWidget);
-
-    final featuresHeading = find.text('Функции продукта');
-    var exposed = featuresHeading.evaluate().isNotEmpty;
-    for (var step = 0; step < 40 && !exposed; step += 1) {
-      final position = tester.state<ScrollableState>(scrollable).position;
-      if (position.extentAfter <= 0.5) break;
-      final next = (position.pixels + 420.0).clamp(
-        position.minScrollExtent,
-        position.maxScrollExtent,
-      );
-      position.jumpTo(next);
-      await tester.pumpAndSettle();
-      exposed = featuresHeading.evaluate().isNotEmpty;
-    }
-
-    expect(
-      exposed,
-      isTrue,
-      reason: 'Product features group must be reachable on a narrow iPhone.',
-    );
-    expect(featuresHeading, findsOneWidget);
+    expect(find.byKey(const Key('research-screen-list')), findsOneWidget);
+    await tester.tap(find.text('Функции продукта').last);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('research-feature-list')), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('manual save dialog scrolls without narrow-screen overflow', (
